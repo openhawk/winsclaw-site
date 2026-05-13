@@ -191,6 +191,9 @@
             <div id=LeftMenuMyServer tabindex=0 class="lbbutton" style="display:none" title="My Server" onmouseup=go(6,event) onkeypress="if (event.key=='Enter') { go(6); }">
                 <div class="lbtg lb6"></div>
             </div>
+            <div id=LeftMenuShopManager tabindex=0 class="lbbutton" style="display:none" title="店铺管理" onmouseup=go(100,event) onkeypress="if (event.key=='Enter') { go(100); }">
+                <div class="lbtg lb7"></div>
+            </div>
         </div>
         <div id=topbar class=noselect>
             <div>
@@ -225,6 +228,7 @@
                             <td tabindex=0 id=MainMenuMyFiles class="topbar_td style3x" onmouseup=go(5,event) onkeypress="if (event.key == 'Enter') go(5)">My Files</td>
                             <td tabindex=0 id=MainMenuMyUsers class="topbar_td style3x" onmouseup=go(4,event) onkeypress="if (event.key == 'Enter') go(4)">My Users</td>
                             <td tabindex=0 id=MainMenuMyServer class="topbar_td style3x" onmouseup=go(6,event) onkeypress="if (event.key == 'Enter') go(6)">My Server</td>
+                            <td tabindex=0 id=MainMenuShopManager class="topbar_td style3x" style="display:none" onmouseup=go(100,event) onkeypress="if (event.key == 'Enter') go(100)">店铺管理</td>
                             <td class="topbar_td_end style3">&nbsp;</td>
                         </tr>
                     </table>
@@ -1335,6 +1339,81 @@
                 </table>
                 <div id=p60report style="overflow-y:auto"></div>
             </div>
+            <div id=p100 style="display:none">
+                <div class="shop-page-shell">
+                    <div class="shop-page-top">
+                        <div>
+                            <h1 class="shop-page-title">店铺管理</h1>
+                            <div class="shop-page-subtitle">基于美团 H5 风格整理的鲜花店管理视图，支持搜索、分页与基础维护。</div>
+                        </div>
+                        <div class="shop-toolbar-actions">
+                            <button type="button" class="shop-btn shop-btn-primary" onclick="shopOpenEditor()">新增店铺</button>
+                        </div>
+                    </div>
+                    <div class="shop-toolbar">
+                        <div class="shop-search">
+                            <input id="shopSearchInput" type="search" placeholder="搜索店铺名称" autocomplete="off" oninput="shopHandleSearchInput()" />
+                        </div>
+                        <div class="shop-toolbar-meta" id="shopToolbarMeta">共 0 家店铺</div>
+                    </div>
+                    <div id="shopLoadingState" class="shop-state shop-state-loading" style="display:none">正在加载店铺数据...</div>
+                    <div id="shopEmptyState" class="shop-state shop-empty" style="display:none">
+                        <div class="shop-empty-title">暂无店铺</div>
+                        <div class="shop-empty-text">点击右上角“新增店铺”，开始维护第一家鲜花店。</div>
+                    </div>
+                    <div id="shopCardList" class="shop-card-grid"></div>
+                    <div id="shopPagination" class="shop-pagination" style="display:none"></div>
+                </div>
+                <div id="shopToast" class="shop-toast" style="display:none"></div>
+                <div id="shopModalMask" class="shop-modal-mask" style="display:none" onclick="shopCloseEditor(event)">
+                    <div class="shop-modal" onclick="event.stopPropagation()">
+                        <div class="shop-modal-header">
+                            <div>
+                                <div id="shopModalTitle" class="shop-modal-title">新增店铺</div>
+                                <div class="shop-modal-subtitle">封面图当前统一使用系统内置图片。</div>
+                            </div>
+                            <button type="button" class="shop-modal-close" onclick="shopCloseEditor()">×</button>
+                        </div>
+                        <div class="shop-modal-body">
+                            <input id="shopFormId" type="hidden" />
+                            <div class="shop-form-grid">
+                                <label class="shop-field">
+                                    <span>店铺名称 <b>*</b></span>
+                                    <input id="shopFormName" type="text" maxlength="256" placeholder="例如：花意时光鲜花店" />
+                                </label>
+                                <label class="shop-field">
+                                    <span>联系电话 <b>*</b></span>
+                                    <input id="shopFormPhone" type="text" maxlength="64" placeholder="例如：13800000000" />
+                                </label>
+                                <label class="shop-field">
+                                    <span>所在城市/区域</span>
+                                    <input id="shopFormCityRegion" type="text" maxlength="128" placeholder="例如：江苏省苏州市姑苏区" />
+                                </label>
+                                <label class="shop-field">
+                                    <span>主营分类</span>
+                                    <input id="shopFormCategory" type="text" maxlength="128" placeholder="例如：浪漫鲜花" />
+                                </label>
+                                <label class="shop-field">
+                                    <span>营业时间</span>
+                                    <input id="shopFormBusinessHours" type="text" maxlength="128" placeholder="例如：09:00-21:00" />
+                                </label>
+                                <label class="shop-field shop-field-disabled">
+                                    <span>封面图</span>
+                                    <input type="text" value="系统统一封面图（images/mainwelcome.jpg）" disabled="disabled" />
+                                </label>
+                                <label class="shop-field shop-field-full">
+                                    <span>详细地址</span>
+                                    <textarea id="shopFormAddress" rows="3" maxlength="512" placeholder="例如：平江路 XX 号 1 层"></textarea>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="shop-modal-footer">
+                            <button type="button" class="shop-btn" onclick="shopCloseEditor()">取消</button>
+                            <button type="button" id="shopSubmitButton" class="shop-btn shop-btn-primary" onclick="shopSubmitEditor()">保存</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
             <br id="column_l_bottomgap" />
         </div>
         <div id="footer">
@@ -2317,6 +2396,8 @@
             QV('p2ServerActionsConfig', (siteRights & 16) && ((serverFeatures & 128) != 0));
             QV('MainMenuMyFiles', siteRights & 8);
             QV('LeftMenuMyFiles', siteRights & 8);
+            QV('MainMenuShopManager', true);
+            QV('LeftMenuShopManager', true);
             if (((siteRights & 8) == 0) && (xxcurrentView == 5)) { setDialogMode(0); go(1); }
             if (currentNode != null) { gotoDevice(currentNode._id, xxcurrentView, true); }
 
@@ -2380,6 +2461,227 @@
                     gotoStartViewPage();
                 }, 150);
             }
+        }
+
+        var shopState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null };
+
+        function shopEnterPage() {
+            if (Q('p100') == null) return;
+            QC('p100').remove('shop-page-active');
+            void Q('p100').offsetWidth;
+            QC('p100').add('shop-page-active');
+            if (Q('shopSearchInput') != null) { Q('shopSearchInput').value = shopState.search; }
+            if (shopState.loaded !== true) { shopRefreshList(1); } else { shopRender(); }
+        }
+
+        function shopHandleSearchInput() {
+            if (shopState.searchTimer != null) { clearTimeout(shopState.searchTimer); }
+            shopState.searchTimer = setTimeout(function () {
+                shopState.search = Q('shopSearchInput').value.trim();
+                shopRefreshList(1);
+            }, 260);
+        }
+
+        function shopRefreshList(page) {
+            if (typeof page == 'number') { shopState.page = page; }
+            shopState.loaded = true;
+            shopState.loading = true;
+            QV('shopLoadingState', true);
+            QV('shopEmptyState', false);
+            QH('shopCardList', '');
+            meshserver.send({ action: 'shoplist', search: shopState.search, page: shopState.page, limit: shopState.limit });
+        }
+
+        function shopHandleListResponse(message) {
+            shopState.loading = false;
+            QV('shopLoadingState', false);
+            if (message.result != null) {
+                shopState.items = [];
+                shopState.total = 0;
+                shopShowToast(message.result, true);
+            } else {
+                shopState.items = Array.isArray(message.shops) ? message.shops : [];
+                shopState.total = (typeof message.total == 'number') ? message.total : 0;
+                if (typeof message.page == 'number') { shopState.page = message.page; }
+                if ((shopState.items.length === 0) && (shopState.total > 0) && (shopState.page > 1)) {
+                    shopRefreshList(Math.max(1, Math.ceil(shopState.total / shopState.limit)));
+                    return;
+                }
+            }
+            shopRender();
+        }
+
+        function shopHandleMutationResponse(kind, message) {
+            shopState.pendingAction = null;
+            shopSetSubmitBusy(false);
+            if (message.success !== true) {
+                shopShowToast(message.result || '操作失败。', true);
+                return;
+            }
+            if (kind !== 'delete') { shopCloseEditor(); }
+            if (kind === 'create') { shopState.page = 1; }
+            shopShowToast(kind === 'create' ? '店铺新增成功。' : (kind === 'update' ? '店铺保存成功。' : '店铺删除成功。'), false);
+            shopRefreshList(shopState.page);
+        }
+
+        function shopRender() {
+            if (Q('shopToolbarMeta') != null) { QH('shopToolbarMeta', '共 ' + shopState.total + ' 家店铺'); }
+            var list = shopState.items || [];
+            if (list.length === 0) {
+                QH('shopCardList', '');
+                QV('shopEmptyState', !shopState.loading);
+                QV('shopPagination', false);
+                return;
+            }
+            QV('shopEmptyState', false);
+            var x = '';
+            for (var i = 0; i < list.length; i++) {
+                var shop = list[i];
+                var cityRegion = shopExtractCityRegion(shop.address);
+                var businessHours = shopGetBusinessHours(shop);
+                var phone = (shop.phone && shop.phone !== '') ? EscapeHtml(shop.phone) : '暂未填写';
+                var rating = (shop.rating_text && shop.rating_text !== '') ? EscapeHtml(shop.rating_text) : '暂无评分';
+                var sales = (shop.monthly_sales_text && shop.monthly_sales_text !== '') ? EscapeHtml(shop.monthly_sales_text) : '新收录店铺';
+                var cover = 'images/mainwelcome.jpg';
+                x += '<article class="shop-card" onclick="shopOpenEditorById(\'' + EscapeHtml(String(shop.id)) + '\')">';
+                x += '<div class="shop-card-cover"><img src="' + cover + '" alt="' + EscapeHtml(shop.name) + '"></div>';
+                x += '<div class="shop-card-body">';
+                x += '<div class="shop-card-head"><div><h3>' + EscapeHtml(shop.name) + '</h3><div class="shop-card-category">' + EscapeHtml(shop.category || '浪漫鲜花') + '</div></div>';
+                x += '<div class="shop-card-badges"><span>' + rating + '</span><span>' + sales + '</span></div></div>';
+                x += '<div class="shop-card-meta"><span>区域</span><strong>' + EscapeHtml(cityRegion || '待补充') + '</strong></div>';
+                x += '<div class="shop-card-meta"><span>电话</span><strong>' + phone + '</strong></div>';
+                x += '<div class="shop-card-meta"><span>营业时间</span><strong>' + EscapeHtml(businessHours) + '</strong></div>';
+                x += '<div class="shop-card-meta"><span>详细地址</span><strong>' + EscapeHtml(shop.address || '未填写地址') + '</strong></div>';
+                x += '<div class="shop-card-footer"><div class="shop-card-hints"><span>' + EscapeHtml(shop.min_price_tip || '起送 ¥0') + '</span><span>' + EscapeHtml(shop.delivery_fee_tip || '配送 约¥0') + '</span></div>';
+                x += '<div class="shop-card-actions">';
+                x += '<button type="button" class="shop-btn" onclick="event.stopPropagation();shopOpenEditorById(\'' + EscapeHtml(String(shop.id)) + '\')">编辑</button>';
+                x += '<button type="button" class="shop-btn shop-btn-danger" onclick="event.stopPropagation();shopConfirmDelete(\'' + EscapeHtml(String(shop.id)) + '\')">删除</button>';
+                x += '</div></div></div></article>';
+            }
+            QH('shopCardList', x);
+            shopRenderPagination();
+        }
+
+        function shopRenderPagination() {
+            var totalPages = Math.max(1, Math.ceil(shopState.total / shopState.limit));
+            if ((shopState.total <= shopState.limit) || (totalPages <= 1)) {
+                QV('shopPagination', false);
+                QH('shopPagination', '');
+                return;
+            }
+            var current = shopState.page;
+            var x = '';
+            x += '<button type="button" class="shop-page-btn" ' + (current <= 1 ? 'disabled="disabled"' : 'onclick="shopRefreshList(1)"') + '>首页</button>';
+            x += '<button type="button" class="shop-page-btn" ' + (current <= 1 ? 'disabled="disabled"' : 'onclick="shopRefreshList(' + (current - 1) + ')"') + '>上一页</button>';
+            x += '<span class="shop-page-indicator">第 ' + current + ' / ' + totalPages + ' 页</span>';
+            x += '<button type="button" class="shop-page-btn" ' + (current >= totalPages ? 'disabled="disabled"' : 'onclick="shopRefreshList(' + (current + 1) + ')"') + '>下一页</button>';
+            x += '<button type="button" class="shop-page-btn" ' + (current >= totalPages ? 'disabled="disabled"' : 'onclick="shopRefreshList(' + totalPages + ')"') + '>末页</button>';
+            QH('shopPagination', x);
+            QV('shopPagination', true);
+        }
+
+        function shopGetBusinessHours(shop) {
+            if (shop == null) return '待补充';
+            if (shop.review_highlight && shop.review_highlight !== '') return shop.review_highlight;
+            if (shop.delivery_time_tip && shop.delivery_time_tip !== '') return shop.delivery_time_tip;
+            return '待补充';
+        }
+
+        function shopExtractCityRegion(address) {
+            if (typeof address !== 'string') return '';
+            address = address.trim();
+            if (address === '') return '';
+            var match = address.match(/^(.+?(?:省|市|自治区|特别行政区))?(.+?(?:市|州|盟))?(.+?(?:区|县|旗|镇|乡|街道|新区|开发区))/);
+            var parts = [];
+            if (match) {
+                if (match[2]) { parts.push(match[2]); }
+                if (match[3]) { parts.push(match[3]); }
+                if (parts.length > 0) return parts.join('');
+            }
+            var splitIndex = address.indexOf(' ');
+            if (splitIndex > 0) return address.substring(0, splitIndex);
+            return address.length > 18 ? (address.substring(0, 18) + '...') : address;
+        }
+
+        function shopSplitAddress(address) {
+            address = (typeof address === 'string') ? address.trim() : '';
+            if (address === '') return { cityRegion: '', address: '' };
+            var splitIndex = address.indexOf(' ');
+            if (splitIndex > 0) {
+                return { cityRegion: address.substring(0, splitIndex).trim(), address: address.substring(splitIndex + 1).trim() };
+            }
+            var match = address.match(/^((?:.+?(?:省|市|自治区|特别行政区))?(?:.+?(?:市|州|盟))?(?:.+?(?:区|县|旗|镇|乡|街道|新区|开发区)))(.*)$/);
+            if (match) {
+                return { cityRegion: shopExtractCityRegion(match[1]), address: match[2].trim() };
+            }
+            return { cityRegion: '', address: address };
+        }
+
+        function shopOpenEditorById(id) {
+            for (var i = 0; i < shopState.items.length; i++) {
+                if (String(shopState.items[i].id) === String(id)) { shopOpenEditor(shopState.items[i]); return; }
+            }
+        }
+
+        function shopOpenEditor(shop) {
+            var parts = shopSplitAddress(shop ? shop.address : '');
+            Q('shopFormId').value = shop ? shop.id : '';
+            Q('shopFormName').value = shop ? (shop.name || '') : '';
+            Q('shopFormPhone').value = shop ? (shop.phone || '') : '';
+            Q('shopFormCityRegion').value = parts.cityRegion || '';
+            Q('shopFormAddress').value = parts.address || '';
+            Q('shopFormCategory').value = shop ? (shop.category || '') : '';
+            Q('shopFormBusinessHours').value = shop ? (shop.review_highlight || '') : '';
+            QH('shopModalTitle', shop ? '编辑店铺' : '新增店铺');
+            shopSetSubmitBusy(false);
+            QV('shopModalMask', true);
+        }
+
+        function shopCloseEditor(event) {
+            if (event && event.target && event.target.id !== 'shopModalMask') return;
+            QV('shopModalMask', false);
+        }
+
+        function shopSetSubmitBusy(busy) {
+            QE('shopSubmitButton', !busy);
+            Q('shopSubmitButton').value = Q('shopSubmitButton').innerText = busy ? '保存中...' : '保存';
+        }
+
+        function shopSubmitEditor() {
+            var payload = {
+                id: Q('shopFormId').value,
+                name: Q('shopFormName').value.trim(),
+                phone: Q('shopFormPhone').value.trim(),
+                cityRegion: Q('shopFormCityRegion').value.trim(),
+                address: Q('shopFormAddress').value.trim(),
+                category: Q('shopFormCategory').value.trim(),
+                businessHours: Q('shopFormBusinessHours').value.trim()
+            };
+            if (payload.name === '') { shopShowToast('店铺名称不能为空。', true); return; }
+            if (payload.phone === '') { shopShowToast('联系电话不能为空。', true); return; }
+            shopSetSubmitBusy(true);
+            shopState.pendingAction = (payload.id !== '') ? 'shopupdate' : 'shopcreate';
+            meshserver.send({ action: shopState.pendingAction, id: payload.id, name: payload.name, phone: payload.phone, cityRegion: payload.cityRegion, address: payload.address, category: payload.category, businessHours: payload.businessHours });
+        }
+
+        function shopConfirmDelete(id) {
+            var shopName = '该店铺';
+            for (var i = 0; i < shopState.items.length; i++) {
+                if (String(shopState.items[i].id) === String(id)) { shopName = shopState.items[i].name; break; }
+            }
+            setDialogMode(2, '删除店铺', 3, function (button, tag) {
+                if (button !== 1) return;
+                meshserver.send({ action: 'shopdelete', id: tag });
+            }, '确认删除店铺“' + EscapeHtml(shopName) + '”吗？删除后将立即刷新列表。', id);
+        }
+
+        function shopShowToast(text, isError) {
+            if (Q('shopToast') == null) return;
+            if (shopState.toastTimer != null) { clearTimeout(shopState.toastTimer); }
+            QH('shopToast', EscapeHtml(text));
+            Q('shopToast').className = 'shop-toast' + (isError ? ' shop-toast-error' : ' shop-toast-success');
+            QV('shopToast', true);
+            shopState.toastTimer = setTimeout(function () { QV('shopToast', false); }, 2600);
         }
 
         // Return the number of 2nd factor for this account
@@ -3020,6 +3322,22 @@
                     p52recordings = message.events;
                     if (message.error != null) { p52recordings = message.error; }
                     updateRecordings();
+                    break;
+                }
+                case 'shoplist': {
+                    shopHandleListResponse(message);
+                    break;
+                }
+                case 'shopcreate': {
+                    shopHandleMutationResponse('create', message);
+                    break;
+                }
+                case 'shopupdate': {
+                    shopHandleMutationResponse('update', message);
+                    break;
+                }
+                case 'shopdelete': {
+                    shopHandleMutationResponse('delete', message);
                     break;
                 }
                 case 'getcookie': {
@@ -19032,7 +19350,7 @@
             if (xxcurrentView == 17) deviceDetailsStatsClear();
 
             // Edit this line when adding a new screen
-            for (var i = 0; i < 61; i++) { QV('p' + i, i == x); }
+            for (var i = 0; i < 101; i++) { QV('p' + i, i == x); }
             xxcurrentView = x;
 
             // Get out of fullscreen if needed
@@ -19055,14 +19373,14 @@
             }
 
             // Remove top bar selection
-            var mainBarItems = ['MainMenuMyDevices', 'MainMenuMyAccount', 'MainMenuMyEvents', 'MainMenuMyFiles', 'MainMenuMyUsers', 'MainMenuMyServer'];
+            var mainBarItems = ['MainMenuMyDevices', 'MainMenuMyAccount', 'MainMenuMyEvents', 'MainMenuMyFiles', 'MainMenuMyUsers', 'MainMenuMyServer', 'MainMenuShopManager'];
             for (var i in mainBarItems) {
                 QC(mainBarItems[i]).remove('fullselect');
                 QC(mainBarItems[i]).remove('semiselect');
             }
 
             // Remove left bar selection
-            var leftBarItems = ['LeftMenuMyDevices', 'LeftMenuMyAccount', 'LeftMenuMyEvents', 'LeftMenuMyFiles', 'LeftMenuMyUsers', 'LeftMenuMyServer'];
+            var leftBarItems = ['LeftMenuMyDevices', 'LeftMenuMyAccount', 'LeftMenuMyEvents', 'LeftMenuMyFiles', 'LeftMenuMyUsers', 'LeftMenuMyServer', 'LeftMenuShopManager'];
             for (var i in leftBarItems) {
                 QC(leftBarItems[i]).remove('lbbuttonsel');
                 QC(leftBarItems[i]).remove('lbbuttonsel2');
@@ -19099,6 +19417,10 @@
                 // My Server
                 QC('MainMenuMyServer').add(mainMenuActiveClass);
                 QC('LeftMenuMyServer').add(leftMenuActiveClass);
+            } else if (x == 100) {
+                // Shop Manager
+                QC('MainMenuShopManager').add(mainMenuActiveClass);
+                QC('LeftMenuShopManager').add(leftMenuActiveClass);
             }
             QV('ServerPlugins', pluginHandler != null);
 
@@ -19110,7 +19432,7 @@
             if ((x == 0) && (webPageFullScreen)) { QC('body').add('arg_hide'); }
 
             QV('MainSubMenuSpan', (x >= 10) && (x < 20));
-            QV('UserDummyMenuSpan', (x == 51) || ((x < 10) && (x != 6) && webPageFullScreen));
+            QV('UserDummyMenuSpan', (x == 51) || (x == 100) || ((x < 10) && (x != 6) && webPageFullScreen));
             QV('MeshSubMenuSpan', (x >= 20) && (x < 30));
             QV('UserSubMenuSpan', (x >= 30) && (x < 40));
             QV('ServerSubMenuSpan', x == 6 || x == 115 || x == 40 || x == 41 || x == 42 || x == 43);
@@ -19148,6 +19470,9 @@
 
             // Update Recordings
             if (x == 52) { if (p52recordings == null) { refreshRecodings(); } updateRecordings(); }
+
+            // Enter shop manager
+            if (x == 100) { shopEnterPage(); }
 
             // Update terminal size
             if ((x == 12) && (xtermfit != null)) { xtermfit.fit(); xterm.focus(); }

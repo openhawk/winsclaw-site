@@ -3243,6 +3243,98 @@ module.exports.CreateDB = function (parent, func) {
             }
         }
 
+        // Shop manager operations. This feature currently targets the PostgreSQL
+        // table "meituan_h5_shops" configured for this deployment.
+        obj.GetShopList = function (search, page, limit, func) {
+            if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Shop manager requires PostgreSQL.')); return; }
+            if (typeof search != 'string') { search = ''; }
+            if (typeof page != 'number' || page < 1) { page = 1; }
+            if (typeof limit != 'number' || limit < 1) { limit = 10; }
+            const args = [], where = [];
+            search = search.trim();
+            if (search != '') { args.push('%' + search + '%'); where.push('name ILIKE $' + args.length); }
+            const whereSql = (where.length > 0) ? (' WHERE ' + where.join(' AND ')) : '';
+            Datastore.query('SELECT COUNT(*) AS count FROM meituan_h5_shops' + whereSql, args, function (err, countResults) {
+                if (err != null) { func(err); return; }
+                const total = parseInt(countResults.rows[0].count);
+                const listArgs = args.slice(0);
+                listArgs.push(limit);
+                listArgs.push((page - 1) * limit);
+                Datastore.query('SELECT * FROM meituan_h5_shops' + whereSql + ' ORDER BY updated_at DESC NULLS LAST, id DESC LIMIT $' + (args.length + 1) + ' OFFSET $' + (args.length + 2), listArgs, function (listErr, listResults) {
+                    if (listErr != null) { func(listErr); return; }
+                    func(null, { total: total, shops: listResults.rows });
+                });
+            });
+        };
+
+        obj.CreateShop = function (shop, func) {
+            if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Shop manager requires PostgreSQL.')); return; }
+            const now = new Date();
+            Datastore.query('SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM meituan_h5_shops', [], function (err, idResults) {
+                if (err != null) { func(err); return; }
+                const nextId = idResults.rows[0].next_id;
+                const values = [
+                    nextId,
+                    shop.name,
+                    '',
+                    '',
+                    '',
+                    shop.category || '浪漫鲜花',
+                    '',
+                    0,
+                    '',
+                    '',
+                    '起送 ¥0',
+                    '配送 约¥0',
+                    '',
+                    shop.businessHours || '',
+                    '[]',
+                    '[]',
+                    shop.phone,
+                    shop.address || '',
+                    true,
+                    now,
+                    now,
+                    now,
+                    'manual',
+                    now,
+                    now,
+                    1,
+                    ''
+                ];
+                Datastore.query(
+                    'INSERT INTO meituan_h5_shops (id, name, scheme, poi_id_str, source_page_url, category, distance_text, distance_km, rating_text, monthly_sales_text, min_price_tip, delivery_fee_tip, delivery_time_tip, review_highlight, promo_tags_json, platform_tags_json, phone, address, detail_fetched, detail_fetched_at, created_at, updated_at, detail_status, detail_started_at, detail_last_attempt_at, detail_attempt_count, detail_error_message) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb, $16::jsonb, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27) RETURNING *',
+                    values,
+                    function (insertErr, insertResults) {
+                        if (insertErr != null) { func(insertErr); return; }
+                        func(null, insertResults.rows[0]);
+                    }
+                );
+            });
+        };
+
+        obj.UpdateShop = function (shopId, shop, func) {
+            if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Shop manager requires PostgreSQL.')); return; }
+            Datastore.query(
+                'UPDATE meituan_h5_shops SET name = $2, category = $3, phone = $4, address = $5, review_highlight = $6, updated_at = $7, detail_fetched = $8, detail_fetched_at = $9 WHERE id = $1 RETURNING *',
+                [shopId, shop.name, shop.category || '浪漫鲜花', shop.phone, shop.address || '', shop.businessHours || '', new Date(), true, new Date()],
+                function (err, results) {
+                    if (err != null) { func(err); return; }
+                    if ((results.rows == null) || (results.rows.length === 0)) { func(new Error('Shop not found.')); return; }
+                    func(null, results.rows[0]);
+                }
+            );
+        };
+
+        obj.DeleteShop = function (shopId, func) {
+            if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Shop manager requires PostgreSQL.')); return; }
+            Datastore.query('DELETE FROM meituan_h5_shops WHERE id = $1 RETURNING id', [shopId], function (err, results) {
+                if (err != null) { func(err); return; }
+                if ((results.rows == null) || (results.rows.length === 0)) { func(new Error('Shop not found.')); return; }
+                func(null, results.rows[0].id);
+            });
+        };
+
         // Get all configuration files
         obj.getAllConfigFiles = function (password, func) {
             obj.GetAllType('cfile', function (err, docs) {

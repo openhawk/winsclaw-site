@@ -5725,6 +5725,10 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         'serverconsole': serverCommandServerConsole,
         'servererrors': serverCommandServerErrors,
         'serverconfig': serverCommandServerConfig,
+        'shopcreate': serverCommandShopCreate,
+        'shopdelete': serverCommandShopDelete,
+        'shoplist': serverCommandShopList,
+        'shopupdate': serverCommandShopUpdate,
         'serverstats': serverCommandServerStats,
         'servertimelinestats': serverCommandServerTimelineStats,
         'serverupdate': serverCommandServerUpdate,
@@ -7211,6 +7215,85 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         const messagingCookie = parent.parent.encodeCookie({ a: 'verifyMessaging', c: code, p: handle, s: ws.sessionId });
         parent.parent.msgserver.sendMessagingCheck(domain, handle, code, parent.getLanguageCodes(req), function (success) {
             ws.send(JSON.stringify({ action: 'verifyMessaging', cookie: messagingCookie, success: success }));
+        });
+    }
+
+    function getShopTextField(value, maxLen) {
+        if (typeof value !== 'string') return null;
+        value = value.trim();
+        if (value.length > maxLen) return null;
+        return value;
+    }
+
+    function composeShopAddress(cityRegion, address) {
+        cityRegion = (typeof cityRegion == 'string') ? cityRegion.trim() : '';
+        address = (typeof address == 'string') ? address.trim() : '';
+        if (cityRegion == '') return address;
+        if (address == '') return cityRegion;
+        if (address.indexOf(cityRegion) === 0) return address;
+        return cityRegion + ' ' + address;
+    }
+
+    function serverCommandShopList(command) {
+        var search = '';
+        var page = 1;
+        var limit = 10;
+        if (typeof command.search == 'string') {
+            search = command.search.trim();
+            if (search.length > 128) { obj.send({ action: 'shoplist', result: 'Invalid search.' }); return; }
+        }
+        if (common.validateInt(command.page, 1, 100000) == true) { page = command.page; }
+        if (common.validateInt(command.limit, 1, 50) == true) { limit = command.limit; }
+        db.GetShopList(search, page, limit, function (err, result) {
+            if (err != null) { obj.send({ action: 'shoplist', result: err.message ? err.message : 'Unable to load shops.' }); return; }
+            obj.send({ action: 'shoplist', search: search, page: page, limit: limit, total: result.total, shops: result.shops });
+        });
+    }
+
+    function serverCommandShopCreate(command) {
+        var name = getShopTextField(command.name, 256);
+        var phone = getShopTextField(command.phone, 64);
+        var cityRegion = getShopTextField(command.cityRegion || '', 128);
+        var address = getShopTextField(command.address || '', 512);
+        var category = getShopTextField(command.category || '', 128);
+        var businessHours = getShopTextField(command.businessHours || '', 128);
+        if ((name == null) || (name.length == 0)) { obj.send({ action: 'shopcreate', result: '店铺名称不能为空。' }); return; }
+        if ((phone == null) || (phone.length == 0)) { obj.send({ action: 'shopcreate', result: '联系电话不能为空。' }); return; }
+        if ((cityRegion == null) || (address == null) || (category == null) || (businessHours == null)) { obj.send({ action: 'shopcreate', result: '表单内容无效。' }); return; }
+        db.CreateShop({ name: name, phone: phone, category: category, address: composeShopAddress(cityRegion, address), businessHours: businessHours }, function (err, shop) {
+            if (err != null) { obj.send({ action: 'shopcreate', result: err.message ? err.message : '新增失败。' }); return; }
+            obj.send({ action: 'shopcreate', success: true, shop: shop });
+        });
+    }
+
+    function serverCommandShopUpdate(command) {
+        var shopId = null;
+        if ((typeof command.id == 'number') && (command.id >= 0)) { shopId = command.id; }
+        if ((shopId == null) && (typeof command.id == 'string') && (/^[0-9]+$/.test(command.id))) { shopId = command.id; }
+        var name = getShopTextField(command.name, 256);
+        var phone = getShopTextField(command.phone, 64);
+        var cityRegion = getShopTextField(command.cityRegion || '', 128);
+        var address = getShopTextField(command.address || '', 512);
+        var category = getShopTextField(command.category || '', 128);
+        var businessHours = getShopTextField(command.businessHours || '', 128);
+        if (shopId == null) { obj.send({ action: 'shopupdate', result: '无效的店铺编号。' }); return; }
+        if ((name == null) || (name.length == 0)) { obj.send({ action: 'shopupdate', result: '店铺名称不能为空。' }); return; }
+        if ((phone == null) || (phone.length == 0)) { obj.send({ action: 'shopupdate', result: '联系电话不能为空。' }); return; }
+        if ((cityRegion == null) || (address == null) || (category == null) || (businessHours == null)) { obj.send({ action: 'shopupdate', result: '表单内容无效。' }); return; }
+        db.UpdateShop(shopId, { name: name, phone: phone, category: category, address: composeShopAddress(cityRegion, address), businessHours: businessHours }, function (err, shop) {
+            if (err != null) { obj.send({ action: 'shopupdate', result: err.message ? err.message : '保存失败。' }); return; }
+            obj.send({ action: 'shopupdate', success: true, shop: shop });
+        });
+    }
+
+    function serverCommandShopDelete(command) {
+        var shopId = null;
+        if ((typeof command.id == 'number') && (command.id >= 0)) { shopId = command.id; }
+        if ((shopId == null) && (typeof command.id == 'string') && (/^[0-9]+$/.test(command.id))) { shopId = command.id; }
+        if (shopId == null) { obj.send({ action: 'shopdelete', result: '无效的店铺编号。' }); return; }
+        db.DeleteShop(shopId, function (err, deletedId) {
+            if (err != null) { obj.send({ action: 'shopdelete', result: err.message ? err.message : '删除失败。' }); return; }
+            obj.send({ action: 'shopdelete', success: true, id: deletedId });
         });
     }
 
