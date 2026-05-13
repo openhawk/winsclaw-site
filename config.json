@@ -1,0 +1,20 @@
+{
+  settings: {
+    cert: ,
+    WANonly: true,
+    sessionKey: MeshCentral2088Secret!,
+    port: 443,
+    redirPort: 80
+  },
+  db: {
+    provider: postgresql,
+    url: postgresql://postgres:AIops%402088%21@8.146.227.51:15432/meshcentral
+  },
+  domains: {
+    : {
+      title: MeshCentral Server,
+      minify: true,
+      newAccounts: true
+    }
+  }
+}
