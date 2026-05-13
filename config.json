@@ -8,11 +8,11 @@
   },
   "db": {
     "provider": "postgresql",
-    "url": "postgresql://postgres:AIops%402088%21@8.146.227.51:15432/meshcentral"
+    "url": "postgresql://postgres:AIops%402088%21@8.146.227.51:15432/postgres"
   },
   "domains": {
     "": {
-      "title": "赢客鲜花",
+      "title": "赢客智能运营",
       "minify": true,
       "newAccounts": true
     }
