@@ -313,3 +313,13 @@ __pycache__/
 docs/__pycache__/
 docs/env/
 docker-compose.yaml
+# MeshCentral Certificates and Keys
+letsencrypt-certs/
+*.key
+*.crt
+*-old
+
+# Configuration backups and temporary files
+config.json.bak*
+config.json.tmp
+serverstate.txt
