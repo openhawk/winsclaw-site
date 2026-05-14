@@ -3961,8 +3961,8 @@ module.exports.CreateWebServer = function (parent, db, args, certificates, doneF
         if (domain == null) { parent.debug('web', 'handleManifestRequest: no domain'); res.sendStatus(404); return; }
         parent.debug('web', 'handleManifestRequest()');
         var manifest = {
-            "name": (domain.title != null) ? domain.title : 'MeshCentral',
-            "short_name": (domain.title != null) ? domain.title : 'MeshCentral',
+            "name": (domain.title != null) ? domain.title : '智能运维',
+            "short_name": (domain.title != null) ? domain.title : '智能运维',
             "description": "Open source web based, remote computer management.",
             "scope": ".",
             "start_url": "/",
@@ -5750,7 +5750,7 @@ module.exports.CreateWebServer = function (parent, db, args, certificates, doneF
         try {
             const deviceCookie = parent.encodeCookie({ a: 'checkAuth', c: cookie.c, u: cookie.u, n: cookie.n, s: cookie.s });
             var code = Buffer.from(cookie.c, 'base64').toString();
-            var payload = { notification: { title: (domain.title ? domain.title : 'MeshCentral'), body: "Authentication - " + code }, data: { url: '2fa://auth?code=' + cookie.c + '&c=' + deviceCookie } };
+            var payload = { notification: { title: (domain.title ? domain.title : '智能运维'), body: "Authentication - " + code }, data: { url: '2fa://auth?code=' + cookie.c + '&c=' + deviceCookie } };
             var options = { priority: 'High', timeToLive: 60 }; // TTL: 1 minute
             parent.firebase.sendToDevice(user.otpdev, payload, options, function (id, err, errdesc) {
                 if (err == null) {
@@ -5887,7 +5887,7 @@ module.exports.CreateWebServer = function (parent, db, args, certificates, doneF
         archive.on('error', function (err) { throw err; });
 
         // Set the archive name
-        res.attachment((domain.title ? domain.title : 'MeshCentral') + '-Backup-' + new Date().toLocaleDateString().replace('/', '-').replace('/', '-') + '.zip');
+        res.attachment((domain.title ? domain.title : '智能运维') + '-Backup-' + new Date().toLocaleDateString().replace('/', '-').replace('/', '-') + '.zip');
 
         // Pipe archive data to the file
         archive.pipe(res);
@@ -9974,13 +9974,13 @@ module.exports.CreateWebServer = function (parent, db, args, certificates, doneF
         if (req.query.minify == '1') { minify = true; } else if (req.query.minify == '0') { minify = false; }
         xargs.min = minify ? '-min' : '';
         xargs.titlehtml = domain.titlehtml;
-        xargs.title = (domain.title != null) ? domain.title : 'MeshCentral';
+        xargs.title = (domain.title != null) ? domain.title : '智能运维';
         if (
             ((page == 'login2') && (domain.loginpicture == null) && (domain.titlehtml == null)) ||
             ((page != 'login2') && (domain.titlepicture == null) && (domain.titlehtml == null))
         ) {
             if (domain.title == null) {
-                xargs.title1 = 'MeshCentral';
+                xargs.title1 = '智能运维';
                 xargs.title2 = '';
             } else {
                 xargs.title1 = domain.title;

@@ -182,6 +182,9 @@
             <div id=LeftMenuMyEvents tabindex=0 class="lbbutton" title="My Events" onmouseup=go(3,event) onkeypress="if (event.key=='Enter') { go(3); }">
                 <div class="lbtg lb3"></div>
             </div>
+            <div id=LeftMenuShopManager tabindex=0 class="lbbutton" title="店铺管理" onmouseup=go(100,event) onkeypress="if (event.key=='Enter') { go(100); }">
+                <div class="lbtg lb7"></div>
+            </div>
             <div id=LeftMenuMyFiles tabindex=0 class="lbbutton" style="display:none" title="My Files" onmouseup=go(5,event) onkeypress="if (event.key=='Enter') { go(5); }">
                 <div class="lbtg lb4"></div>
             </div>
@@ -190,9 +193,6 @@
             </div>
             <div id=LeftMenuMyServer tabindex=0 class="lbbutton" style="display:none" title="My Server" onmouseup=go(6,event) onkeypress="if (event.key=='Enter') { go(6); }">
                 <div class="lbtg lb6"></div>
-            </div>
-            <div id=LeftMenuShopManager tabindex=0 class="lbbutton" style="display:none" title="店铺管理" onmouseup=go(100,event) onkeypress="if (event.key=='Enter') { go(100); }">
-                <div class="lbtg lb7"></div>
             </div>
         </div>
         <div id=topbar class=noselect>
@@ -228,7 +228,7 @@
                             <td tabindex=0 id=MainMenuMyFiles class="topbar_td style3x" onmouseup=go(5,event) onkeypress="if (event.key == 'Enter') go(5)">My Files</td>
                             <td tabindex=0 id=MainMenuMyUsers class="topbar_td style3x" onmouseup=go(4,event) onkeypress="if (event.key == 'Enter') go(4)">My Users</td>
                             <td tabindex=0 id=MainMenuMyServer class="topbar_td style3x" onmouseup=go(6,event) onkeypress="if (event.key == 'Enter') go(6)">My Server</td>
-                            <td tabindex=0 id=MainMenuShopManager class="topbar_td style3x" style="display:none" onmouseup=go(100,event) onkeypress="if (event.key == 'Enter') go(100)">店铺管理</td>
+                            <td tabindex=0 id=MainMenuShopManager class="topbar_td style3x" onmouseup=go(100,event) onkeypress="if (event.key == 'Enter') go(100)">店铺管理</td>
                             <td class="topbar_td_end style3">&nbsp;</td>
                         </tr>
                     </table>
@@ -2371,6 +2371,7 @@
 
         function updateSiteAdmin() {
             var serverFeatures = parseInt('{{{serverfeatures}}}');
+            if (userinfo == null) { return; }
             var siteRights = userinfo.siteadmin;
             var accountSettingsLocked = ((siteRights != 0xFFFFFFFF) && ((siteRights & 1024) != 0)) || ((features2 & 0x100) != 0); // Not admin and have account features locked, or using a loginToken
 
