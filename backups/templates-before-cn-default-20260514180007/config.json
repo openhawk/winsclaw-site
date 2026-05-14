@@ -1,0 +1,36 @@
+{
+  "$schema": "https://raw.githubusercontent.com/Ylianst/MeshCentral/master/meshcentral-config-schema.json",
+  "__comment1__": "Config for 智能运维",
+  "__comment2__": "PostgreSQL backend, Let's Encrypt SSL",
+  "settings": {
+    "cert": "www.winsclaw.com,winsclaw.com",
+    "WANonly": true,
+    "sessionKey": "MeshCentral2088Secret!",
+    "port": 443,
+    "redirPort": 80,
+    "postgres": {
+      "host": "8.146.227.51",
+      "port": 15432,
+      "user": "postgres",
+      "password": "AIops@2088!",
+      "database": "postgres",
+      "createdatabase": false
+    }
+  },
+  "domains": {
+    "": {
+      "title": "智能运维",
+      "minify": false,
+      "newAccounts": true,
+      "autocomplete": true,
+      "forceduserwebstate": {
+        "uiViewMode": "2"
+      }
+    }
+  },
+  "letsencrypt": {
+    "email": "ultralyndon@gmail.com",
+    "names": "www.winsclaw.com,winsclaw.com",
+    "production": true
+  }
+}
