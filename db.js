@@ -3335,6 +3335,60 @@ module.exports.CreateDB = function (parent, func) {
             });
         };
 
+        obj.GetProductList = function (search, page, limit, func) {
+            if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Product manager requires PostgreSQL.')); return; }
+            if (typeof search != 'string') { search = ''; }
+            if (typeof page != 'number' || page < 1) { page = 1; }
+            if (typeof limit != 'number' || limit < 1) { limit = 10; }
+            const args = [], where = [];
+            search = search.trim();
+            if (search != '') { args.push('%' + search + '%'); where.push('name ILIKE $' + args.length); }
+            const whereSql = (where.length > 0) ? (' WHERE ' + where.join(' AND ')) : '';
+            Datastore.query('SELECT COUNT(*) AS count FROM meituan_h5_products' + whereSql, args, function (err, countResults) {
+                if (err != null) { func(err); return; }
+                const total = parseInt(countResults.rows[0].count);
+                const listArgs = args.slice(0);
+                listArgs.push(limit);
+                listArgs.push((page - 1) * limit);
+                Datastore.query('SELECT * FROM meituan_h5_products' + whereSql + ' ORDER BY updated_at DESC NULLS LAST, id DESC LIMIT $' + (args.length + 1) + ' OFFSET $' + (args.length + 2), listArgs, function (listErr, listResults) {
+                    if (listErr != null) { func(listErr); return; }
+                    func(null, { total: total, products: listResults.rows });
+                });
+            });
+        };
+
+        obj.CreateProduct = function (product, func) {
+            if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Product manager requires PostgreSQL.')); return; }
+            const now = new Date();
+            Datastore.query('SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM meituan_h5_products', [], function (err, idResults) {
+                if (err != null) { func(err); return; }
+                const nextId = idResults.rows[0].next_id;
+                const values = [nextId, product.name, product.price, product.originalPrice, product.description, product.inventory, JSON.stringify(product.imagePaths), JSON.stringify(product.imageUrls), JSON.stringify(product.sku), JSON.stringify(product.skuList), JSON.stringify(product.categoryPath), JSON.stringify(product.storeCategoryPath), JSON.stringify(product.requiredAttributes), product.entryUrl, product.useExistingOptionsOnly, JSON.stringify(product.publishHistory || []), product.sourceUrl, now, now];
+                Datastore.query('INSERT INTO meituan_h5_products (id, name, price, original_price, description, inventory, image_paths_json, image_urls_json, sku_json, sku_list_json, category_path_json, store_category_path_json, required_attributes_json, entry_url, use_existing_options_only, publish_history_json, source_url, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9::jsonb, $10::jsonb, $11::jsonb, $12::jsonb, $13::jsonb, $14, $15, $16::jsonb, $17, $18, $19) RETURNING *', values, function (insertErr, insertResults) {
+                    if (insertErr != null) { func(insertErr); return; }
+                    func(null, insertResults.rows[0]);
+                });
+            });
+        };
+
+        obj.UpdateProduct = function (productId, product, func) {
+            if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Product manager requires PostgreSQL.')); return; }
+            Datastore.query('UPDATE meituan_h5_products SET name = $2, price = $3, original_price = $4, description = $5, inventory = $6, image_paths_json = $7::jsonb, image_urls_json = $8::jsonb, sku_json = $9::jsonb, sku_list_json = $10::jsonb, category_path_json = $11::jsonb, store_category_path_json = $12::jsonb, required_attributes_json = $13::jsonb, entry_url = $14, use_existing_options_only = $15, publish_history_json = $16::jsonb, source_url = $17, updated_at = $18 WHERE id = $1 RETURNING *', [productId, product.name, product.price, product.originalPrice, product.description, product.inventory, JSON.stringify(product.imagePaths), JSON.stringify(product.imageUrls), JSON.stringify(product.sku), JSON.stringify(product.skuList), JSON.stringify(product.categoryPath), JSON.stringify(product.storeCategoryPath), JSON.stringify(product.requiredAttributes), product.entryUrl, product.useExistingOptionsOnly, JSON.stringify(product.publishHistory || []), product.sourceUrl, new Date()], function (err, results) {
+                if (err != null) { func(err); return; }
+                if ((results.rows == null) || (results.rows.length === 0)) { func(new Error('Product not found.')); return; }
+                func(null, results.rows[0]);
+            });
+        };
+
+        obj.DeleteProduct = function (productId, func) {
+            if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Product manager requires PostgreSQL.')); return; }
+            Datastore.query('DELETE FROM meituan_h5_products WHERE id = $1 RETURNING id', [productId], function (err, results) {
+                if (err != null) { func(err); return; }
+                if ((results.rows == null) || (results.rows.length === 0)) { func(new Error('Product not found.')); return; }
+                func(null, results.rows[0].id);
+            });
+        };
+
         // Get all configuration files
         obj.getAllConfigFiles = function (password, func) {
             obj.GetAllType('cfile', function (err, docs) {

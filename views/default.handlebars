@@ -183,6 +183,9 @@
             <div id="LeftMenuShopManager" tabindex="0" class="lbbutton" title="店铺管理" onmouseup="go(100,event)" onkeypress="if (event.key=='Enter') { go(100); }">
                 <div class="lbtg lb7"></div>
             </div>
+            <div id="LeftMenuProductManager" tabindex="0" class="lbbutton" title="商品管理" onmouseup="go(101,event)" onkeypress="if (event.key=='Enter') { go(101); }">
+                <div class="lbtg lb8"></div>
+            </div>
             <div id="LeftMenuMyFiles" tabindex="0" class="lbbutton" style="display:none" title="我的文件" onmouseup="go(5,event)" onkeypress="if (event.key=='Enter') { go(5); }">
                 <div class="lbtg lb4"></div>
             </div>
@@ -227,6 +230,7 @@
                             <td tabindex="0" id="MainMenuMyUsers" class="topbar_td style3x" onmouseup="go(4,event)" onkeypress="if (event.key == 'Enter') go(4)">我的用户</td>
                             <td tabindex="0" id="MainMenuMyServer" class="topbar_td style3x" onmouseup="go(6,event)" onkeypress="if (event.key == 'Enter') go(6)">我的服务器</td>
                             <td tabindex="0" id="MainMenuShopManager" class="topbar_td style3x" onmouseup="go(100,event)" onkeypress="if (event.key == 'Enter') go(100)">店铺管理</td>
+                            <td tabindex="0" id="MainMenuProductManager" class="topbar_td style3x" onmouseup="go(101,event)" onkeypress="if (event.key == 'Enter') go(101)">商品管理</td>
                             <td class="topbar_td_end style3">&nbsp;</td>
                         </tr>
                     </tbody></table>
@@ -1412,6 +1416,78 @@
                     </div>
                 </div>
             </div>
+            <div id=p101 style="display:none">
+                <div class="product-page-shell">
+                    <div class="product-page-top">
+                        <div>
+                            <h1 class="product-page-title">商品管理</h1>
+                            <div class="product-page-subtitle">面向鲜花商品上架维护，支持搜索、分页、多规格与发布配置。</div>
+                        </div>
+                        <div class="product-toolbar-actions">
+                            <button type="button" class="product-btn product-btn-primary" onclick="productOpenEditor()">新增商品</button>
+                        </div>
+                    </div>
+                    <div class="product-toolbar">
+                        <div class="product-search">
+                            <input id="productSearchInput" type="search" placeholder="搜索商品名称" autocomplete="off" oninput="productHandleSearchInput()" />
+                        </div>
+                        <div class="product-toolbar-meta" id="productToolbarMeta">共 0 个商品</div>
+                    </div>
+                    <div id="productLoadingState" class="product-state product-state-loading" style="display:none">正在加载商品数据...</div>
+                    <div id="productEmptyState" class="product-state product-empty" style="display:none">
+                        <div class="product-empty-title">暂无商品</div>
+                        <div class="product-empty-text">点击右上角“新增商品”，开始维护第一件鲜花商品。</div>
+                    </div>
+                    <div id="productCardList" class="product-card-grid"></div>
+                    <div id="productPagination" class="product-pagination" style="display:none"></div>
+                </div>
+                <div id="productToast" class="product-toast" style="display:none"></div>
+                <div id="productModalMask" class="product-modal-mask" style="display:none" onclick="productCloseEditor(event)">
+                    <div class="product-modal" onclick="event.stopPropagation()">
+                        <div class="product-modal-header">
+                            <div>
+                                <div id="productModalTitle" class="product-modal-title">新增商品</div>
+                                <div class="product-modal-subtitle">主图默认使用系统占位图，可补充路径、URL 与后续发布信息。</div>
+                            </div>
+                            <button type="button" class="product-modal-close" onclick="productCloseEditor()">×</button>
+                        </div>
+                        <div class="product-modal-body">
+                            <input id="productFormId" type="hidden" />
+                            <div class="product-form-grid">
+                                <label class="product-field"><span>商品名称 <b>*</b></span><input id="productFormName" type="text" maxlength="256" /></label>
+                                <label class="product-field"><span>所属店铺 <b>*</b></span><input id="productFormStoreName" type="text" maxlength="256" /></label>
+                                <label class="product-field product-field-full"><span>店内分类 <b>*</b></span><input id="productFormStoreCategoryPath" type="text" maxlength="512" placeholder="例如：鲜花 > 玫瑰花束" /></label>
+                                <label class="product-field product-field-full"><span>商品描述</span><textarea id="productFormDescription" rows="3" maxlength="2048"></textarea></label>
+                                <label class="product-field"><span>活动价 <b>*</b></span><input id="productFormPrice" type="number" min="0" step="0.01" /></label>
+                                <label class="product-field"><span>划线价</span><input id="productFormOriginalPrice" type="number" min="0" step="0.01" /></label>
+                                <label class="product-field"><span>库存</span><input id="productFormInventory" type="number" min="0" step="1" value="1" /></label>
+                                <label class="product-field"><span>类目路径</span><input id="productFormCategoryPath" type="text" maxlength="512" value="花草园艺 > 礼品花 > 礼品鲜花" /></label>
+                                <label class="product-field"><span>主花材 <b>*</b></span><input id="productFormMainFlower" type="text" maxlength="128" /></label>
+                                <label class="product-field"><span>色系 <b>*</b></span><input id="productFormColor" type="text" maxlength="128" /></label>
+                                <label class="product-field"><span>适用人群 <b>*</b></span><input id="productFormAudience" type="text" maxlength="128" /></label>
+                                <label class="product-field"><span>默认规格</span><input id="productFormSkuDefault" type="text" maxlength="128" value="默认规格" /></label>
+                                <label class="product-field product-field-full"><span>主图路径</span><textarea id="productFormImagePaths" rows="2" maxlength="1024">./images/mainwelcome.jpg</textarea></label>
+                                <label class="product-field product-field-full"><span>图片 URL</span><textarea id="productFormImageUrls" rows="2" maxlength="2048" placeholder="每行一个 URL"></textarea></label>
+                                <label class="product-field product-field-full"><span>商家后台入口 URL</span><input id="productFormEntryUrl" type="text" maxlength="2048" /></label>
+                                <label class="product-field product-field-full"><span>抓取来源 URL</span><input id="productFormSourceUrl" type="text" maxlength="2048" /></label>
+                                <label class="product-field product-field-full"><span>发布历史占位</span><textarea id="productFormPublishHistory" rows="2" maxlength="2048" placeholder="每行一条备注"></textarea></label>
+                                <label class="product-field product-field-checkbox"><input id="productFormUseExistingOptionsOnly" type="checkbox" checked="checked" /><span>仅使用已有选项</span></label>
+                            </div>
+                            <div class="product-sku-section">
+                                <div class="product-sku-header">
+                                    <div class="product-sku-title">多规格列表</div>
+                                    <button type="button" class="product-btn" onclick="productAddSkuRow()">新增规格</button>
+                                </div>
+                                <div id="productSkuList" class="product-sku-list"></div>
+                            </div>
+                        </div>
+                        <div class="product-modal-footer">
+                            <button type="button" class="product-btn" onclick="productCloseEditor()">取消</button>
+                            <button type="button" id="productSubmitButton" class="product-btn product-btn-primary" onclick="productSubmitEditor()">保存</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
             <br id="column_l_bottomgap">
         </div>
         <div id="footer" style="display:none">
@@ -2462,6 +2538,7 @@
         }
 
         var shopState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null };
+        var productState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null };
 
         function shopEnterPage() {
             if (Q('p100') == null) return;
@@ -2677,6 +2754,230 @@
             Q('shopToast').className = 'shop-toast' + (isError ? ' shop-toast-error' : ' shop-toast-success');
             QV('shopToast', true);
             shopState.toastTimer = setTimeout(function () { QV('shopToast', false); }, 2600);
+        }
+
+        function productSafeJsonParse(value, fallback) {
+            if (value == null) return fallback;
+            if (typeof value === 'string') { try { return JSON.parse(value); } catch (ex) { return fallback; } }
+            return value;
+        }
+
+        function productEnterPage() {
+            if (Q('p101') == null) return;
+            QC('p101').remove('product-page-active');
+            void Q('p101').offsetWidth;
+            QC('p101').add('product-page-active');
+            if (Q('productSearchInput') != null) { Q('productSearchInput').value = productState.search; }
+            if (productState.loaded !== true) { productRefreshList(1); } else { productRender(); }
+        }
+
+        function productHandleSearchInput() {
+            if (productState.searchTimer != null) { clearTimeout(productState.searchTimer); }
+            productState.searchTimer = setTimeout(function () {
+                productState.search = Q('productSearchInput').value.trim();
+                productRefreshList(1);
+            }, 260);
+        }
+
+        function productRefreshList(page) {
+            if (typeof page == 'number') { productState.page = page; }
+            productState.loaded = true;
+            productState.loading = true;
+            QV('productLoadingState', true);
+            QV('productEmptyState', false);
+            QH('productCardList', '');
+            meshserver.send({ action: 'productlist', search: productState.search, page: productState.page, limit: productState.limit });
+        }
+
+        function productHandleListResponse(message) {
+            productState.loading = false;
+            QV('productLoadingState', false);
+            if (message.result != null) {
+                productState.items = [];
+                productState.total = 0;
+                productShowToast(message.result, true);
+            } else {
+                productState.items = Array.isArray(message.products) ? message.products : [];
+                productState.total = (typeof message.total == 'number') ? message.total : 0;
+                if (typeof message.page == 'number') { productState.page = message.page; }
+            }
+            productRender();
+        }
+
+        function productHandleMutationResponse(kind, message) {
+            productState.pendingAction = null;
+            productSetSubmitBusy(false);
+            if (message.success !== true) { productShowToast(message.result || '操作失败。', true); return; }
+            if (kind !== 'delete') { productCloseEditor(); }
+            if (kind === 'create') { productState.page = 1; }
+            productShowToast(kind === 'create' ? '商品新增成功。' : (kind === 'update' ? '商品保存成功。' : '商品删除成功。'), false);
+            productRefreshList(productState.page);
+        }
+
+        function productRender() {
+            if (Q('productToolbarMeta') != null) { QH('productToolbarMeta', '共 ' + productState.total + ' 个商品'); }
+            var list = productState.items || [];
+            if (list.length === 0) {
+                QH('productCardList', '');
+                QV('productEmptyState', !productState.loading);
+                QV('productPagination', false);
+                return;
+            }
+            QV('productEmptyState', false);
+            var x = '';
+            for (var i = 0; i < list.length; i++) {
+                var product = list[i];
+                var imagePaths = productSafeJsonParse(product.image_paths_json || product.imagePaths, []);
+                var storeCategoryPath = productSafeJsonParse(product.store_category_path_json || product.storeCategoryPath, []);
+                var attrs = productSafeJsonParse(product.required_attributes_json || product.requiredAttributes, {});
+                var skuList = productSafeJsonParse(product.sku_list_json || product.skuList, []);
+                var cover = (Array.isArray(imagePaths) && imagePaths.length > 0) ? imagePaths[0] : 'images/mainwelcome.jpg';
+                x += '<article class="product-card" onclick="productOpenEditorById(\'' + EscapeHtml(String(product.id)) + '\')">';
+                x += '<div class="product-card-cover"><img src="' + EscapeHtml(cover) + '" alt="' + EscapeHtml(product.name || '') + '"></div>';
+                x += '<div class="product-card-body">';
+                x += '<div class="product-card-head"><div><h3>' + EscapeHtml(product.name || '') + '</h3><div class="product-card-category">' + EscapeHtml((attrs.storeName || '未设置店铺') + ' · ' + ((Array.isArray(storeCategoryPath) && storeCategoryPath.length > 0) ? storeCategoryPath.join(' / ') : '未设置分类')) + '</div></div><div class="product-card-prices"><span class="product-price-now">¥' + EscapeHtml(String(product.price == null ? 0 : product.price)) + '</span><span class="product-price-old">' + (product.original_price != null ? ('¥' + EscapeHtml(String(product.original_price))) : '无划线价') + '</span></div></div>';
+                x += '<div class="product-card-meta"><span>库存</span><strong>' + EscapeHtml(String(product.inventory == null ? 1 : product.inventory)) + '</strong></div>';
+                x += '<div class="product-card-meta"><span>规格数</span><strong>' + EscapeHtml(String(Array.isArray(skuList) && skuList.length > 0 ? skuList.length : 1)) + '</strong></div>';
+                x += '<div class="product-card-meta"><span>主花材</span><strong>' + EscapeHtml(attrs.mainFlower || '待补充') + '</strong></div>';
+                x += '<div class="product-card-meta"><span>适用人群</span><strong>' + EscapeHtml(attrs.audience || '待补充') + '</strong></div>';
+                x += '<div class="product-card-footer"><div class="product-card-hints"><span>' + EscapeHtml(attrs.color || '未设色系') + '</span><span>' + EscapeHtml(product.description || '上架商品') + '</span></div><div class="product-card-actions"><button type="button" class="product-btn" onclick="event.stopPropagation();productOpenEditorById(\'' + EscapeHtml(String(product.id)) + '\')">编辑</button><button type="button" class="product-btn product-btn-danger" onclick="event.stopPropagation();productConfirmDelete(\'' + EscapeHtml(String(product.id)) + '\')">删除</button></div></div>';
+                x += '</div></article>';
+            }
+            QH('productCardList', x);
+            productRenderPagination();
+        }
+
+        function productRenderPagination() {
+            var totalPages = Math.max(1, Math.ceil(productState.total / productState.limit));
+            var current = Math.min(Math.max(1, productState.page), totalPages);
+            var startItem = (productState.total === 0) ? 0 : ((current - 1) * productState.limit + 1);
+            var endItem = Math.min(productState.total, current * productState.limit);
+            var x = '<button type="button" class="product-page-btn" ' + (current <= 1 ? 'disabled="disabled"' : 'onclick="productRefreshList(1)"') + '>首页</button>';
+            x += '<button type="button" class="product-page-btn" ' + (current <= 1 ? 'disabled="disabled"' : 'onclick="productRefreshList(' + (current - 1) + ')"') + '>上一页</button>';
+            x += '<span class="product-page-indicator">第 ' + current + ' / ' + totalPages + ' 页，显示 ' + startItem + '-' + endItem + '，共 ' + productState.total + ' 个</span>';
+            x += '<button type="button" class="product-page-btn" ' + (current >= totalPages ? 'disabled="disabled"' : 'onclick="productRefreshList(' + (current + 1) + ')"') + '>下一页</button>';
+            x += '<button type="button" class="product-page-btn" ' + (current >= totalPages ? 'disabled="disabled"' : 'onclick="productRefreshList(' + totalPages + ')"') + '>末页</button>';
+            QH('productPagination', x);
+            QV('productPagination', true);
+        }
+
+        function productOpenEditorById(id) { for (var i = 0; i < productState.items.length; i++) { if (String(productState.items[i].id) === String(id)) { productOpenEditor(productState.items[i]); return; } } }
+        function productBuildSkuRow(specName, specValue, price, originalPrice, inventory) { return '<div class="product-sku-row"><input class="product-sku-spec-name" type="text" maxlength="64" placeholder="规格名" value="' + EscapeHtml(specName || '规格') + '"><input class="product-sku-spec-value" type="text" maxlength="128" placeholder="规格值" value="' + EscapeHtml(specValue || '') + '"><input class="product-sku-price" type="number" min="0" step="0.01" placeholder="活动价" value="' + EscapeHtml(price == null ? '' : String(price)) + '"><input class="product-sku-original-price" type="number" min="0" step="0.01" placeholder="划线价" value="' + EscapeHtml(originalPrice == null ? '' : String(originalPrice)) + '"><input class="product-sku-inventory" type="number" min="0" step="1" placeholder="库存" value="' + EscapeHtml(inventory == null ? '1' : String(inventory)) + '"><button type="button" class="product-btn product-btn-danger" onclick="productRemoveSkuRow(this)">删除</button></div>'; }
+
+        function productRenderSkuRows(skuList) {
+            var x = '';
+            if (Array.isArray(skuList) && skuList.length > 0) {
+                for (var i = 0; i < skuList.length; i++) {
+                    var item = skuList[i] || {}, specs = Array.isArray(item.specs) ? item.specs : [], spec = specs.length > 0 ? specs[0] : { name: '规格', value: '' };
+                    x += productBuildSkuRow(spec.name, spec.value, item.price, item.originalPrice, item.inventory);
+                }
+            } else { x = productBuildSkuRow('规格', '默认规格', '', '', 1); }
+            QH('productSkuList', x);
+        }
+
+        function productAddSkuRow() { Q('productSkuList').insertAdjacentHTML('beforeend', productBuildSkuRow('规格', '', '', '', 1)); }
+        function productRemoveSkuRow(button) { var row = button.parentNode; if ((row != null) && (row.parentNode != null) && (row.parentNode.children.length > 1)) { row.parentNode.removeChild(row); } }
+        function productReadLines(id) { var lines = Q(id).value.replace(/\r/g, '').split('\n'), result = []; for (var i = 0; i < lines.length; i++) { var line = lines[i].trim(); if (line !== '') result.push(line); } return result; }
+
+        function productOpenEditor(product) {
+            var attrs = productSafeJsonParse(product ? (product.required_attributes_json || product.requiredAttributes) : null, {});
+            var imagePaths = productSafeJsonParse(product ? (product.image_paths_json || product.imagePaths) : null, ['./images/mainwelcome.jpg']);
+            var imageUrls = productSafeJsonParse(product ? (product.image_urls_json || product.imageUrls) : null, []);
+            var storeCategoryPath = productSafeJsonParse(product ? (product.store_category_path_json || product.storeCategoryPath) : null, []);
+            var categoryPath = productSafeJsonParse(product ? (product.category_path_json || product.categoryPath) : null, ['花草园艺', '礼品花', '礼品鲜花']);
+            var sku = productSafeJsonParse(product ? (product.sku_json || product.sku) : null, [{ name: '规格', value: '默认规格' }]);
+            var skuList = productSafeJsonParse(product ? (product.sku_list_json || product.skuList) : null, []);
+            var publishHistory = productSafeJsonParse(product ? (product.publish_history_json || product.publishHistory) : null, []);
+            Q('productFormId').value = product ? product.id : '';
+            Q('productFormName').value = product ? (product.name || '') : '';
+            Q('productFormStoreName').value = attrs.storeName || '';
+            Q('productFormStoreCategoryPath').value = Array.isArray(storeCategoryPath) ? storeCategoryPath.join(' > ') : '';
+            Q('productFormDescription').value = product ? (product.description || '上架商品') : '上架商品';
+            Q('productFormPrice').value = product && product.price != null ? product.price : '';
+            Q('productFormOriginalPrice').value = product && product.original_price != null ? product.original_price : '';
+            Q('productFormInventory').value = product && product.inventory != null ? product.inventory : 1;
+            Q('productFormCategoryPath').value = Array.isArray(categoryPath) ? categoryPath.join(' > ') : '花草园艺 > 礼品花 > 礼品鲜花';
+            Q('productFormMainFlower').value = attrs.mainFlower || '';
+            Q('productFormColor').value = attrs.color || '';
+            Q('productFormAudience').value = attrs.audience || '';
+            Q('productFormSkuDefault').value = (Array.isArray(sku) && sku.length > 0 && sku[0].value) ? sku[0].value : '默认规格';
+            Q('productFormImagePaths').value = Array.isArray(imagePaths) ? imagePaths.join('\n') : './images/mainwelcome.jpg';
+            Q('productFormImageUrls').value = Array.isArray(imageUrls) ? imageUrls.join('\n') : '';
+            Q('productFormEntryUrl').value = product ? (product.entry_url || product.entryUrl || '') : '';
+            Q('productFormSourceUrl').value = product ? (product.source_url || product.sourceUrl || '') : '';
+            Q('productFormPublishHistory').value = Array.isArray(publishHistory) ? publishHistory.join('\n') : '';
+            Q('productFormUseExistingOptionsOnly').checked = product ? ((product.use_existing_options_only !== false) && (product.useExistingOptionsOnly !== false)) : true;
+            productRenderSkuRows(skuList);
+            QH('productModalTitle', product ? '编辑商品' : '新增商品');
+            productSetSubmitBusy(false);
+            QV('productModalMask', true);
+        }
+
+        function productCloseEditor(event) { if (event && event.target && event.target.id !== 'productModalMask') return; QV('productModalMask', false); }
+        function productSetSubmitBusy(busy) { QE('productSubmitButton', !busy); Q('productSubmitButton').value = Q('productSubmitButton').innerText = busy ? '保存中...' : '保存'; }
+
+        function productCollectSkuList() {
+            var holder = Q('productSkuList'), rows = holder.getElementsByClassName('product-sku-row'), result = [];
+            for (var i = 0; i < rows.length; i++) {
+                var specName = rows[i].getElementsByClassName('product-sku-spec-name')[0].value.trim() || '规格';
+                var specValue = rows[i].getElementsByClassName('product-sku-spec-value')[0].value.trim();
+                var price = rows[i].getElementsByClassName('product-sku-price')[0].value.trim();
+                var originalPrice = rows[i].getElementsByClassName('product-sku-original-price')[0].value.trim();
+                var inventory = rows[i].getElementsByClassName('product-sku-inventory')[0].value.trim();
+                if (specValue === '') continue;
+                result.push({ specs: [{ name: specName, value: specValue }], price: price === '' ? null : Number(price), originalPrice: originalPrice === '' ? null : Number(originalPrice), inventory: inventory === '' ? 1 : Number(inventory) });
+            }
+            return result;
+        }
+
+        function productSubmitEditor() {
+            var storeCategoryPath = Q('productFormStoreCategoryPath').value.split('>').map(function (s) { return s.trim(); }).filter(function (s) { return s !== ''; });
+            var categoryPath = Q('productFormCategoryPath').value.split('>').map(function (s) { return s.trim(); }).filter(function (s) { return s !== ''; });
+            var payload = {
+                id: Q('productFormId').value,
+                name: Q('productFormName').value.trim(),
+                storeName: Q('productFormStoreName').value.trim(),
+                description: Q('productFormDescription').value.trim(),
+                price: Q('productFormPrice').value.trim(),
+                originalPrice: Q('productFormOriginalPrice').value.trim(),
+                inventory: Q('productFormInventory').value.trim(),
+                categoryPath: JSON.stringify(categoryPath),
+                storeCategoryPath: JSON.stringify(storeCategoryPath),
+                mainFlower: Q('productFormMainFlower').value.trim(),
+                color: Q('productFormColor').value.trim(),
+                audience: Q('productFormAudience').value.trim(),
+                sku: JSON.stringify([{ name: '规格', value: Q('productFormSkuDefault').value.trim() || '默认规格' }]),
+                skuList: JSON.stringify(productCollectSkuList()),
+                imagePaths: JSON.stringify(productReadLines('productFormImagePaths')),
+                imageUrls: JSON.stringify(productReadLines('productFormImageUrls')),
+                entryUrl: Q('productFormEntryUrl').value.trim(),
+                sourceUrl: Q('productFormSourceUrl').value.trim(),
+                publishHistory: JSON.stringify(productReadLines('productFormPublishHistory')),
+                useExistingOptionsOnly: Q('productFormUseExistingOptionsOnly').checked
+            };
+            if (payload.name === '') { productShowToast('商品名称不能为空。', true); return; }
+            if (payload.storeName === '') { productShowToast('所属店铺不能为空。', true); return; }
+            if (payload.price === '') { productShowToast('活动价不能为空。', true); return; }
+            if (storeCategoryPath.length === 0) { productShowToast('店内分类不能为空。', true); return; }
+            if ((payload.mainFlower === '') || (payload.color === '') || (payload.audience === '')) { productShowToast('主花材、色系、适用人群不能为空。', true); return; }
+            productSetSubmitBusy(true);
+            productState.pendingAction = (payload.id !== '') ? 'productupdate' : 'productcreate';
+            meshserver.send({ action: productState.pendingAction, id: payload.id, name: payload.name, storeName: payload.storeName, description: payload.description, price: payload.price, originalPrice: payload.originalPrice, inventory: payload.inventory, categoryPath: payload.categoryPath, storeCategoryPath: payload.storeCategoryPath, mainFlower: payload.mainFlower, color: payload.color, audience: payload.audience, sku: payload.sku, skuList: payload.skuList, imagePaths: payload.imagePaths, imageUrls: payload.imageUrls, entryUrl: payload.entryUrl, sourceUrl: payload.sourceUrl, publishHistory: payload.publishHistory, useExistingOptionsOnly: payload.useExistingOptionsOnly });
+        }
+
+        function productConfirmDelete(id) {
+            var productName = '该商品';
+            for (var i = 0; i < productState.items.length; i++) { if (String(productState.items[i].id) === String(id)) { productName = productState.items[i].name; break; } }
+            setDialogMode(2, '删除商品', 3, function (button, tag) { if (button !== 1) return; meshserver.send({ action: 'productdelete', id: tag }); }, '确认删除商品“' + EscapeHtml(productName) + '”吗？删除后将立即刷新列表。', id);
+        }
+
+        function productShowToast(text, isError) {
+            if (Q('productToast') == null) return;
+            if (productState.toastTimer != null) { clearTimeout(productState.toastTimer); }
+            QH('productToast', EscapeHtml(text));
+            Q('productToast').className = 'product-toast' + (isError ? ' product-toast-error' : ' product-toast-success');
+            QV('productToast', true);
+            productState.toastTimer = setTimeout(function () { QV('productToast', false); }, 2600);
         }
 
         // Return the number of 2nd factor for this account
@@ -3530,6 +3831,22 @@
                 }
                 case 'shopdelete': {
                     shopHandleMutationResponse('delete', message);
+                    break;
+                }
+                case 'productlist': {
+                    productHandleListResponse(message);
+                    break;
+                }
+                case 'productcreate': {
+                    productHandleMutationResponse('create', message);
+                    break;
+                }
+                case 'productupdate': {
+                    productHandleMutationResponse('update', message);
+                    break;
+                }
+                case 'productdelete': {
+                    productHandleMutationResponse('delete', message);
                     break;
                 }
                 case 'fileoperation': {
@@ -19345,7 +19662,7 @@
             if (xxcurrentView == 17) deviceDetailsStatsClear();
 
             // Edit this line when adding a new screen
-            for (var i = 0; i < 101; i++) { QV('p' + i, i == x); }
+            for (var i = 0; i < 102; i++) { QV('p' + i, i == x); }
             xxcurrentView = x;
 
             // Get out of fullscreen if needed
@@ -19368,14 +19685,14 @@
             }
 
             // Remove top bar selection
-            var mainBarItems = ['MainMenuMyDevices', 'MainMenuMyAccount', 'MainMenuMyEvents', 'MainMenuMyFiles', 'MainMenuMyUsers', 'MainMenuMyServer', 'MainMenuShopManager'];
+            var mainBarItems = ['MainMenuMyDevices', 'MainMenuMyAccount', 'MainMenuMyEvents', 'MainMenuMyFiles', 'MainMenuMyUsers', 'MainMenuMyServer', 'MainMenuShopManager', 'MainMenuProductManager'];
             for (var i in mainBarItems) {
                 QC(mainBarItems[i]).remove('fullselect');
                 QC(mainBarItems[i]).remove('semiselect');
             }
 
             // Remove left bar selection
-            var leftBarItems = ['LeftMenuMyDevices', 'LeftMenuMyAccount', 'LeftMenuMyEvents', 'LeftMenuMyFiles', 'LeftMenuMyUsers', 'LeftMenuMyServer', 'LeftMenuShopManager'];
+            var leftBarItems = ['LeftMenuMyDevices', 'LeftMenuMyAccount', 'LeftMenuMyEvents', 'LeftMenuMyFiles', 'LeftMenuMyUsers', 'LeftMenuMyServer', 'LeftMenuShopManager', 'LeftMenuProductManager'];
             for (var i in leftBarItems) {
                 QC(leftBarItems[i]).remove('lbbuttonsel');
                 QC(leftBarItems[i]).remove('lbbuttonsel2');
@@ -19416,6 +19733,10 @@
                 // Shop Manager
                 QC('MainMenuShopManager').add(mainMenuActiveClass);
                 QC('LeftMenuShopManager').add(leftMenuActiveClass);
+            } else if (x == 101) {
+                // Product Manager
+                QC('MainMenuProductManager').add(mainMenuActiveClass);
+                QC('LeftMenuProductManager').add(leftMenuActiveClass);
             }
             QV('ServerPlugins', pluginHandler != null);
 
@@ -19433,6 +19754,8 @@
             QV('ServerSubMenuSpan', x == 6 || x == 115 || x == 40 || x == 41 || x == 42 || x == 43);
             QV('UsersSubMenuSpan', x == 4 || x == 50 || x == 52);
             QV('EventsSubMenuSpan', (x == 3) || (x == 60));
+            if (x == 100) { shopEnterPage(); }
+            if (x == 101) { productEnterPage(); }
             var panels = { 3: 'EventsLive', 4: 'UsersGeneral', 10: 'MainDev', 11: 'MainDevDesktop', 12: 'MainDevTerminal', 13: 'MainDevFiles', 14: 'MainDevAmt', 15: 'MainDevConsole', 16: 'MainDevEvents', 17: 'MainDevInfo', 19: 'MainDevPlugins', 20: 'MeshGeneral', 21: 'MeshSummary', 30: 'UserGeneral', 31: 'UserEvents', 6: 'ServerGeneral', 40: 'ServerStats', 41: 'ServerTrace', 42: 'ServerPlugins', 50: 'UsersGroups', 52: 'UsersRecordings', 60: 'EventsReport', 115: 'ServerConsole' };
             for (var i in panels) {
                 QC(panels[i]).remove('style3x');

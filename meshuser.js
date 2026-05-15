@@ -5729,6 +5729,10 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         'shopdelete': serverCommandShopDelete,
         'shoplist': serverCommandShopList,
         'shopupdate': serverCommandShopUpdate,
+        'productcreate': serverCommandProductCreate,
+        'productdelete': serverCommandProductDelete,
+        'productlist': serverCommandProductList,
+        'productupdate': serverCommandProductUpdate,
         'serverstats': serverCommandServerStats,
         'servertimelinestats': serverCommandServerTimelineStats,
         'serverupdate': serverCommandServerUpdate,
@@ -7294,6 +7298,105 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         db.DeleteShop(shopId, function (err, deletedId) {
             if (err != null) { obj.send({ action: 'shopdelete', result: err.message ? err.message : '删除失败。' }); return; }
             obj.send({ action: 'shopdelete', success: true, id: deletedId });
+        });
+    }
+
+    function getProductJsonArrayField(value, maxItems, maxTextLen) {
+        if ((typeof value !== 'string') || (value.length === 0)) return [];
+        var parsed = null;
+        try { parsed = JSON.parse(value); } catch (ex) { return null; }
+        if (Array.isArray(parsed) == false || parsed.length > maxItems) return null;
+        return parsed;
+    }
+
+    function getProductNumberField(value, min, max, allowNull) {
+        if ((value == null) || (value === '')) return allowNull ? null : null;
+        var num = Number(value);
+        if ((isFinite(num) !== true) || (num < min) || (num > max)) return null;
+        return num;
+    }
+
+    function getProductBoolField(value, defaultValue) {
+        if (typeof value == 'boolean') return value;
+        if (typeof value == 'string') return (value === 'true');
+        return defaultValue;
+    }
+
+    function getProductPayload(command) {
+        var name = getShopTextField(command.name, 256);
+        var storeName = getShopTextField(command.storeName || '', 256);
+        var description = getShopTextField((command.description == null || command.description === '') ? '上架商品' : command.description, 2048);
+        var entryUrl = getShopTextField(command.entryUrl || '', 2048);
+        var sourceUrl = getShopTextField(command.sourceUrl || '', 2048);
+        var mainFlower = getShopTextField(command.mainFlower || '', 128);
+        var color = getShopTextField(command.color || '', 128);
+        var audience = getShopTextField(command.audience || '', 128);
+        var price = getProductNumberField(command.price, 0, 999999, false);
+        var originalPrice = getProductNumberField(command.originalPrice, 0, 999999, true);
+        var inventory = getProductNumberField(command.inventory, 0, 999999, true);
+        var imagePaths = getProductJsonArrayField(command.imagePaths || '[]', 20, 512);
+        var imageUrls = getProductJsonArrayField(command.imageUrls || '[]', 20, 2048);
+        var categoryPath = getProductJsonArrayField(command.categoryPath || '[]', 12, 128);
+        var storeCategoryPath = getProductJsonArrayField(command.storeCategoryPath || '[]', 12, 128);
+        var sku = getProductJsonArrayField(command.sku || '[]', 12, 256);
+        var skuList = getProductJsonArrayField(command.skuList || '[]', 100, 4096);
+        var publishHistory = getProductJsonArrayField(command.publishHistory || '[]', 50, 4096);
+        if ((name == null) || (name.length === 0)) return { error: '商品名称不能为空。' };
+        if ((storeName == null) || (storeName.length === 0)) return { error: '所属店铺不能为空。' };
+        if (price == null) return { error: '活动价不能为空。' };
+        if ((mainFlower == null) || (mainFlower.length === 0) || (color == null) || (color.length === 0) || (audience == null) || (audience.length === 0)) return { error: '主花材、色系、适用人群不能为空。' };
+        if ((description == null) || (imagePaths == null) || (imageUrls == null) || (categoryPath == null) || (storeCategoryPath == null) || (sku == null) || (skuList == null) || (publishHistory == null)) return { error: '表单内容无效。' };
+        if (imagePaths.length === 0) { imagePaths = ['./images/mainwelcome.jpg']; }
+        if (categoryPath.length === 0) { categoryPath = ['花草园艺', '礼品花', '礼品鲜花']; }
+        if (storeCategoryPath.length === 0) return { error: '店内分类不能为空。' };
+        if (sku.length === 0) { sku = [{ name: '规格', value: '默认规格' }]; }
+        return { name: name, price: price, originalPrice: originalPrice, description: description, inventory: (inventory == null) ? 1 : inventory, imagePaths: imagePaths, imageUrls: imageUrls, sku: sku, skuList: skuList, categoryPath: categoryPath, storeCategoryPath: storeCategoryPath, requiredAttributes: { mainFlower: mainFlower, color: color, audience: audience, storeName: storeName }, entryUrl: entryUrl || '', useExistingOptionsOnly: getProductBoolField(command.useExistingOptionsOnly, true), publishHistory: publishHistory, sourceUrl: sourceUrl || '' };
+    }
+
+    function serverCommandProductList(command) {
+        var search = '', page = 1, limit = 10;
+        if (typeof command.search == 'string') {
+            search = command.search.trim();
+            if (search.length > 128) { obj.send({ action: 'productlist', result: 'Invalid search.' }); return; }
+        }
+        if (common.validateInt(command.page, 1, 100000) == true) { page = command.page; }
+        if (common.validateInt(command.limit, 1, 50) == true) { limit = command.limit; }
+        db.GetProductList(search, page, limit, function (err, result) {
+            if (err != null) { obj.send({ action: 'productlist', result: err.message ? err.message : 'Unable to load products.' }); return; }
+            obj.send({ action: 'productlist', search: search, page: page, limit: limit, total: result.total, products: result.products });
+        });
+    }
+
+    function serverCommandProductCreate(command) {
+        var payload = getProductPayload(command);
+        if (payload.error != null) { obj.send({ action: 'productcreate', result: payload.error }); return; }
+        db.CreateProduct(payload, function (err, product) {
+            if (err != null) { obj.send({ action: 'productcreate', result: err.message ? err.message : '新增失败。' }); return; }
+            obj.send({ action: 'productcreate', success: true, product: product });
+        });
+    }
+
+    function serverCommandProductUpdate(command) {
+        var productId = null;
+        if ((typeof command.id == 'number') && (command.id >= 0)) { productId = command.id; }
+        if ((productId == null) && (typeof command.id == 'string') && (/^[0-9]+$/.test(command.id))) { productId = command.id; }
+        if (productId == null) { obj.send({ action: 'productupdate', result: '无效的商品编号。' }); return; }
+        var payload = getProductPayload(command);
+        if (payload.error != null) { obj.send({ action: 'productupdate', result: payload.error }); return; }
+        db.UpdateProduct(productId, payload, function (err, product) {
+            if (err != null) { obj.send({ action: 'productupdate', result: err.message ? err.message : '保存失败。' }); return; }
+            obj.send({ action: 'productupdate', success: true, product: product });
+        });
+    }
+
+    function serverCommandProductDelete(command) {
+        var productId = null;
+        if ((typeof command.id == 'number') && (command.id >= 0)) { productId = command.id; }
+        if ((productId == null) && (typeof command.id == 'string') && (/^[0-9]+$/.test(command.id))) { productId = command.id; }
+        if (productId == null) { obj.send({ action: 'productdelete', result: '无效的商品编号。' }); return; }
+        db.DeleteProduct(productId, function (err, deletedId) {
+            if (err != null) { obj.send({ action: 'productdelete', result: err.message ? err.message : '删除失败。' }); return; }
+            obj.send({ action: 'productdelete', success: true, id: deletedId });
         });
     }
 
