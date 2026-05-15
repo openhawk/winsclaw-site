@@ -186,6 +186,12 @@
             <div id="LeftMenuProductManager" tabindex="0" class="lbbutton" title="商品管理" onmouseup="go(101,event)" onkeypress="if (event.key=='Enter') { go(101); }">
                 <div class="lbtg lb8"></div>
             </div>
+            <div id="LeftMenuFlowManager" tabindex="0" class="lbbutton" title="流程管理" onmouseup="go(102,event)" onkeypress="if (event.key=='Enter') { go(102); }">
+                <div class="lbtg lb6"></div>
+            </div>
+            <div id="LeftMenuCollectManager" tabindex="0" class="lbbutton" title="采集管理" onmouseup="go(103,event)" onkeypress="if (event.key=='Enter') { go(103); }">
+                <div class="lbtg lb5"></div>
+            </div>
             <div id="LeftMenuMyFiles" tabindex="0" class="lbbutton" style="display:none" title="我的文件" onmouseup="go(5,event)" onkeypress="if (event.key=='Enter') { go(5); }">
                 <div class="lbtg lb4"></div>
             </div>
@@ -231,6 +237,8 @@
                             <td tabindex="0" id="MainMenuMyServer" class="topbar_td style3x" onmouseup="go(6,event)" onkeypress="if (event.key == 'Enter') go(6)">我的服务器</td>
                             <td tabindex="0" id="MainMenuShopManager" class="topbar_td style3x" onmouseup="go(100,event)" onkeypress="if (event.key == 'Enter') go(100)">店铺管理</td>
                             <td tabindex="0" id="MainMenuProductManager" class="topbar_td style3x" onmouseup="go(101,event)" onkeypress="if (event.key == 'Enter') go(101)">商品管理</td>
+                            <td tabindex="0" id="MainMenuFlowManager" class="topbar_td style3x" onmouseup="go(102,event)" onkeypress="if (event.key == 'Enter') go(102)">流程管理</td>
+                            <td tabindex="0" id="MainMenuCollectManager" class="topbar_td style3x" onmouseup="go(103,event)" onkeypress="if (event.key == 'Enter') go(103)">采集管理</td>
                             <td class="topbar_td_end style3">&nbsp;</td>
                         </tr>
                     </tbody></table>
@@ -1488,6 +1496,148 @@
                     </div>
                 </div>
             </div>
+            <div id=p102 style="display:none">
+                <div class="flow-page-shell">
+                    <div class="flow-page-top">
+                        <div>
+                            <h1 class="flow-page-title">流程管理</h1>
+                            <div class="flow-page-subtitle">统一管理商品发布、调价和自动回复流程，支持执行记录与远程触发。</div>
+                        </div>
+                        <div class="flow-toolbar-actions">
+                            <button type="button" class="flow-btn flow-btn-primary" onclick="flowOpenEditor()">新增流程</button>
+                        </div>
+                    </div>
+                    <div class="flow-toolbar">
+                        <div class="flow-search">
+                            <input id="flowSearchInput" type="search" placeholder="搜索流程名称" autocomplete="off" oninput="flowHandleSearchInput()" />
+                        </div>
+                        <div class="flow-toolbar-meta" id="flowToolbarMeta">共 0 条流程</div>
+                    </div>
+                    <div id="flowLoadingState" class="flow-state flow-state-loading" style="display:none">正在加载流程数据...</div>
+                    <div id="flowEmptyState" class="flow-state flow-empty" style="display:none">
+                        <div class="flow-empty-title">暂无流程</div>
+                        <div class="flow-empty-text">点击右上角“新增流程”，开始维护第一条流程。</div>
+                    </div>
+                    <div id="flowCardList" class="flow-card-grid"></div>
+                    <div id="flowPagination" class="flow-pagination" style="display:none"></div>
+                </div>
+                <div id="flowToast" class="flow-toast" style="display:none"></div>
+                <div id="flowModalMask" class="flow-modal-mask" style="display:none" onclick="flowCloseEditor(event)">
+                    <div class="flow-modal" onclick="event.stopPropagation()">
+                        <div class="flow-modal-header">
+                            <div>
+                                <div id="flowModalTitle" class="flow-modal-title">新增流程</div>
+                                <div class="flow-modal-subtitle">流程配置、脚本入口和设备信息统一在这里维护。</div>
+                            </div>
+                            <button type="button" class="flow-modal-close" onclick="flowCloseEditor()">×</button>
+                        </div>
+                        <div class="flow-modal-body">
+                            <input id="flowFormId" type="hidden" />
+                            <div class="flow-form-grid">
+                                <label class="flow-field"><span>流程名称 <b>*</b></span><input id="flowFormName" type="text" maxlength="256" /></label>
+                                <label class="flow-field"><span>流程类型 <b>*</b></span><select id="flowFormType" onchange="flowHandleTypeChange()"><option value="publish">publish</option><option value="pricing">pricing</option><option value="auto_reply">auto_reply</option></select></label>
+                                <label class="flow-field"><span>目标设备 <b>*</b></span><select id="flowFormDeviceId" onchange="flowHandleDeviceChange()"></select></label>
+                                <label class="flow-field"><span>目标系统 <b>*</b></span><select id="flowFormDeviceOs"><option value="macos">macOS</option><option value="windows">Windows</option></select></label>
+                                <label class="flow-field flow-field-full"><span>项目路径 <b>*</b></span><input id="flowFormProjectRoot" type="text" maxlength="2048" /></label>
+                                <label class="flow-field"><span>脚本名称 <b>*</b></span><input id="flowFormScriptName" type="text" maxlength="256" /></label>
+                                <label class="flow-field flow-field-full"><span>脚本入口配置 JSON <b>*</b></span><textarea id="flowFormScriptEntries" rows="5"></textarea></label>
+                                <label class="flow-field flow-field-full"><span>流程配置 JSON</span><textarea id="flowFormConfig" rows="12"></textarea></label>
+                                <label class="flow-field flow-field-full"><span>备注</span><textarea id="flowFormRemark" rows="3"></textarea></label>
+                            </div>
+                        </div>
+                        <div class="flow-modal-footer">
+                            <button type="button" class="flow-btn" onclick="flowCloseEditor()">取消</button>
+                            <button type="button" id="flowSubmitButton" class="flow-btn flow-btn-primary" onclick="flowSubmitEditor()">保存</button>
+                        </div>
+                    </div>
+                </div>
+                <div id="flowRunsMask" class="flow-modal-mask" style="display:none" onclick="flowCloseRuns(event)">
+                    <div class="flow-modal flow-history-modal" onclick="event.stopPropagation()">
+                        <div class="flow-modal-header">
+                            <div>
+                                <div id="flowRunsTitle" class="flow-modal-title">执行记录</div>
+                                <div class="flow-modal-subtitle">查看最近执行情况、采集绑定和原始输出。</div>
+                            </div>
+                            <button type="button" class="flow-modal-close" onclick="flowCloseRuns()">×</button>
+                        </div>
+                        <div class="flow-modal-body">
+                            <div id="flowRunsContent" class="flow-history-list"></div>
+                            <div id="flowRunsPagination" class="flow-pagination" style="display:none"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id=p103 style="display:none">
+                <div class="collect-page-shell">
+                    <div class="collect-page-top">
+                        <div>
+                            <h1 class="collect-page-title">采集管理</h1>
+                            <div class="collect-page-subtitle">统一管理店铺采集和价格采集任务，支持执行、历史查看和结果追溯。</div>
+                        </div>
+                        <div class="collect-toolbar-actions">
+                            <button type="button" class="collect-btn collect-btn-primary" onclick="collectOpenEditor()">新增采集任务</button>
+                        </div>
+                    </div>
+                    <div class="collect-toolbar">
+                        <div class="collect-search">
+                            <input id="collectSearchInput" type="search" placeholder="搜索任务名称" autocomplete="off" oninput="collectHandleSearchInput()" />
+                        </div>
+                        <div class="collect-toolbar-meta" id="collectToolbarMeta">共 0 条采集任务</div>
+                    </div>
+                    <div id="collectLoadingState" class="collect-state collect-state-loading" style="display:none">正在加载采集任务数据...</div>
+                    <div id="collectEmptyState" class="collect-state collect-empty" style="display:none">
+                        <div class="collect-empty-title">暂无采集任务</div>
+                        <div class="collect-empty-text">点击右上角“新增采集任务”，开始维护第一条采集任务。</div>
+                    </div>
+                    <div id="collectCardList" class="collect-card-grid"></div>
+                    <div id="collectPagination" class="collect-pagination" style="display:none"></div>
+                </div>
+                <div id="collectToast" class="collect-toast" style="display:none"></div>
+                <div id="collectModalMask" class="collect-modal-mask" style="display:none" onclick="collectCloseEditor(event)">
+                    <div class="collect-modal" onclick="event.stopPropagation()">
+                        <div class="collect-modal-header">
+                            <div>
+                                <div id="collectModalTitle" class="collect-modal-title">新增采集任务</div>
+                                <div class="collect-modal-subtitle">配置目标设备、脚本入口和采集 JSON。</div>
+                            </div>
+                            <button type="button" class="collect-modal-close" onclick="collectCloseEditor()">×</button>
+                        </div>
+                        <div class="collect-modal-body">
+                            <input id="collectFormId" type="hidden" />
+                            <div class="collect-form-grid">
+                                <label class="collect-field"><span>任务名称 <b>*</b></span><input id="collectFormName" type="text" maxlength="256" /></label>
+                                <label class="collect-field"><span>采集类型 <b>*</b></span><select id="collectFormType" onchange="collectHandleTypeChange()"><option value="collect_shop">collect_shop</option><option value="collect_price">collect_price</option></select></label>
+                                <label class="collect-field"><span>目标设备 <b>*</b></span><select id="collectFormDeviceId" onchange="collectHandleDeviceChange()"></select></label>
+                                <label class="collect-field"><span>目标系统 <b>*</b></span><select id="collectFormDeviceOs"><option value="macos">macOS</option><option value="windows">Windows</option></select></label>
+                                <label class="collect-field collect-field-full"><span>项目路径 <b>*</b></span><input id="collectFormProjectRoot" type="text" maxlength="2048" /></label>
+                                <label class="collect-field"><span>脚本名称 <b>*</b></span><input id="collectFormScriptName" type="text" maxlength="256" /></label>
+                                <label class="collect-field collect-field-full"><span>脚本入口配置 JSON <b>*</b></span><textarea id="collectFormScriptEntries" rows="5"></textarea></label>
+                                <label class="collect-field collect-field-full"><span>采集配置 JSON</span><textarea id="collectFormConfig" rows="12"></textarea></label>
+                                <label class="collect-field collect-field-full"><span>备注</span><textarea id="collectFormRemark" rows="3"></textarea></label>
+                            </div>
+                        </div>
+                        <div class="collect-modal-footer">
+                            <button type="button" class="collect-btn" onclick="collectCloseEditor()">取消</button>
+                            <button type="button" id="collectSubmitButton" class="collect-btn collect-btn-primary" onclick="collectSubmitEditor()">保存</button>
+                        </div>
+                    </div>
+                </div>
+                <div id="collectResultsMask" class="collect-modal-mask" style="display:none" onclick="collectCloseResults(event)">
+                    <div class="collect-modal collect-history-modal" onclick="event.stopPropagation()">
+                        <div class="collect-modal-header">
+                            <div>
+                                <div id="collectResultsTitle" class="collect-modal-title">采集结果</div>
+                                <div class="collect-modal-subtitle">查看本次及历史采集的结果数据、原始输出与同步状态。</div>
+                            </div>
+                            <button type="button" class="collect-modal-close" onclick="collectCloseResults()">×</button>
+                        </div>
+                        <div class="collect-modal-body">
+                            <div id="collectResultsContent" class="collect-history-list"></div>
+                            <div id="collectResultsPagination" class="collect-pagination" style="display:none"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
             <br id="column_l_bottomgap">
         </div>
         <div id="footer" style="display:none">
@@ -2539,6 +2689,9 @@
 
         var shopState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null };
         var productState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null };
+        var flowState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, currentRunsFlowId: null, runsPage: 1, runsLimit: 10 };
+        var collectState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, currentResultsTaskId: null, resultsPage: 1, resultsLimit: 10 };
+        var managerExecutionMap = {};
 
         function shopEnterPage() {
             if (Q('p100') == null) return;
@@ -2980,6 +3133,414 @@
             productState.toastTimer = setTimeout(function () { QV('productToast', false); }, 2600);
         }
 
+        function managerPrettyJson(value) { return JSON.stringify(value, null, 2); }
+        function managerParseJson(value, fallback) { try { return JSON.parse(value); } catch (ex) { return fallback; } }
+        function managerInferDeviceOs(node) {
+            if (node == null) return 'macos';
+            var agentId = (node.agent && node.agent.id) ? node.agent.id : 0;
+            if (((agentId > 0) && (agentId < 5)) || ((agentId > 41) && (agentId < 44))) return 'windows';
+            var osdesc = String(node.osdesc || '').toLowerCase();
+            if (osdesc.indexOf('windows') >= 0) return 'windows';
+            return 'macos';
+        }
+        function managerGetVisibleAgentNodes() {
+            var r = [];
+            if (!Array.isArray(nodes)) return r;
+            for (var i = 0; i < nodes.length; i++) {
+                if (nodes[i] && nodes[i]._id && nodes[i].agent) r.push(nodes[i]);
+            }
+            r.sort(function (a, b) { return String(a.name || '').localeCompare(String(b.name || '')); });
+            return r;
+        }
+        function managerDefaultProjectRoot(deviceOs) { return (deviceOs === 'windows') ? 'C:\\Users\\<user>\\Documents\\ai-bot' : '/Users/<user>/Documents/ai-bot'; }
+        function managerDefaultCollectScriptEntries(collectType) {
+            if (collectType === 'collect_price') return { macos: { path: 'scripts-mac/run-collect-price.sh', argsTemplate: '{configPath}' }, windows: { path: 'scripts/run-collect-price.ps1', argsTemplate: '-ConfigPath "{configPath}"' } };
+            return { macos: { path: 'scripts-mac/run-collect-shop.sh', argsTemplate: '{configPath}' }, windows: { path: 'scripts/run-collect-shop.ps1', argsTemplate: '-ConfigPath "{configPath}"' } };
+        }
+        function managerDefaultFlowScriptEntries(flowType) {
+            if (flowType === 'pricing') return { macos: { path: 'scripts-mac/run-pricing.sh', argsTemplate: '{configPath}' }, windows: { path: 'scripts/run-pricing.ps1', argsTemplate: '-ConfigPath "{configPath}"' } };
+            if (flowType === 'auto_reply') return { macos: { path: 'scripts-mac/run-resident-auto-reply.sh', argsTemplate: '--config "{configPath}"' }, windows: { path: 'scripts/run-resident-auto-reply.ps1', argsTemplate: '-ConfigPath "{configPath}"' } };
+            return { macos: { path: 'scripts-mac/run-publish-product.sh', argsTemplate: '{configPath}' }, windows: { path: 'scripts/run-publish-product.ps1', argsTemplate: '-ConfigPath "{configPath}"' } };
+        }
+        function managerDefaultCollectConfig(collectType) {
+            if (collectType === 'collect_price') return { city: '', myLocationAddress: '', priceTasks: [], outputPath: './collect-results/price/', saveToDb: true };
+            return { city: '', myLocationAddress: '', targetShops: [], outputPath: './collect-results/shop/', saveToDb: true };
+        }
+        function managerDefaultFlowConfig(flowType) {
+            if (flowType === 'pricing') return { city: '', myLocationAddress: '', globalEnabled: true, collectTaskId: '', collectResultId: '', tasks: [] };
+            if (flowType === 'auto_reply') return { mode: 'once', autoReply: { enabled: true, replyText: '您好', pollIntervalSeconds: 3, maxRetries: 3, cdpUrl: 'http://127.0.0.1:9222', preferredUrl: '', fallbackOpenUrl: '', monitorRecentContacts: true, requirePendingClearForNextRound: false, startChromeDebugIfNeeded: true, statePath: './runtime/resident-auto-reply-state.json' } };
+            return { city: '', myLocationAddress: '', products: [] };
+        }
+        function managerGetNodeLabel(deviceId) {
+            var device = getNodeFromId(deviceId);
+            if (device == null) return deviceId || '未选择设备';
+            return (device.name || device._id) + (device.osdesc ? (' · ' + device.osdesc) : '');
+        }
+        function managerCurrentScriptPath(scriptEntries, deviceOs) {
+            var entries = managerParseJson(typeof scriptEntries === 'string' ? scriptEntries : JSON.stringify(scriptEntries || {}), {});
+            if (entries[deviceOs] && entries[deviceOs].path) return entries[deviceOs].path;
+            return '未配置';
+        }
+        function managerRenderStatusBadge(prefix, status, syncStatus) {
+            var text = status || 'idle', className = prefix + '-status-badge';
+            if (['success', 'running', 'failed', 'manual_required', 'skipped', 'partial', 'stopped', 'idle'].indexOf(text) >= 0) className += ' ' + prefix + '-status-' + text;
+            var html = '<span class="' + className + '">' + EscapeHtml(text) + '</span>';
+            if (syncStatus) html += '<span class="' + prefix + '-status-badge ' + prefix + '-sync-' + EscapeHtml(syncStatus) + '">sync:' + EscapeHtml(syncStatus) + '</span>';
+            return html;
+        }
+        function managerPopulateDeviceSelect(selectId, selectedId) {
+            var options = '<option value="">请选择设备</option>', list = managerGetVisibleAgentNodes();
+            for (var i = 0; i < list.length; i++) {
+                options += '<option value="' + EscapeHtml(list[i]._id) + '"' + ((selectedId && list[i]._id === selectedId) ? ' selected="selected"' : '') + '>' + EscapeHtml(managerGetNodeLabel(list[i]._id)) + '</option>';
+            }
+            QH(selectId, options);
+        }
+        function managerTryParseCollectData(output) {
+            var trimmed = String(output || '').trim(), parsed = null, match = null;
+            if (trimmed === '') return [];
+            try { parsed = JSON.parse(trimmed); } catch (ex) { }
+            if (parsed != null) return Array.isArray(parsed) ? parsed : (Array.isArray(parsed.data) ? parsed.data : []);
+            match = trimmed.match(/```json\s*([\s\S]*?)```/i);
+            if (match) { try { parsed = JSON.parse(match[1]); } catch (ex2) { } }
+            if (parsed != null) return Array.isArray(parsed) ? parsed : (Array.isArray(parsed.data) ? parsed.data : []);
+            match = trimmed.match(/(\[[\s\S]*\])/);
+            if (match) { try { parsed = JSON.parse(match[1]); } catch (ex3) { } }
+            if (parsed != null) return Array.isArray(parsed) ? parsed : [];
+            match = trimmed.match(/(\{[\s\S]*\})/);
+            if (match) { try { parsed = JSON.parse(match[1]); } catch (ex4) { } }
+            if (parsed != null) return Array.isArray(parsed.data) ? parsed.data : [];
+            return [];
+        }
+        function managerParseCommandEnvelope(text) {
+            text = String(text || '');
+            var exitMatch = text.match(/__MC_EXIT_CODE__:(-?\d+)/);
+            var pidMatch = text.match(/__MC_PROCESS_ID__:(\d+)/);
+            var outputMatch = text.match(/__MC_OUTPUT_START__\s*([\s\S]*?)\s*__MC_OUTPUT_END__/);
+            return { raw: text, exitCode: exitMatch ? parseInt(exitMatch[1]) : null, processId: pidMatch ? pidMatch[1] : null, output: outputMatch ? outputMatch[1] : text };
+        }
+        function managerHandleRuncommandsAck(message) {
+            var pending = managerExecutionMap[message.responseid];
+            if (!pending) return false;
+            if ((message.result != null) && (message.result !== 'OK')) {
+                if (pending.kind === 'collect') {
+                    meshserver.send({ action: 'collectfinalizeexecute', resultId: pending.resultId, status: 'failed', exitCode: -1, stdout: String(message.result), stderr: '', data: '[]', resultMeta: '{}' });
+                } else if (pending.kind === 'flow' && pending.operation === 'stop') {
+                    meshserver.send({ action: 'flowfinalizeexecute', runId: pending.runId, status: 'running', exitCode: -1, stdout: String(message.result), stderr: '', resultSummary: '停止失败：' + String(message.result), resultJson: '{}', processId: pending.processId || '', stopReason: 'stop-failed' });
+                } else if (pending.kind === 'flow') {
+                    meshserver.send({ action: 'flowfinalizeexecute', runId: pending.runId, status: 'failed', exitCode: -1, stdout: String(message.result), stderr: '', resultSummary: '执行失败：' + String(message.result), resultJson: '{}', collectBindings: JSON.stringify(pending.collectBindings || null) });
+                }
+                delete managerExecutionMap[message.responseid];
+            }
+            return true;
+        }
+        function managerHandleRuncommandsOutput(message) {
+            var pending = managerExecutionMap[message.responseid];
+            if (!pending) return false;
+            var parsed = managerParseCommandEnvelope(message.result || '');
+            if (pending.kind === 'collect') {
+                var parsedData = managerTryParseCollectData(parsed.output);
+                var status = (parsed.exitCode === 0) ? ((parsedData.length > 0 || parsed.output.trim() === '') ? 'success' : 'manual_required') : 'failed';
+                meshserver.send({ action: 'collectfinalizeexecute', resultId: pending.resultId, status: status, exitCode: parsed.exitCode == null ? -1 : parsed.exitCode, stdout: parsed.output, stderr: '', data: JSON.stringify(parsedData), resultMeta: '{}' });
+            } else if (pending.kind === 'flow' && pending.operation === 'stop') {
+                var stopStatus = (parsed.exitCode === 0) ? 'stopped' : 'running';
+                meshserver.send({ action: 'flowfinalizeexecute', runId: pending.runId, status: stopStatus, exitCode: parsed.exitCode == null ? -1 : parsed.exitCode, stdout: parsed.output, stderr: '', resultSummary: stopStatus === 'stopped' ? '常驻流程已停止。' : '停止失败，请重试。', resultJson: '{}', processId: pending.processId || '', stopReason: stopStatus === 'stopped' ? 'manual-stop' : 'stop-failed' });
+            } else {
+                var flowStatus = 'failed', summary = '', resultJson = {};
+                if (pending.runMode === 'background') {
+                    flowStatus = ((parsed.exitCode === 0) && parsed.processId) ? 'running' : 'failed';
+                    summary = (flowStatus === 'running') ? ('常驻流程已启动，PID ' + parsed.processId) : '常驻流程启动失败。';
+                    resultJson = { processId: parsed.processId || null };
+                } else {
+                    flowStatus = (parsed.exitCode === 0) ? 'success' : 'failed';
+                    summary = flowStatus === 'success' ? '流程执行成功。' : '流程执行失败。';
+                }
+                meshserver.send({ action: 'flowfinalizeexecute', runId: pending.runId, status: flowStatus, exitCode: parsed.exitCode == null ? -1 : parsed.exitCode, stdout: parsed.output, stderr: '', resultSummary: summary, resultJson: JSON.stringify(resultJson), collectBindings: JSON.stringify(pending.collectBindings || null), processId: parsed.processId || '' });
+            }
+            delete managerExecutionMap[message.responseid];
+            return true;
+        }
+
+        function flowEnterPage() {
+            if (Q('p102') == null) return;
+            QC('p102').remove('flow-page-active'); void Q('p102').offsetWidth; QC('p102').add('flow-page-active');
+            if (Q('flowSearchInput') != null) Q('flowSearchInput').value = flowState.search;
+            if (flowState.loaded !== true) flowRefreshList(1); else flowRender();
+        }
+        function flowHandleSearchInput() { if (flowState.searchTimer != null) clearTimeout(flowState.searchTimer); flowState.searchTimer = setTimeout(function () { flowState.search = Q('flowSearchInput').value.trim(); flowRefreshList(1); }, 260); }
+        function flowRefreshList(page) { if (typeof page === 'number') flowState.page = page; flowState.loaded = true; flowState.loading = true; QV('flowLoadingState', true); QV('flowEmptyState', false); QH('flowCardList', ''); meshserver.send({ action: 'flowlist', search: flowState.search, page: flowState.page, limit: flowState.limit }); }
+        function flowHandleListResponse(message) {
+            flowState.loading = false; QV('flowLoadingState', false);
+            if (message.result != null) { flowState.items = []; flowState.total = 0; flowShowToast(message.result, true); } else { flowState.items = Array.isArray(message.flows) ? message.flows : []; flowState.total = typeof message.total === 'number' ? message.total : 0; if (typeof message.page === 'number') flowState.page = message.page; }
+            flowRender();
+        }
+        function flowHandleMutationResponse(kind, message) {
+            flowState.pendingAction = null; flowSetSubmitBusy(false);
+            if (message.success !== true) { flowShowToast(message.result || '操作失败。', true); return; }
+            if (kind !== 'delete') flowCloseEditor();
+            flowShowToast(kind === 'create' ? '流程新增成功。' : (kind === 'update' ? '流程保存成功。' : '流程删除成功。'), false);
+            flowRefreshList(kind === 'create' ? 1 : flowState.page);
+        }
+        function flowRender() {
+            QH('flowToolbarMeta', '共 ' + flowState.total + ' 条流程');
+            var list = flowState.items || [];
+            if (list.length === 0) { QH('flowCardList', ''); QV('flowEmptyState', !flowState.loading); QV('flowPagination', false); return; }
+            QV('flowEmptyState', false);
+            var x = '';
+            for (var i = 0; i < list.length; i++) {
+                var flow = list[i], flowType = flow.flow_type || flow.flowType, deviceOs = flow.device_os || flow.deviceOs, lastResult = managerParseJson(typeof flow.last_run_result === 'string' ? flow.last_run_result : JSON.stringify(flow.last_run_result || {}), {});
+                x += '<article class="flow-card">';
+                x += '<div class="flow-card-body">';
+                x += '<div class="flow-card-head"><div><h3>' + EscapeHtml(flow.name || '') + '</h3><div class="flow-card-category">' + EscapeHtml(flowType || '') + ' · ' + EscapeHtml(managerGetNodeLabel(flow.device_id || flow.deviceId)) + '</div></div><div class="flow-card-badges">' + managerRenderStatusBadge('flow', flow.last_run_status || flow.lastRunStatus || 'idle') + '</div></div>';
+                x += '<div class="flow-card-meta"><span>系统</span><strong>' + EscapeHtml(deviceOs || '未知') + '</strong></div>';
+                x += '<div class="flow-card-meta"><span>当前脚本</span><strong>' + EscapeHtml(managerCurrentScriptPath(flow.script_entries || flow.scriptEntries, deviceOs || 'macos')) + '</strong></div>';
+                x += '<div class="flow-card-meta"><span>上次执行</span><strong>' + EscapeHtml(flow.last_run_at ? new Date(flow.last_run_at).toLocaleString() : '从未执行') + '</strong></div>';
+                x += '<div class="flow-card-meta"><span>摘要</span><strong>' + EscapeHtml(lastResult.resultSummary || '暂无') + '</strong></div>';
+                x += '<div class="flow-card-footer"><div class="flow-card-hints"><span>' + EscapeHtml(flow.project_root || flow.projectRoot || '') + '</span></div><div class="flow-card-actions">';
+                x += '<button type="button" class="flow-btn" onclick="flowOpenEditorById(\'' + EscapeHtml(String(flow.id)) + '\')">编辑</button>';
+                x += '<button type="button" class="flow-btn flow-btn-danger" onclick="flowConfirmDelete(\'' + EscapeHtml(String(flow.id)) + '\')">删除</button>';
+                x += '<button type="button" class="flow-btn flow-btn-primary" onclick="flowExecute(\'' + EscapeHtml(String(flow.id)) + '\')">执行</button>';
+                if (flow.active_run_id) x += '<button type="button" class="flow-btn flow-btn-warn" onclick="flowStop(\'' + EscapeHtml(String(flow.id)) + '\', \'' + EscapeHtml(String(flow.active_run_id)) + '\')">停止</button>';
+                x += '<button type="button" class="flow-btn" onclick="flowOpenRuns(\'' + EscapeHtml(String(flow.id)) + '\')">查看记录</button>';
+                x += '</div></div></div></article>';
+            }
+            QH('flowCardList', x); flowRenderPagination();
+        }
+        function flowRenderPagination() {
+            var totalPages = Math.max(1, Math.ceil(flowState.total / flowState.limit)), current = Math.min(Math.max(1, flowState.page), totalPages);
+            var startItem = (flowState.total === 0) ? 0 : ((current - 1) * flowState.limit + 1), endItem = Math.min(flowState.total, current * flowState.limit);
+            var x = '<button type="button" class="flow-page-btn" ' + (current <= 1 ? 'disabled="disabled"' : 'onclick="flowRefreshList(1)"') + '>首页</button>';
+            x += '<button type="button" class="flow-page-btn" ' + (current <= 1 ? 'disabled="disabled"' : 'onclick="flowRefreshList(' + (current - 1) + ')"') + '>上一页</button>';
+            x += '<span class="flow-page-indicator">第 ' + current + ' / ' + totalPages + ' 页，显示 ' + startItem + '-' + endItem + '，共 ' + flowState.total + ' 条</span>';
+            x += '<button type="button" class="flow-page-btn" ' + (current >= totalPages ? 'disabled="disabled"' : 'onclick="flowRefreshList(' + (current + 1) + ')"') + '>下一页</button>';
+            x += '<button type="button" class="flow-page-btn" ' + (current >= totalPages ? 'disabled="disabled"' : 'onclick="flowRefreshList(' + totalPages + ')"') + '>末页</button>';
+            QH('flowPagination', x); QV('flowPagination', true);
+        }
+        function flowSetSubmitBusy(busy) { QE('flowSubmitButton', !busy); Q('flowSubmitButton').value = Q('flowSubmitButton').innerText = busy ? '保存中...' : '保存'; }
+        function flowHandleTypeChange() {
+            var flowType = Q('flowFormType').value;
+            if (Q('flowFormScriptEntries').value.trim() === '' || Q('flowFormScriptEntries').dataset.autoFill === '1') { Q('flowFormScriptEntries').value = managerPrettyJson(managerDefaultFlowScriptEntries(flowType)); Q('flowFormScriptEntries').dataset.autoFill = '1'; }
+            if (Q('flowFormConfig').value.trim() === '' || Q('flowFormConfig').dataset.autoFill === '1') { Q('flowFormConfig').value = managerPrettyJson(managerDefaultFlowConfig(flowType)); Q('flowFormConfig').dataset.autoFill = '1'; }
+            if (Q('flowFormScriptName').value.trim() === '') { Q('flowFormScriptName').value = flowType; }
+        }
+        function flowHandleDeviceChange() {
+            var deviceId = Q('flowFormDeviceId').value, node = getNodeFromId(deviceId), os = managerInferDeviceOs(node);
+            if (os) Q('flowFormDeviceOs').value = os;
+            if (Q('flowFormProjectRoot').value.trim() === '') Q('flowFormProjectRoot').value = managerDefaultProjectRoot(os);
+        }
+        function flowOpenEditorById(id) { for (var i = 0; i < flowState.items.length; i++) { if (String(flowState.items[i].id) === String(id)) { flowOpenEditor(flowState.items[i]); return; } } }
+        function flowOpenEditor(flow) {
+            managerPopulateDeviceSelect('flowFormDeviceId', flow ? (flow.device_id || flow.deviceId) : '');
+            Q('flowFormId').value = flow ? flow.id : '';
+            Q('flowFormName').value = flow ? (flow.name || '') : '';
+            Q('flowFormType').value = flow ? (flow.flow_type || flow.flowType || 'publish') : 'publish';
+            Q('flowFormDeviceOs').value = flow ? (flow.device_os || flow.deviceOs || 'macos') : 'macos';
+            Q('flowFormProjectRoot').value = flow ? (flow.project_root || flow.projectRoot || '') : managerDefaultProjectRoot(Q('flowFormDeviceOs').value);
+            Q('flowFormScriptName').value = flow ? (flow.script_name || flow.scriptName || '') : '';
+            Q('flowFormScriptEntries').value = managerPrettyJson(managerParseJson(typeof (flow ? (flow.script_entries || flow.scriptEntries) : null) === 'string' ? (flow.script_entries || flow.scriptEntries) : JSON.stringify((flow ? (flow.script_entries || flow.scriptEntries) : managerDefaultFlowScriptEntries(Q('flowFormType').value))), managerDefaultFlowScriptEntries(Q('flowFormType').value)));
+            Q('flowFormConfig').value = managerPrettyJson(managerParseJson(typeof (flow ? flow.config : null) === 'string' ? flow.config : JSON.stringify((flow ? flow.config : managerDefaultFlowConfig(Q('flowFormType').value))), managerDefaultFlowConfig(Q('flowFormType').value)));
+            Q('flowFormScriptEntries').dataset.autoFill = flow ? '0' : '1';
+            Q('flowFormConfig').dataset.autoFill = flow ? '0' : '1';
+            Q('flowFormRemark').value = flow ? (flow.remark || '') : '';
+            QH('flowModalTitle', flow ? '编辑流程' : '新增流程');
+            flowHandleTypeChange();
+            flowSetSubmitBusy(false); QV('flowModalMask', true);
+        }
+        function flowCloseEditor(event) { if (event && event.target && event.target.id !== 'flowModalMask') return; QV('flowModalMask', false); }
+        function flowSubmitEditor() {
+            var payload = { id: Q('flowFormId').value, name: Q('flowFormName').value.trim(), flowType: Q('flowFormType').value, deviceId: Q('flowFormDeviceId').value, deviceOs: Q('flowFormDeviceOs').value, projectRoot: Q('flowFormProjectRoot').value.trim(), scriptName: Q('flowFormScriptName').value.trim(), scriptEntries: Q('flowFormScriptEntries').value.trim(), config: Q('flowFormConfig').value.trim(), remark: Q('flowFormRemark').value.trim() };
+            if (payload.name === '') { flowShowToast('流程名称不能为空。', true); return; }
+            if (payload.deviceId === '') { flowShowToast('目标设备不能为空。', true); return; }
+            if (payload.projectRoot === '') { flowShowToast('项目路径不能为空。', true); return; }
+            if (payload.scriptEntries === '') { flowShowToast('脚本入口配置不能为空。', true); return; }
+            if (managerParseJson(payload.scriptEntries, null) == null) { flowShowToast('脚本入口配置 JSON 无效。', true); return; }
+            if (managerParseJson(payload.config || '{}', null) == null) { flowShowToast('流程配置 JSON 无效。', true); return; }
+            flowSetSubmitBusy(true); flowState.pendingAction = payload.id !== '' ? 'flowupdate' : 'flowcreate'; meshserver.send({ action: flowState.pendingAction, id: payload.id, name: payload.name, flowType: payload.flowType, deviceId: payload.deviceId, deviceOs: payload.deviceOs, projectRoot: payload.projectRoot, scriptName: payload.scriptName, scriptEntries: payload.scriptEntries, config: payload.config, remark: payload.remark });
+        }
+        function flowConfirmDelete(id) { setDialogMode(2, '删除流程', 3, function (button, tag) { if (button === 1) meshserver.send({ action: 'flowdelete', id: tag }); }, '确认删除该流程吗？删除后将立即刷新列表。', id); }
+        function flowShowToast(text, isError) { if (flowState.toastTimer != null) clearTimeout(flowState.toastTimer); QH('flowToast', EscapeHtml(text)); Q('flowToast').className = 'flow-toast' + (isError ? ' flow-toast-error' : ' flow-toast-success'); QV('flowToast', true); flowState.toastTimer = setTimeout(function () { QV('flowToast', false); }, 2800); }
+        function flowOpenRuns(flowId, page) { flowState.currentRunsFlowId = flowId; flowState.runsPage = typeof page === 'number' ? page : 1; QH('flowRunsTitle', '流程执行记录'); QH('flowRunsContent', '正在加载执行记录...'); QV('flowRunsMask', true); meshserver.send({ action: 'flowruns', flowId: flowId, page: flowState.runsPage, limit: flowState.runsLimit }); }
+        function flowCloseRuns(event) { if (event && event.target && event.target.id !== 'flowRunsMask') return; QV('flowRunsMask', false); }
+        function flowHandleRunsResponse(message) {
+            if (message.result != null) { QH('flowRunsContent', '<div class="flow-history-empty">' + EscapeHtml(message.result) + '</div>'); QV('flowRunsPagination', false); return; }
+            var runs = Array.isArray(message.runs) ? message.runs : [], x = '';
+            if (runs.length === 0) { x = '<div class="flow-history-empty">暂无执行记录。</div>'; } else {
+                for (var i = 0; i < runs.length; i++) {
+                    var resultJson = managerParseJson(typeof runs[i].result_json === 'string' ? runs[i].result_json : JSON.stringify(runs[i].result_json || null), null);
+                    x += '<div class="flow-history-item"><div class="flow-history-head"><div>' + managerRenderStatusBadge('flow', runs[i].status || 'idle') + '</div><strong>' + EscapeHtml(runs[i].started_at ? new Date(runs[i].started_at).toLocaleString() : '') + '</strong></div>';
+                    x += '<div class="flow-history-meta"><span>脚本</span><strong>' + EscapeHtml(runs[i].script_path || runs[i].script_name || '') + '</strong></div>';
+                    x += '<div class="flow-history-meta"><span>采集绑定</span><strong>' + EscapeHtml(JSON.stringify(runs[i].collect_bindings || runs[i].collectBindings || null)) + '</strong></div>';
+                    x += '<div class="flow-history-meta"><span>摘要</span><strong>' + EscapeHtml(runs[i].result_summary || '暂无') + '</strong></div>';
+                    x += '<details class="flow-history-raw"><summary>查看原始输出</summary><pre>' + EscapeHtml(runs[i].stdout || '') + '</pre></details>';
+                    if (resultJson != null) x += '<details class="flow-history-raw"><summary>查看解析结果 JSON</summary><pre>' + EscapeHtml(JSON.stringify(resultJson, null, 2)) + '</pre></details>';
+                    x += '</div>';
+                }
+            }
+            QH('flowRunsContent', x);
+            var totalPages = Math.max(1, Math.ceil((message.total || 0) / flowState.runsLimit)), current = Math.min(Math.max(1, message.page || 1), totalPages);
+            if (message.total > flowState.runsLimit) { QH('flowRunsPagination', '<button type="button" class="flow-page-btn" ' + (current <= 1 ? 'disabled="disabled"' : 'onclick="flowOpenRuns(\'' + EscapeHtml(flowState.currentRunsFlowId) + '\',' + (current - 1) + ')"') + '>上一页</button><span class="flow-page-indicator">第 ' + current + ' / ' + totalPages + ' 页</span><button type="button" class="flow-page-btn" ' + (current >= totalPages ? 'disabled="disabled"' : 'onclick="flowOpenRuns(\'' + EscapeHtml(flowState.currentRunsFlowId) + '\',' + (current + 1) + ')"') + '>下一页</button>'); QV('flowRunsPagination', true); } else { QV('flowRunsPagination', false); }
+        }
+        function flowExecute(id) { meshserver.send({ action: 'flowprepareexecute', id: id }); }
+        function flowStop(id, runId) { meshserver.send({ action: 'flowpreparestop', id: id, runId: runId }); }
+        function flowHandlePrepareExecute(message) {
+            if (message.success !== true) { flowShowToast(message.result || '无法准备流程执行。', true); return; }
+            managerExecutionMap[message.responseid] = { kind: 'flow', runId: message.runId, flowId: message.flowId, runMode: message.runMode, collectBindings: message.collectBindings || null };
+            meshserver.send({ action: 'runcommands', nodeids: [message.nodeId], type: message.commandType, cmds: message.cmds, runAsUser: 0, reply: true, responseid: message.responseid });
+            flowShowToast(message.runMode === 'background' ? '正在启动常驻流程...' : '正在执行流程...', false);
+        }
+        function flowHandlePrepareStop(message) {
+            if (message.success !== true) { flowShowToast(message.result || '无法准备停止流程。', true); return; }
+            managerExecutionMap[message.responseid] = { kind: 'flow', operation: 'stop', runId: message.runId, flowId: message.flowId };
+            meshserver.send({ action: 'runcommands', nodeids: [message.nodeId], type: message.commandType, cmds: message.cmds, runAsUser: 0, reply: true, responseid: message.responseid });
+            flowShowToast('正在停止常驻流程...', false);
+        }
+        function flowHandleFinalizeExecute(message) {
+            if (message.success !== true) { flowShowToast(message.result || '无法保存流程执行结果。', true); return; }
+            flowShowToast('流程状态已更新。', false); flowRefreshList(flowState.page); if (flowState.currentRunsFlowId && message.row && message.row.flow_id === flowState.currentRunsFlowId) flowOpenRuns(flowState.currentRunsFlowId, flowState.runsPage);
+        }
+
+        function collectEnterPage() {
+            if (Q('p103') == null) return;
+            QC('p103').remove('collect-page-active'); void Q('p103').offsetWidth; QC('p103').add('collect-page-active');
+            if (Q('collectSearchInput') != null) Q('collectSearchInput').value = collectState.search;
+            if (collectState.loaded !== true) collectRefreshList(1); else collectRender();
+        }
+        function collectHandleSearchInput() { if (collectState.searchTimer != null) clearTimeout(collectState.searchTimer); collectState.searchTimer = setTimeout(function () { collectState.search = Q('collectSearchInput').value.trim(); collectRefreshList(1); }, 260); }
+        function collectRefreshList(page) { if (typeof page === 'number') collectState.page = page; collectState.loaded = true; collectState.loading = true; QV('collectLoadingState', true); QV('collectEmptyState', false); QH('collectCardList', ''); meshserver.send({ action: 'collectlist', search: collectState.search, page: collectState.page, limit: collectState.limit }); }
+        function collectHandleListResponse(message) {
+            collectState.loading = false; QV('collectLoadingState', false);
+            if (message.result != null) { collectState.items = []; collectState.total = 0; collectShowToast(message.result, true); } else { collectState.items = Array.isArray(message.tasks) ? message.tasks : []; collectState.total = typeof message.total === 'number' ? message.total : 0; if (typeof message.page === 'number') collectState.page = message.page; }
+            collectRender();
+        }
+        function collectHandleMutationResponse(kind, message) {
+            collectState.pendingAction = null; collectSetSubmitBusy(false);
+            if (message.success !== true) { collectShowToast(message.result || '操作失败。', true); return; }
+            if (kind !== 'delete') collectCloseEditor();
+            var toastText = kind === 'create' ? '采集任务新增成功。' : (kind === 'update' ? '采集任务保存成功。' : '采集任务删除成功。');
+            if (kind === 'delete' && message.clearResults === true) {
+                if ((message.keptResultCount || 0) > 0) {
+                    toastText = '采集任务已删除，清理了 ' + String(message.removedResultCount || 0) + ' 条未引用结果，保留 ' + String(message.keptResultCount || 0) + ' 条被引用历史结果。';
+                } else {
+                    toastText = '采集任务已删除，并清理了 ' + String(message.removedResultCount || 0) + ' 条采集结果。';
+                }
+            }
+            collectShowToast(toastText, false);
+            collectRefreshList(kind === 'create' ? 1 : collectState.page);
+        }
+        function collectRender() {
+            QH('collectToolbarMeta', '共 ' + collectState.total + ' 条采集任务');
+            var list = collectState.items || [];
+            if (list.length === 0) { QH('collectCardList', ''); QV('collectEmptyState', !collectState.loading); QV('collectPagination', false); return; }
+            QV('collectEmptyState', false);
+            var x = '';
+            for (var i = 0; i < list.length; i++) {
+                var task = list[i], collectType = task.collect_type || task.collectType, deviceOs = task.device_os || task.deviceOs;
+                x += '<article class="collect-card">';
+                x += '<div class="collect-card-body">';
+                x += '<div class="collect-card-head"><div><h3>' + EscapeHtml(task.name || '') + '</h3><div class="collect-card-category">' + EscapeHtml(collectType || '') + ' · ' + EscapeHtml(managerGetNodeLabel(task.device_id || task.deviceId)) + '</div></div><div class="collect-card-badges">' + managerRenderStatusBadge('collect', task.last_run_status || task.lastRunStatus || 'idle', task.last_sync_status || task.lastSyncStatus || '') + '</div></div>';
+                x += '<div class="collect-card-meta"><span>系统</span><strong>' + EscapeHtml(deviceOs || '未知') + '</strong></div>';
+                x += '<div class="collect-card-meta"><span>当前脚本</span><strong>' + EscapeHtml(managerCurrentScriptPath(task.script_entries || task.scriptEntries, deviceOs || 'macos')) + '</strong></div>';
+                x += '<div class="collect-card-meta"><span>上次采集</span><strong>' + EscapeHtml(task.last_run_at ? new Date(task.last_run_at).toLocaleString() : '从未执行') + '</strong></div>';
+                x += '<div class="collect-card-meta"><span>数据条数</span><strong>' + EscapeHtml(String(task.last_data_count || task.lastDataCount || 0)) + '</strong></div>';
+                x += '<div class="collect-card-footer"><div class="collect-card-hints"><span>' + EscapeHtml(task.project_root || task.projectRoot || '') + '</span></div><div class="collect-card-actions">';
+                x += '<button type="button" class="collect-btn" onclick="collectOpenEditorById(\'' + EscapeHtml(String(task.id)) + '\')">编辑</button>';
+                x += '<button type="button" class="collect-btn collect-btn-danger" onclick="collectConfirmDelete(\'' + EscapeHtml(String(task.id)) + '\')">删除</button>';
+                x += '<button type="button" class="collect-btn collect-btn-primary" onclick="collectExecute(\'' + EscapeHtml(String(task.id)) + '\')">执行采集</button>';
+                x += '<button type="button" class="collect-btn" onclick="collectOpenResults(\'' + EscapeHtml(String(task.id)) + '\')">查看结果</button>';
+                x += '</div></div></div></article>';
+            }
+            QH('collectCardList', x); collectRenderPagination();
+        }
+        function collectRenderPagination() {
+            var totalPages = Math.max(1, Math.ceil(collectState.total / collectState.limit)), current = Math.min(Math.max(1, collectState.page), totalPages);
+            var startItem = (collectState.total === 0) ? 0 : ((current - 1) * collectState.limit + 1), endItem = Math.min(collectState.total, current * collectState.limit);
+            var x = '<button type="button" class="collect-page-btn" ' + (current <= 1 ? 'disabled="disabled"' : 'onclick="collectRefreshList(1)"') + '>首页</button>';
+            x += '<button type="button" class="collect-page-btn" ' + (current <= 1 ? 'disabled="disabled"' : 'onclick="collectRefreshList(' + (current - 1) + ')"') + '>上一页</button>';
+            x += '<span class="collect-page-indicator">第 ' + current + ' / ' + totalPages + ' 页，显示 ' + startItem + '-' + endItem + '，共 ' + collectState.total + ' 条</span>';
+            x += '<button type="button" class="collect-page-btn" ' + (current >= totalPages ? 'disabled="disabled"' : 'onclick="collectRefreshList(' + (current + 1) + ')"') + '>下一页</button>';
+            x += '<button type="button" class="collect-page-btn" ' + (current >= totalPages ? 'disabled="disabled"' : 'onclick="collectRefreshList(' + totalPages + ')"') + '>末页</button>';
+            QH('collectPagination', x); QV('collectPagination', true);
+        }
+        function collectSetSubmitBusy(busy) { QE('collectSubmitButton', !busy); Q('collectSubmitButton').value = Q('collectSubmitButton').innerText = busy ? '保存中...' : '保存'; }
+        function collectHandleTypeChange() {
+            var collectType = Q('collectFormType').value;
+            if (Q('collectFormScriptEntries').value.trim() === '' || Q('collectFormScriptEntries').dataset.autoFill === '1') { Q('collectFormScriptEntries').value = managerPrettyJson(managerDefaultCollectScriptEntries(collectType)); Q('collectFormScriptEntries').dataset.autoFill = '1'; }
+            if (Q('collectFormConfig').value.trim() === '' || Q('collectFormConfig').dataset.autoFill === '1') { Q('collectFormConfig').value = managerPrettyJson(managerDefaultCollectConfig(collectType)); Q('collectFormConfig').dataset.autoFill = '1'; }
+            if (Q('collectFormScriptName').value.trim() === '') { Q('collectFormScriptName').value = collectType; }
+        }
+        function collectHandleDeviceChange() {
+            var deviceId = Q('collectFormDeviceId').value, node = getNodeFromId(deviceId), os = managerInferDeviceOs(node);
+            if (os) Q('collectFormDeviceOs').value = os;
+            if (Q('collectFormProjectRoot').value.trim() === '') Q('collectFormProjectRoot').value = managerDefaultProjectRoot(os);
+        }
+        function collectOpenEditorById(id) { for (var i = 0; i < collectState.items.length; i++) { if (String(collectState.items[i].id) === String(id)) { collectOpenEditor(collectState.items[i]); return; } } }
+        function collectOpenEditor(task) {
+            managerPopulateDeviceSelect('collectFormDeviceId', task ? (task.device_id || task.deviceId) : '');
+            Q('collectFormId').value = task ? task.id : '';
+            Q('collectFormName').value = task ? (task.name || '') : '';
+            Q('collectFormType').value = task ? (task.collect_type || task.collectType || 'collect_shop') : 'collect_shop';
+            Q('collectFormDeviceOs').value = task ? (task.device_os || task.deviceOs || 'macos') : 'macos';
+            Q('collectFormProjectRoot').value = task ? (task.project_root || task.projectRoot || '') : managerDefaultProjectRoot(Q('collectFormDeviceOs').value);
+            Q('collectFormScriptName').value = task ? (task.script_name || task.scriptName || '') : '';
+            Q('collectFormScriptEntries').value = managerPrettyJson(managerParseJson(typeof (task ? (task.script_entries || task.scriptEntries) : null) === 'string' ? (task.script_entries || task.scriptEntries) : JSON.stringify((task ? (task.script_entries || task.scriptEntries) : managerDefaultCollectScriptEntries(Q('collectFormType').value))), managerDefaultCollectScriptEntries(Q('collectFormType').value)));
+            Q('collectFormConfig').value = managerPrettyJson(managerParseJson(typeof (task ? task.config : null) === 'string' ? task.config : JSON.stringify((task ? task.config : managerDefaultCollectConfig(Q('collectFormType').value))), managerDefaultCollectConfig(Q('collectFormType').value)));
+            Q('collectFormScriptEntries').dataset.autoFill = task ? '0' : '1';
+            Q('collectFormConfig').dataset.autoFill = task ? '0' : '1';
+            Q('collectFormRemark').value = task ? (task.remark || '') : '';
+            QH('collectModalTitle', task ? '编辑采集任务' : '新增采集任务');
+            collectHandleTypeChange();
+            collectSetSubmitBusy(false); QV('collectModalMask', true);
+        }
+        function collectCloseEditor(event) { if (event && event.target && event.target.id !== 'collectModalMask') return; QV('collectModalMask', false); }
+        function collectSubmitEditor() {
+            var payload = { id: Q('collectFormId').value, name: Q('collectFormName').value.trim(), collectType: Q('collectFormType').value, deviceId: Q('collectFormDeviceId').value, deviceOs: Q('collectFormDeviceOs').value, projectRoot: Q('collectFormProjectRoot').value.trim(), scriptName: Q('collectFormScriptName').value.trim(), scriptEntries: Q('collectFormScriptEntries').value.trim(), config: Q('collectFormConfig').value.trim(), remark: Q('collectFormRemark').value.trim() };
+            if (payload.name === '') { collectShowToast('任务名称不能为空。', true); return; }
+            if (payload.deviceId === '') { collectShowToast('目标设备不能为空。', true); return; }
+            if (payload.projectRoot === '') { collectShowToast('项目路径不能为空。', true); return; }
+            if (payload.scriptEntries === '') { collectShowToast('脚本入口配置不能为空。', true); return; }
+            if (managerParseJson(payload.scriptEntries, null) == null) { collectShowToast('脚本入口配置 JSON 无效。', true); return; }
+            if (managerParseJson(payload.config || '{}', null) == null) { collectShowToast('采集配置 JSON 无效。', true); return; }
+            collectSetSubmitBusy(true); collectState.pendingAction = payload.id !== '' ? 'collectupdate' : 'collectcreate'; meshserver.send({ action: collectState.pendingAction, id: payload.id, name: payload.name, collectType: payload.collectType, deviceId: payload.deviceId, deviceOs: payload.deviceOs, projectRoot: payload.projectRoot, scriptName: payload.scriptName, scriptEntries: payload.scriptEntries, config: payload.config, remark: payload.remark });
+        }
+        function collectConfirmDelete(id) {
+            setDialogMode(2, '删除采集任务', 3, function (button, tag) {
+                if (button !== 1) return;
+                var clearResults = confirm('是否同时清理未被引用的采集结果和同步商品数据？\n选择“取消”则仅删除任务并保留历史结果。');
+                meshserver.send({ action: 'collectdelete', id: tag, clearResults: clearResults === true });
+            }, '确认删除该采集任务吗？删除后默认保留历史采集结果。', id);
+        }
+        function collectShowToast(text, isError) { if (collectState.toastTimer != null) clearTimeout(collectState.toastTimer); QH('collectToast', EscapeHtml(text)); Q('collectToast').className = 'collect-toast' + (isError ? ' collect-toast-error' : ' collect-toast-success'); QV('collectToast', true); collectState.toastTimer = setTimeout(function () { QV('collectToast', false); }, 2800); }
+        function collectOpenResults(taskId, page) { collectState.currentResultsTaskId = taskId; collectState.resultsPage = typeof page === 'number' ? page : 1; QH('collectResultsTitle', '采集结果'); QH('collectResultsContent', '正在加载采集结果...'); QV('collectResultsMask', true); meshserver.send({ action: 'collectresults', taskId: taskId, page: collectState.resultsPage, limit: collectState.resultsLimit }); }
+        function collectCloseResults(event) { if (event && event.target && event.target.id !== 'collectResultsMask') return; QV('collectResultsMask', false); }
+        function collectHandleResultsResponse(message) {
+            if (message.result != null) { QH('collectResultsContent', '<div class="collect-history-empty">' + EscapeHtml(message.result) + '</div>'); QV('collectResultsPagination', false); return; }
+            var results = Array.isArray(message.results) ? message.results : [], x = '';
+            if (results.length === 0) { x = '<div class="collect-history-empty">暂无采集结果。</div>'; } else {
+                for (var i = 0; i < results.length; i++) {
+                    var data = managerParseJson(typeof results[i].data === 'string' ? results[i].data : JSON.stringify(results[i].data || []), []);
+                    x += '<div class="collect-history-item"><div class="collect-history-head"><div>' + managerRenderStatusBadge('collect', results[i].status || 'idle', results[i].sync_status || '') + '</div><strong>' + EscapeHtml(results[i].collected_at ? new Date(results[i].collected_at).toLocaleString() : '') + '</strong></div>';
+                    x += '<div class="collect-history-meta"><span>数据条数</span><strong>' + EscapeHtml(String(results[i].data_count || 0)) + '</strong></div>';
+                    x += '<div class="collect-history-meta"><span>退出码</span><strong>' + EscapeHtml(String(results[i].exit_code == null ? '' : results[i].exit_code)) + '</strong></div>';
+                    x += '<div class="collect-history-meta"><span>同步错误</span><strong>' + EscapeHtml(results[i].sync_error || '无') + '</strong></div>';
+                    x += '<details class="collect-history-raw"><summary>查看原始输出</summary><pre>' + EscapeHtml(results[i].stdout || '') + '</pre></details>';
+                    x += '<details class="collect-history-raw"><summary>查看原始数据 JSON</summary><pre>' + EscapeHtml(JSON.stringify(data, null, 2)) + '</pre></details></div>';
+                }
+            }
+            QH('collectResultsContent', x);
+            var totalPages = Math.max(1, Math.ceil((message.total || 0) / collectState.resultsLimit)), current = Math.min(Math.max(1, message.page || 1), totalPages);
+            if (message.total > collectState.resultsLimit) { QH('collectResultsPagination', '<button type="button" class="collect-page-btn" ' + (current <= 1 ? 'disabled="disabled"' : 'onclick="collectOpenResults(\'' + EscapeHtml(collectState.currentResultsTaskId) + '\',' + (current - 1) + ')"') + '>上一页</button><span class="collect-page-indicator">第 ' + current + ' / ' + totalPages + ' 页</span><button type="button" class="collect-page-btn" ' + (current >= totalPages ? 'disabled="disabled"' : 'onclick="collectOpenResults(\'' + EscapeHtml(collectState.currentResultsTaskId) + '\',' + (current + 1) + ')"') + '>下一页</button>'); QV('collectResultsPagination', true); } else { QV('collectResultsPagination', false); }
+        }
+        function collectExecute(id) { meshserver.send({ action: 'collectprepareexecute', id: id }); }
+        function collectHandlePrepareExecute(message) {
+            if (message.success !== true) { collectShowToast(message.result || '无法准备采集执行。', true); return; }
+            managerExecutionMap[message.responseid] = { kind: 'collect', resultId: message.resultId, taskId: message.taskId };
+            meshserver.send({ action: 'runcommands', nodeids: [message.nodeId], type: message.commandType, cmds: message.cmds, runAsUser: 0, reply: true, responseid: message.responseid });
+            collectShowToast('正在执行采集任务...', false);
+        }
+        function collectHandleFinalizeExecute(message) {
+            if (message.success !== true) { collectShowToast(message.result || '无法保存采集结果。', true); return; }
+            collectShowToast('采集结果已更新。', false); collectRefreshList(collectState.page); if (collectState.currentResultsTaskId) collectOpenResults(collectState.currentResultsTaskId, collectState.resultsPage);
+        }
+
         // Return the number of 2nd factor for this account
         function count2factoraAuths() {
             if (userinfo == null) return -1;
@@ -3359,6 +3920,8 @@
                                 if (typeof message.memory.percentConsumed == 'number') { memory = message.memory.percentConsumed; }
                                 deviceDetailsStatsData.push([now, cpu, memory]);
                                 deviceDetailsStatsDraw(message);
+                            } else if (message.type === 'runcommands') {
+                                if (managerHandleRuncommandsOutput(message) === true) { break; }
                             } else if (message.type === 'console') { p15consoleReceive(nodes[index], message.value, message.source); } // This is a console message.
                             else if (message.type === 'notify') { // This is a notification message.
                                 var n = getstore('notifications', 0);
@@ -3833,6 +4396,34 @@
                     shopHandleMutationResponse('delete', message);
                     break;
                 }
+                case 'collectlist': {
+                    collectHandleListResponse(message);
+                    break;
+                }
+                case 'collectcreate': {
+                    collectHandleMutationResponse('create', message);
+                    break;
+                }
+                case 'collectupdate': {
+                    collectHandleMutationResponse('update', message);
+                    break;
+                }
+                case 'collectdelete': {
+                    collectHandleMutationResponse('delete', message);
+                    break;
+                }
+                case 'collectresults': {
+                    collectHandleResultsResponse(message);
+                    break;
+                }
+                case 'collectprepareexecute': {
+                    collectHandlePrepareExecute(message);
+                    break;
+                }
+                case 'collectfinalizeexecute': {
+                    collectHandleFinalizeExecute(message);
+                    break;
+                }
                 case 'productlist': {
                     productHandleListResponse(message);
                     break;
@@ -3847,6 +4438,42 @@
                 }
                 case 'productdelete': {
                     productHandleMutationResponse('delete', message);
+                    break;
+                }
+                case 'flowlist': {
+                    flowHandleListResponse(message);
+                    break;
+                }
+                case 'flowcreate': {
+                    flowHandleMutationResponse('create', message);
+                    break;
+                }
+                case 'flowupdate': {
+                    flowHandleMutationResponse('update', message);
+                    break;
+                }
+                case 'flowdelete': {
+                    flowHandleMutationResponse('delete', message);
+                    break;
+                }
+                case 'flowruns': {
+                    flowHandleRunsResponse(message);
+                    break;
+                }
+                case 'flowprepareexecute': {
+                    flowHandlePrepareExecute(message);
+                    break;
+                }
+                case 'flowpreparestop': {
+                    flowHandlePrepareStop(message);
+                    break;
+                }
+                case 'flowfinalizeexecute': {
+                    flowHandleFinalizeExecute(message);
+                    break;
+                }
+                case 'runcommands': {
+                    if (managerHandleRuncommandsAck(message) === true) break;
                     break;
                 }
                 case 'fileoperation': {
@@ -19692,7 +20319,7 @@
             }
 
             // Remove left bar selection
-            var leftBarItems = ['LeftMenuMyDevices', 'LeftMenuMyAccount', 'LeftMenuMyEvents', 'LeftMenuMyFiles', 'LeftMenuMyUsers', 'LeftMenuMyServer', 'LeftMenuShopManager', 'LeftMenuProductManager'];
+            var leftBarItems = ['LeftMenuMyDevices', 'LeftMenuMyAccount', 'LeftMenuMyEvents', 'LeftMenuMyFiles', 'LeftMenuMyUsers', 'LeftMenuMyServer', 'LeftMenuShopManager', 'LeftMenuProductManager', 'LeftMenuFlowManager', 'LeftMenuCollectManager'];
             for (var i in leftBarItems) {
                 QC(leftBarItems[i]).remove('lbbuttonsel');
                 QC(leftBarItems[i]).remove('lbbuttonsel2');
@@ -19737,6 +20364,14 @@
                 // Product Manager
                 QC('MainMenuProductManager').add(mainMenuActiveClass);
                 QC('LeftMenuProductManager').add(leftMenuActiveClass);
+            } else if (x == 102) {
+                // Flow Manager
+                QC('MainMenuFlowManager').add(mainMenuActiveClass);
+                QC('LeftMenuFlowManager').add(leftMenuActiveClass);
+            } else if (x == 103) {
+                // Collect Manager
+                QC('MainMenuCollectManager').add(mainMenuActiveClass);
+                QC('LeftMenuCollectManager').add(leftMenuActiveClass);
             }
             QV('ServerPlugins', pluginHandler != null);
 
@@ -19756,6 +20391,8 @@
             QV('EventsSubMenuSpan', (x == 3) || (x == 60));
             if (x == 100) { shopEnterPage(); }
             if (x == 101) { productEnterPage(); }
+            if (x == 102) { flowEnterPage(); }
+            if (x == 103) { collectEnterPage(); }
             var panels = { 3: 'EventsLive', 4: 'UsersGeneral', 10: 'MainDev', 11: 'MainDevDesktop', 12: 'MainDevTerminal', 13: 'MainDevFiles', 14: 'MainDevAmt', 15: 'MainDevConsole', 16: 'MainDevEvents', 17: 'MainDevInfo', 19: 'MainDevPlugins', 20: 'MeshGeneral', 21: 'MeshSummary', 30: 'UserGeneral', 31: 'UserEvents', 6: 'ServerGeneral', 40: 'ServerStats', 41: 'ServerTrace', 42: 'ServerPlugins', 50: 'UsersGroups', 52: 'UsersRecordings', 60: 'EventsReport', 115: 'ServerConsole' };
             for (var i in panels) {
                 QC(panels[i]).remove('style3x');
@@ -19791,6 +20428,8 @@
 
             // Enter shop manager
             if (x == 100) { shopEnterPage(); }
+            if (x == 102) { flowEnterPage(); }
+            if (x == 103) { collectEnterPage(); }
 
             // Update terminal size
             if ((x == 12) && (xtermfit != null)) { xtermfit.fit(); xterm.focus(); }

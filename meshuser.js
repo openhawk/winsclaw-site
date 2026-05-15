@@ -5729,10 +5729,25 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         'shopdelete': serverCommandShopDelete,
         'shoplist': serverCommandShopList,
         'shopupdate': serverCommandShopUpdate,
+        'collectcreate': serverCommandCollectCreate,
+        'collectdelete': serverCommandCollectDelete,
+        'collectfinalizeexecute': serverCommandCollectFinalizeExecute,
+        'collectlist': serverCommandCollectList,
+        'collectprepareexecute': serverCommandCollectPrepareExecute,
+        'collectresults': serverCommandCollectResults,
+        'collectupdate': serverCommandCollectUpdate,
         'productcreate': serverCommandProductCreate,
         'productdelete': serverCommandProductDelete,
         'productlist': serverCommandProductList,
         'productupdate': serverCommandProductUpdate,
+        'flowcreate': serverCommandFlowCreate,
+        'flowdelete': serverCommandFlowDelete,
+        'flowfinalizeexecute': serverCommandFlowFinalizeExecute,
+        'flowlist': serverCommandFlowList,
+        'flowprepareexecute': serverCommandFlowPrepareExecute,
+        'flowpreparestop': serverCommandFlowPrepareStop,
+        'flowruns': serverCommandFlowRuns,
+        'flowupdate': serverCommandFlowUpdate,
         'serverstats': serverCommandServerStats,
         'servertimelinestats': serverCommandServerTimelineStats,
         'serverupdate': serverCommandServerUpdate,
@@ -7397,6 +7412,445 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         db.DeleteProduct(productId, function (err, deletedId) {
             if (err != null) { obj.send({ action: 'productdelete', result: err.message ? err.message : '删除失败。' }); return; }
             obj.send({ action: 'productdelete', success: true, id: deletedId });
+        });
+    }
+
+    function managerGetTextField(value, maxLen, allowEmpty) {
+        if (typeof value !== 'string') return null;
+        value = value.trim();
+        if ((allowEmpty !== true) && (value.length === 0)) return null;
+        if (value.length > maxLen) return null;
+        return value;
+    }
+
+    function managerGetJsonField(value, fallback) {
+        if (value == null || value === '') return fallback;
+        if (typeof value === 'object') return value;
+        if (typeof value !== 'string') return null;
+        try { return JSON.parse(value); } catch (ex) { return null; }
+    }
+
+    function managerNormalizeDeviceOs(value) {
+        value = (typeof value === 'string') ? value.trim().toLowerCase() : '';
+        if ((value === 'mac') || (value === 'macos') || (value === 'darwin')) return 'macos';
+        if ((value === 'win') || (value === 'windows')) return 'windows';
+        return null;
+    }
+
+    function managerDbPromise(fnName) {
+        var args = Array.prototype.slice.call(arguments, 1);
+        return new Promise(function (resolve, reject) {
+            args.push(function (err, result) {
+                if (err != null) { reject(err); return; }
+                resolve(result);
+            });
+            db[fnName].apply(db, args);
+        });
+    }
+
+    function managerShellEscape(value) {
+        return String(value == null ? '' : value).replace(/(["\\$`])/g, '\\$1');
+    }
+
+    function managerPowerShellEscape(value) {
+        return String(value == null ? '' : value).replace(/'/g, "''");
+    }
+
+    function managerExtractScriptEntry(scriptEntries, deviceOs) {
+        if ((scriptEntries == null) || (typeof scriptEntries !== 'object')) return null;
+        var entry = scriptEntries[deviceOs];
+        if ((entry == null) || (typeof entry !== 'object')) return null;
+        if (typeof entry.path !== 'string' || entry.path.trim() === '') return null;
+        return { path: entry.path.trim(), argsTemplate: (typeof entry.argsTemplate === 'string') ? entry.argsTemplate : '{configPath}' };
+    }
+
+    function managerReplaceArgsTemplate(template, tokens) {
+        var result = (typeof template === 'string' && template !== '') ? template : '{configPath}';
+        for (var k in tokens) { result = result.split('{' + k + '}').join(tokens[k]); }
+        return result;
+    }
+
+    function managerBuildShellCommand(projectRoot, scriptPath, argsText, configText, recordId, prefix, background) {
+        var configPath = '/tmp/' + prefix + '-' + recordId + '.json';
+        var outputPath = '/tmp/' + prefix + '-' + recordId + '.log';
+        var configB64 = Buffer.from(configText, 'utf8').toString('base64');
+        var invocation = ((scriptPath.toLowerCase().endsWith('.sh')) ? ('sh "' + managerShellEscape(scriptPath) + '"') : ('"' + managerShellEscape(scriptPath) + '"')) + (argsText ? (' ' + argsText) : '');
+        var lines = [];
+        lines.push('MC_CONFIG_PATH="' + managerShellEscape(configPath) + '"');
+        lines.push('MC_OUTPUT_PATH="' + managerShellEscape(outputPath) + '"');
+        lines.push("python3 - <<'PY'\nimport base64\nopen(r'''" + configPath + "''','wb').write(base64.b64decode('" + configB64 + "'))\nPY");
+        lines.push('cd "' + managerShellEscape(projectRoot) + '"');
+        if (background === true) {
+            lines.push('nohup ' + invocation + ' > "$MC_OUTPUT_PATH" 2>&1 &');
+            lines.push('MC_PID=$!');
+            lines.push('printf "__MC_PROCESS_ID__:%s\\n" "$MC_PID"');
+            lines.push('printf "__MC_EXIT_CODE__:0\\n"');
+        } else {
+            lines.push(invocation + ' > "$MC_OUTPUT_PATH" 2>&1');
+            lines.push('MC_EXIT_CODE=$?');
+            lines.push('printf "__MC_EXIT_CODE__:%s\\n" "$MC_EXIT_CODE"');
+            lines.push('printf "__MC_OUTPUT_START__\\n"');
+            lines.push('if [ -f "$MC_OUTPUT_PATH" ]; then cat "$MC_OUTPUT_PATH"; fi');
+            lines.push('printf "\\n__MC_OUTPUT_END__\\n"');
+            lines.push('rm -f "$MC_OUTPUT_PATH" "$MC_CONFIG_PATH"');
+        }
+        return { commandType: 3, cmds: lines.join('\n'), configPath: configPath, outputPath: outputPath, scriptPath: scriptPath, arguments: [configPath] };
+    }
+
+    function managerBuildPowerShellCommand(projectRoot, scriptPath, argsText, configText, recordId, prefix, background) {
+        var configPath = 'C:\\Windows\\Temp\\' + prefix + '-' + recordId + '.json';
+        var outputPath = 'C:\\Windows\\Temp\\' + prefix + '-' + recordId + '.log';
+        var configB64 = Buffer.from(configText, 'utf8').toString('base64');
+        var psScriptPath = scriptPath.replace(/\//g, '\\');
+        var lines = [];
+        lines.push("$ConfigPath = '" + managerPowerShellEscape(configPath) + "'");
+        lines.push("$OutputPath = '" + managerPowerShellEscape(outputPath) + "'");
+        lines.push("$ProjectRoot = '" + managerPowerShellEscape(projectRoot.replace(/\//g, '\\')) + "'");
+        lines.push("$ScriptPath = '" + managerPowerShellEscape(psScriptPath) + "'");
+        lines.push("[System.IO.File]::WriteAllText($ConfigPath, [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('" + configB64 + "')))");
+        lines.push("Set-Location -Path $ProjectRoot");
+        if (background === true) {
+            lines.push("$proc = Start-Process -FilePath 'powershell.exe' -WorkingDirectory $ProjectRoot -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',$ScriptPath" + (argsText ? (',' + argsText.split(' ').filter(function (s) { return s !== ''; }).map(function (s) { return "'" + managerPowerShellEscape(s.replace(/^"|"$/g, '')) + "'"; }).join(',')) : '') + ") -PassThru -WindowStyle Hidden");
+            lines.push('Write-Output ("__MC_PROCESS_ID__:" + $proc.Id)');
+            lines.push('Write-Output "__MC_EXIT_CODE__:0"');
+        } else {
+            lines.push('& $ScriptPath ' + argsText + ' *>&1 | Out-File -FilePath $OutputPath -Encoding UTF8');
+            lines.push('$MCExitCode = $LASTEXITCODE');
+            lines.push('Write-Output ("__MC_EXIT_CODE__:" + $MCExitCode)');
+            lines.push('Write-Output "__MC_OUTPUT_START__"');
+            lines.push('if (Test-Path $OutputPath) { Get-Content -Path $OutputPath -Raw }');
+            lines.push('Write-Output "__MC_OUTPUT_END__"');
+            lines.push('Remove-Item -Force -ErrorAction SilentlyContinue $OutputPath, $ConfigPath');
+        }
+        return { commandType: 2, cmds: lines.join("\r\n"), configPath: configPath, outputPath: outputPath, scriptPath: psScriptPath, arguments: [configPath] };
+    }
+
+    function managerBuildRemoteCommand(deviceOs, projectRoot, scriptEntries, configObject, recordId, prefix, options) {
+        var entry = managerExtractScriptEntry(scriptEntries, deviceOs);
+        if (entry == null) throw new Error('未配置对应平台脚本入口。');
+        var configText = JSON.stringify(configObject || {}, null, 2);
+        var configPathToken = (deviceOs === 'windows') ? ('C:\\Windows\\Temp\\' + prefix + '-' + recordId + '.json') : ('/tmp/' + prefix + '-' + recordId + '.json');
+        var replacedArgs = managerReplaceArgsTemplate(entry.argsTemplate, { configPath: configPathToken, projectRoot: projectRoot || '' });
+        if (deviceOs === 'windows') { return managerBuildPowerShellCommand(projectRoot, entry.path, replacedArgs, configText, recordId, prefix, options && options.background === true); }
+        return managerBuildShellCommand(projectRoot, entry.path, replacedArgs, configText, recordId, prefix, options && options.background === true);
+    }
+
+    function managerExtractBetween(text, startMarker, endMarker) {
+        if (typeof text !== 'string') return '';
+        var start = text.indexOf(startMarker);
+        if (start < 0) return '';
+        start += startMarker.length;
+        var end = text.indexOf(endMarker, start);
+        if (end < 0) return text.substring(start).trim();
+        return text.substring(start, end).trim();
+    }
+
+    function managerBuildResultSummary(stdout, status, exitCode) {
+        if (status === 'running') return '流程已启动，等待停止或心跳更新。';
+        if (status === 'success') return '执行成功，退出码 ' + String(exitCode == null ? 0 : exitCode) + '。';
+        if (status === 'manual_required') return '执行完成，但需要人工处理。';
+        return '执行失败，退出码 ' + String(exitCode == null ? -1 : exitCode) + '。';
+    }
+
+    function managerMakeId(prefix) {
+        return prefix + '_' + Date.now().toString(36) + '_' + require('crypto').randomBytes(5).toString('hex');
+    }
+
+    function managerCloneJson(value) {
+        return JSON.parse(JSON.stringify(value == null ? {} : value));
+    }
+
+    function getCollectTaskPayload(command) {
+        var collectType = managerGetTextField(command.collectType || '', 32, false);
+        var name = managerGetTextField(command.name || '', 256, false);
+        var deviceId = managerGetTextField(command.deviceId || '', 256, false);
+        var deviceOs = managerNormalizeDeviceOs(command.deviceOs);
+        var projectRoot = managerGetTextField(command.projectRoot || '', 2048, false);
+        var scriptName = managerGetTextField(command.scriptName || '', 256, true) || ('collect-' + (collectType || 'task'));
+        var scriptEntries = managerGetJsonField(command.scriptEntries || '{}', {});
+        var config = managerGetJsonField(command.config || '{}', {});
+        var remark = managerGetTextField(command.remark || '', 4096, true) || '';
+        if ((collectType !== 'collect_shop') && (collectType !== 'collect_price')) return { error: '无效的采集类型。' };
+        if (name == null) return { error: '任务名称不能为空。' };
+        if (deviceId == null) return { error: '目标设备不能为空。' };
+        if (deviceOs == null) return { error: '目标设备系统无效。' };
+        if (projectRoot == null) return { error: '项目路径不能为空。' };
+        if (scriptEntries == null || typeof scriptEntries !== 'object') return { error: '脚本入口配置无效。' };
+        if (config == null || typeof config !== 'object') return { error: '采集配置 JSON 无效。' };
+        return { name: name, collectType: collectType, deviceId: deviceId, deviceOs: deviceOs, projectRoot: projectRoot, scriptName: scriptName, scriptEntries: scriptEntries, config: config, remark: remark };
+    }
+
+    function getFlowPayload(command) {
+        var flowType = managerGetTextField(command.flowType || '', 32, false);
+        var name = managerGetTextField(command.name || '', 256, false);
+        var deviceId = managerGetTextField(command.deviceId || '', 256, false);
+        var deviceOs = managerNormalizeDeviceOs(command.deviceOs);
+        var projectRoot = managerGetTextField(command.projectRoot || '', 2048, false);
+        var scriptName = managerGetTextField(command.scriptName || '', 256, true) || ('flow-' + (flowType || 'task'));
+        var scriptEntries = managerGetJsonField(command.scriptEntries || '{}', {});
+        var config = managerGetJsonField(command.config || '{}', {});
+        var remark = managerGetTextField(command.remark || '', 4096, true) || '';
+        if ((flowType !== 'publish') && (flowType !== 'pricing') && (flowType !== 'auto_reply')) return { error: '无效的流程类型。' };
+        if (name == null) return { error: '流程名称不能为空。' };
+        if (deviceId == null) return { error: '目标设备不能为空。' };
+        if (deviceOs == null) return { error: '目标设备系统无效。' };
+        if (projectRoot == null) return { error: '项目路径不能为空。' };
+        if (scriptEntries == null || typeof scriptEntries !== 'object') return { error: '脚本入口配置无效。' };
+        if (config == null || typeof config !== 'object') return { error: '流程配置 JSON 无效。' };
+        return { name: name, flowType: flowType, deviceId: deviceId, deviceOs: deviceOs, projectRoot: projectRoot, scriptName: scriptName, scriptEntries: scriptEntries, config: config, remark: remark };
+    }
+
+    async function managerResolveCollectResultReference(reference, collectType, options) {
+        options = options || {};
+        var result = null;
+        if (reference && reference.collectResultId) {
+            result = await managerDbPromise('GetCollectResult', reference.collectResultId);
+        } else if (reference && reference.collectTaskId) {
+            result = await managerDbPromise('GetLatestCollectResult', reference.collectTaskId, collectType, options.maxAgeDays, options.requireSyncSuccess === true);
+        } else {
+            result = await managerDbPromise('GetLatestCollectResult', null, collectType, options.maxAgeDays, options.requireSyncSuccess === true);
+        }
+        if (result == null) throw new Error(options.notFoundMessage || '未找到可用的采集结果。');
+        if (result.collect_type !== collectType) throw new Error('采集结果类型不匹配。');
+        if (result.status !== 'success') throw new Error('采集结果状态不是 success。');
+        if ((options.requireSyncSuccess === true) && (result.sync_status !== 'success')) throw new Error('采集结果尚未成功同步标准化商品数据。');
+        return result;
+    }
+
+    async function managerPreparePublishFlowConfig(flowConfig) {
+        var cloned = managerCloneJson(flowConfig || {});
+        var products = Array.isArray(cloned.products) ? cloned.products : [];
+        var bindings = [];
+        for (var i = 0; i < products.length; i++) {
+            if (products[i] == null || products[i].enabled === false) continue;
+            var resolvedResult = await managerResolveCollectResultReference({ collectTaskId: products[i].collectTaskId, collectResultId: products[i].collectResultId }, 'collect_shop', { requireSyncSuccess: true, notFoundMessage: '商品发布流程缺少可用的店铺采集结果。' });
+            var sourceProducts = await managerDbPromise('GetProductsByCollectResult', resolvedResult.id, { shopName: products[i].shopName || '', productName: products[i].productName || '' });
+            if (!Array.isArray(sourceProducts) || sourceProducts.length === 0) throw new Error('未找到与商品项匹配的标准化商品数据：' + (products[i].productName || products[i].key || ('第' + (i + 1) + '项')));
+            bindings.push({ productKey: products[i].key || ('product-' + (i + 1)), collectTaskId: resolvedResult.task_id, collectResultId: resolvedResult.id });
+            products[i].sourceProductData = (sourceProducts.length === 1) ? sourceProducts[0] : sourceProducts;
+            products[i].resolvedCollectTaskId = resolvedResult.task_id;
+            products[i].resolvedCollectResultId = resolvedResult.id;
+        }
+        cloned.products = products;
+        cloned.collectBindingsResolved = bindings;
+        return { config: cloned, bindings: bindings };
+    }
+
+    async function managerPreparePricingFlowConfig(flowConfig) {
+        var cloned = managerCloneJson(flowConfig || {});
+        var resolvedResult = await managerResolveCollectResultReference({ collectTaskId: cloned.collectTaskId, collectResultId: cloned.collectResultId }, 'collect_price', { maxAgeDays: 7, requireSyncSuccess: false, notFoundMessage: '调价流程缺少可用的价格采集结果。' });
+        cloned.referenceCollectResultId = resolvedResult.id;
+        cloned.referenceCollectTaskId = resolvedResult.task_id;
+        cloned.referenceCollectData = managerGetJsonField(resolvedResult.data, []);
+        return { config: cloned, bindings: [{ collectTaskId: resolvedResult.task_id, collectResultId: resolvedResult.id }] };
+    }
+
+    function managerPrepareAutoReplyFlowConfig(flowConfig) {
+        var cloned = managerCloneJson(flowConfig || {});
+        var background = false;
+        if ((cloned.runMode === 'resident') || (cloned.mode === 'resident')) background = true;
+        if (cloned.autoReply && ((cloned.autoReply.runMode === 'resident') || (cloned.autoReply.mode === 'resident'))) background = true;
+        return { config: cloned, bindings: null, background: background };
+    }
+
+    async function managerPrepareFlowExecution(flow) {
+        var flowConfig = managerGetJsonField(flow.config, {});
+        if (flow.flow_type === 'publish') return managerPreparePublishFlowConfig(flowConfig);
+        if (flow.flow_type === 'pricing') return managerPreparePricingFlowConfig(flowConfig);
+        return managerPrepareAutoReplyFlowConfig(flowConfig);
+    }
+
+    function serverCommandCollectList(command) {
+        var search = '', page = 1, limit = 10;
+        if (typeof command.search === 'string') {
+            search = command.search.trim();
+            if (search.length > 128) { obj.send({ action: 'collectlist', result: 'Invalid search.' }); return; }
+        }
+        if (common.validateInt(command.page, 1, 100000) == true) page = command.page;
+        if (common.validateInt(command.limit, 1, 50) == true) limit = command.limit;
+        db.GetCollectTaskList(search, page, limit, function (err, result) {
+            if (err != null) { obj.send({ action: 'collectlist', result: err.message ? err.message : 'Unable to load collect tasks.' }); return; }
+            obj.send({ action: 'collectlist', search: search, page: page, limit: limit, total: result.total, tasks: result.tasks });
+        });
+    }
+
+    function serverCommandCollectCreate(command) {
+        var payload = getCollectTaskPayload(command);
+        if (payload.error != null) { obj.send({ action: 'collectcreate', result: payload.error }); return; }
+        db.CreateCollectTask(payload, function (err, task) {
+            if (err != null) { obj.send({ action: 'collectcreate', result: err.message ? err.message : '新增失败。' }); return; }
+            obj.send({ action: 'collectcreate', success: true, task: task });
+        });
+    }
+
+    function serverCommandCollectUpdate(command) {
+        var taskId = managerGetTextField(command.id || '', 128, false);
+        if (taskId == null) { obj.send({ action: 'collectupdate', result: '无效的采集任务编号。' }); return; }
+        var payload = getCollectTaskPayload(command);
+        if (payload.error != null) { obj.send({ action: 'collectupdate', result: payload.error }); return; }
+        db.UpdateCollectTask(taskId, payload, function (err, task) {
+            if (err != null) { obj.send({ action: 'collectupdate', result: err.message ? err.message : '保存失败。' }); return; }
+            obj.send({ action: 'collectupdate', success: true, task: task });
+        });
+    }
+
+    function serverCommandCollectDelete(command) {
+        var taskId = managerGetTextField(command.id || '', 128, false);
+        if (taskId == null) { obj.send({ action: 'collectdelete', result: '无效的采集任务编号。' }); return; }
+        db.DeleteCollectTask(taskId, command.clearResults === true, function (err, deleteResult) {
+            if (err != null) { obj.send({ action: 'collectdelete', result: err.message ? err.message : '删除失败。' }); return; }
+            obj.send({ action: 'collectdelete', success: true, id: deleteResult.id, removedResultCount: deleteResult.removedResultCount || 0, keptResultCount: deleteResult.keptResultCount || 0, clearResults: command.clearResults === true });
+        });
+    }
+
+    function serverCommandCollectResults(command) {
+        var taskId = managerGetTextField(command.taskId || '', 128, false);
+        var page = 1, limit = 10;
+        if (taskId == null) { obj.send({ action: 'collectresults', result: '无效的采集任务编号。' }); return; }
+        if (common.validateInt(command.page, 1, 100000) == true) page = command.page;
+        if (common.validateInt(command.limit, 1, 50) == true) limit = command.limit;
+        db.GetCollectResults(taskId, page, limit, function (err, result) {
+            if (err != null) { obj.send({ action: 'collectresults', result: err.message ? err.message : '无法加载采集结果。', taskId: taskId }); return; }
+            obj.send({ action: 'collectresults', success: true, taskId: taskId, page: page, limit: limit, total: result.total, results: result.results });
+        });
+    }
+
+    function serverCommandCollectPrepareExecute(command) {
+        var taskId = managerGetTextField(command.id || '', 128, false);
+        if (taskId == null) { obj.send({ action: 'collectprepareexecute', result: '无效的采集任务编号。' }); return; }
+        (async function () {
+            var task = await managerDbPromise('GetCollectTask', taskId);
+            var preparedResultId = managerMakeId('collectresult');
+            task.preparedResultId = preparedResultId;
+            var collectType = task.collect_type || task.collectType;
+            var config = managerGetJsonField(task.config, {});
+            config._meshCollect = { taskId: task.id, collectType: collectType, requestedAt: new Date().toISOString() };
+            var remote = managerBuildRemoteCommand(task.device_os || task.deviceOs, task.project_root || task.projectRoot, managerGetJsonField(task.script_entries || task.scriptEntries, {}), config, preparedResultId, 'collect', { background: false });
+            var runRow = await managerDbPromise('StartCollectRun', task, remote.cmds);
+            return { task: task, runRow: runRow, remote: remote };
+        })().then(function (prepared) {
+            obj.send({ action: 'collectprepareexecute', success: true, taskId: prepared.task.id, resultId: prepared.runRow.id, nodeId: prepared.task.device_id || prepared.task.deviceId, commandType: prepared.remote.commandType, cmds: prepared.remote.cmds, commandMeta: { configPath: prepared.remote.configPath, outputPath: prepared.remote.outputPath, scriptPath: prepared.remote.scriptPath }, responseid: 'collectexec_' + prepared.runRow.id });
+        }).catch(function (err) {
+            obj.send({ action: 'collectprepareexecute', result: err.message ? err.message : '无法准备采集执行。' });
+        });
+    }
+
+    function serverCommandCollectFinalizeExecute(command) {
+        var resultId = managerGetTextField(command.resultId || '', 128, false);
+        var status = managerGetTextField(command.status || '', 32, false);
+        var data = managerGetJsonField(command.data || '[]', []);
+        if (resultId == null) { obj.send({ action: 'collectfinalizeexecute', result: '无效的采集结果编号。' }); return; }
+        if ((status == null) || (['success', 'failed', 'manual_required', 'skipped', 'partial', 'running'].indexOf(status) < 0)) { obj.send({ action: 'collectfinalizeexecute', result: '无效的采集状态。' }); return; }
+        if (data == null) { obj.send({ action: 'collectfinalizeexecute', result: '采集结果数据格式无效。' }); return; }
+        db.FinalizeCollectRun(resultId, { status: status, exitCode: (typeof command.exitCode === 'number') ? command.exitCode : null, stdout: typeof command.stdout === 'string' ? command.stdout : '', stderr: typeof command.stderr === 'string' ? command.stderr : '', data: data, resultMeta: managerGetJsonField(command.resultMeta || '{}', {}) || {} }, function (err, resultRow) {
+            if (err != null) { obj.send({ action: 'collectfinalizeexecute', result: err.message ? err.message : '无法保存采集结果。' }); return; }
+            obj.send({ action: 'collectfinalizeexecute', success: true, resultId: resultId, row: resultRow });
+        });
+    }
+
+    function serverCommandFlowList(command) {
+        var search = '', page = 1, limit = 10;
+        if (typeof command.search === 'string') {
+            search = command.search.trim();
+            if (search.length > 128) { obj.send({ action: 'flowlist', result: 'Invalid search.' }); return; }
+        }
+        if (common.validateInt(command.page, 1, 100000) == true) page = command.page;
+        if (common.validateInt(command.limit, 1, 50) == true) limit = command.limit;
+        db.GetFlowList(search, page, limit, function (err, result) {
+            if (err != null) { obj.send({ action: 'flowlist', result: err.message ? err.message : 'Unable to load flows.' }); return; }
+            obj.send({ action: 'flowlist', search: search, page: page, limit: limit, total: result.total, flows: result.flows });
+        });
+    }
+
+    function serverCommandFlowCreate(command) {
+        var payload = getFlowPayload(command);
+        if (payload.error != null) { obj.send({ action: 'flowcreate', result: payload.error }); return; }
+        db.CreateFlow(payload, function (err, flow) {
+            if (err != null) { obj.send({ action: 'flowcreate', result: err.message ? err.message : '新增失败。' }); return; }
+            obj.send({ action: 'flowcreate', success: true, flow: flow });
+        });
+    }
+
+    function serverCommandFlowUpdate(command) {
+        var flowId = managerGetTextField(command.id || '', 128, false);
+        if (flowId == null) { obj.send({ action: 'flowupdate', result: '无效的流程编号。' }); return; }
+        var payload = getFlowPayload(command);
+        if (payload.error != null) { obj.send({ action: 'flowupdate', result: payload.error }); return; }
+        db.UpdateFlow(flowId, payload, function (err, flow) {
+            if (err != null) { obj.send({ action: 'flowupdate', result: err.message ? err.message : '保存失败。' }); return; }
+            obj.send({ action: 'flowupdate', success: true, flow: flow });
+        });
+    }
+
+    function serverCommandFlowDelete(command) {
+        var flowId = managerGetTextField(command.id || '', 128, false);
+        if (flowId == null) { obj.send({ action: 'flowdelete', result: '无效的流程编号。' }); return; }
+        db.DeleteFlow(flowId, function (err, deletedId) {
+            if (err != null) { obj.send({ action: 'flowdelete', result: err.message ? err.message : '删除失败。' }); return; }
+            obj.send({ action: 'flowdelete', success: true, id: deletedId });
+        });
+    }
+
+    function serverCommandFlowRuns(command) {
+        var flowId = managerGetTextField(command.flowId || '', 128, false);
+        var page = 1, limit = 10;
+        if (flowId == null) { obj.send({ action: 'flowruns', result: '无效的流程编号。' }); return; }
+        if (common.validateInt(command.page, 1, 100000) == true) page = command.page;
+        if (common.validateInt(command.limit, 1, 50) == true) limit = command.limit;
+        db.GetFlowRuns(flowId, page, limit, function (err, result) {
+            if (err != null) { obj.send({ action: 'flowruns', result: err.message ? err.message : '无法加载执行记录。', flowId: flowId }); return; }
+            obj.send({ action: 'flowruns', success: true, flowId: flowId, page: page, limit: limit, total: result.total, runs: result.runs });
+        });
+    }
+
+    function serverCommandFlowPrepareExecute(command) {
+        var flowId = managerGetTextField(command.id || '', 128, false);
+        if (flowId == null) { obj.send({ action: 'flowprepareexecute', result: '无效的流程编号。' }); return; }
+        (async function () {
+            var flow = await managerDbPromise('GetFlow', flowId);
+            var runId = managerMakeId('flowrun');
+            var prepared = await managerPrepareFlowExecution(flow);
+            var remote = managerBuildRemoteCommand(flow.device_os || flow.deviceOs, flow.project_root || flow.projectRoot, managerGetJsonField(flow.script_entries || flow.scriptEntries, {}), prepared.config, runId, 'flow', { background: prepared.background === true });
+            var runRow = await managerDbPromise('StartFlowRun', flow, { id: runId, collectBindings: prepared.bindings, scriptName: flow.script_name || flow.scriptName, scriptPath: remote.scriptPath, arguments: remote.arguments, resultSummary: prepared.background === true ? '常驻流程启动中。' : '流程执行中。' });
+            return { flow: flow, runRow: runRow, remote: remote, prepared: prepared };
+        })().then(function (prepared) {
+            obj.send({ action: 'flowprepareexecute', success: true, flowId: prepared.flow.id, runId: prepared.runRow.id, nodeId: prepared.flow.device_id || prepared.flow.deviceId, commandType: prepared.remote.commandType, cmds: prepared.remote.cmds, flowType: prepared.flow.flow_type || prepared.flow.flowType, runMode: prepared.prepared.background === true ? 'background' : 'foreground', collectBindings: prepared.prepared.bindings, commandMeta: { configPath: prepared.remote.configPath, outputPath: prepared.remote.outputPath, scriptPath: prepared.remote.scriptPath }, responseid: 'flowexec_' + prepared.runRow.id });
+        }).catch(function (err) {
+            obj.send({ action: 'flowprepareexecute', result: err.message ? err.message : '无法准备流程执行。' });
+        });
+    }
+
+    function serverCommandFlowPrepareStop(command) {
+        var flowId = managerGetTextField(command.id || '', 128, false);
+        if (flowId == null) { obj.send({ action: 'flowpreparestop', result: '无效的流程编号。' }); return; }
+        (async function () {
+            var flow = await managerDbPromise('GetFlow', flowId);
+            if (!flow.active_run_id) throw new Error('当前没有运行中的常驻流程。');
+            var run = await managerDbPromise('GetFlowRun', flow.active_run_id);
+            if (!run.process_id) throw new Error('运行记录缺少进程标识，无法停止。');
+            var deviceOs = flow.device_os || flow.deviceOs;
+            var cmds = '';
+            if (deviceOs === 'windows') {
+                cmds = "$ErrorActionPreference = 'Continue'\r\ntry { Stop-Process -Id " + String(run.process_id) + " -Force; $mcCode = 0 } catch { Write-Output $_.Exception.Message; $mcCode = 1 }\r\nWrite-Output (\"__MC_EXIT_CODE__:\" + $mcCode)";
+            } else {
+                cmds = 'kill ' + String(run.process_id) + ' >/dev/null 2>&1\nMC_EXIT_CODE=$?\nprintf "__MC_EXIT_CODE__:%s\\n" "$MC_EXIT_CODE"';
+            }
+            return { flow: flow, run: run, cmds: cmds, commandType: (deviceOs === 'windows') ? 2 : 3 };
+        })().then(function (prepared) {
+            obj.send({ action: 'flowpreparestop', success: true, flowId: prepared.flow.id, runId: prepared.run.id, nodeId: prepared.flow.device_id || prepared.flow.deviceId, commandType: prepared.commandType, cmds: prepared.cmds, responseid: 'flowstop_' + prepared.run.id });
+        }).catch(function (err) {
+            obj.send({ action: 'flowpreparestop', result: err.message ? err.message : '无法准备停止流程。' });
+        });
+    }
+
+    function serverCommandFlowFinalizeExecute(command) {
+        var runId = managerGetTextField(command.runId || '', 128, false);
+        var status = managerGetTextField(command.status || '', 32, false);
+        if (runId == null) { obj.send({ action: 'flowfinalizeexecute', result: '无效的执行记录编号。' }); return; }
+        if ((status == null) || (['running', 'success', 'failed', 'manual_required', 'skipped', 'stopped'].indexOf(status) < 0)) { obj.send({ action: 'flowfinalizeexecute', result: '无效的流程状态。' }); return; }
+        db.FinalizeFlowRun(runId, { status: status, stdout: typeof command.stdout === 'string' ? command.stdout : '', stderr: typeof command.stderr === 'string' ? command.stderr : '', exitCode: (typeof command.exitCode === 'number') ? command.exitCode : null, resultSummary: managerGetTextField(command.resultSummary || '', 4096, true) || managerBuildResultSummary(command.stdout || '', status, command.exitCode), resultJson: managerGetJsonField(command.resultJson || 'null', null), collectBindings: managerGetJsonField(command.collectBindings || 'null', null), processId: managerGetTextField(command.processId || '', 128, true) || null, sessionId: managerGetTextField(command.sessionId || '', 128, true) || null, stopReason: managerGetTextField(command.stopReason || '', 1024, true) || null }, function (err, runRow) {
+            if (err != null) { obj.send({ action: 'flowfinalizeexecute', result: err.message ? err.message : '无法保存流程执行结果。' }); return; }
+            obj.send({ action: 'flowfinalizeexecute', success: true, runId: runId, row: runRow });
         });
     }
 
