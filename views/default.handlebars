@@ -171,15 +171,6 @@
         </div>
         <div id="page_leftbar">
             <div style="height:16px"></div>
-            <div id="LeftMenuMyDevices" tabindex="0" class="lbbutton lbbuttonsel" title="我的设备" onmouseup="go(1,event)" onkeypress="if (event.key=='Enter') { go(1); }">
-                <div class="lbtg lb2"></div>
-            </div>
-            <div id="LeftMenuMyAccount" tabindex="0" class="lbbutton" title="我的帐户" onmouseup="go(2,event)" onkeypress="if (event.key=='Enter') { go(2); }">
-                <div class="lbtg lb1"></div>
-            </div>
-            <div id="LeftMenuMyEvents" tabindex="0" class="lbbutton" title="我的事件" onmouseup="go(3,event)" onkeypress="if (event.key=='Enter') { go(3); }">
-                <div class="lbtg lb3"></div>
-            </div>
             <div id="LeftMenuShopManager" tabindex="0" class="lbbutton" title="店铺管理" onmouseup="go(100,event)" onkeypress="if (event.key=='Enter') { go(100); }">
                 <div class="lbtg lb7 lb-shop"></div>
             </div>
@@ -191,6 +182,15 @@
             </div>
             <div id="LeftMenuCollectManager" tabindex="0" class="lbbutton" title="采集管理" onmouseup="go(103,event)" onkeypress="if (event.key=='Enter') { go(103); }">
                 <div class="lbtg lb10"></div>
+            </div>
+            <div id="LeftMenuMyDevices" tabindex="0" class="lbbutton lbbuttonsel" title="我的设备" onmouseup="go(1,event)" onkeypress="if (event.key=='Enter') { go(1); }">
+                <div class="lbtg lb2"></div>
+            </div>
+            <div id="LeftMenuMyAccount" tabindex="0" class="lbbutton" title="我的帐户" onmouseup="go(2,event)" onkeypress="if (event.key=='Enter') { go(2); }">
+                <div class="lbtg lb1"></div>
+            </div>
+            <div id="LeftMenuMyEvents" tabindex="0" class="lbbutton" title="我的事件" onmouseup="go(3,event)" onkeypress="if (event.key=='Enter') { go(3); }">
+                <div class="lbtg lb3"></div>
             </div>
             <div id="LeftMenuMyFiles" tabindex="0" class="lbbutton" style="display:none" title="我的文件" onmouseup="go(5,event)" onkeypress="if (event.key=='Enter') { go(5); }">
                 <div class="lbtg lb4"></div>
@@ -1540,8 +1540,56 @@
                                 <label class="flow-field"><span>目标系统 <b>*</b></span><select id="flowFormDeviceOs"><option value="macos">macOS</option><option value="windows">Windows</option></select></label>
                                 <label class="flow-field flow-field-full"><span>项目路径 <b>*</b></span><input id="flowFormProjectRoot" type="text" maxlength="2048" /></label>
                                 <label class="flow-field"><span>脚本名称 <b>*</b></span><input id="flowFormScriptName" type="text" maxlength="256" /></label>
-                                <label class="flow-field flow-field-full"><span>脚本入口配置 JSON <b>*</b></span><textarea id="flowFormScriptEntries" rows="5"></textarea></label>
-                                <label class="flow-field flow-field-full"><span>流程配置 JSON</span><textarea id="flowFormConfig" rows="12"></textarea></label>
+                                <input id="flowFormScriptEntries" type="hidden" />
+                                <input id="flowFormConfig" type="hidden" />
+                                <div class="flow-field flow-field-full manager-fieldset">
+                                    <div class="manager-fieldset-title">脚本入口</div>
+                                    <div class="manager-inline-grid">
+                                        <label><span>macOS 脚本路径</span><input id="flowScriptMacPath" type="text" /></label>
+                                        <label><span>macOS 参数</span><input id="flowScriptMacArgs" type="text" /></label>
+                                        <label><span>Windows 脚本路径</span><input id="flowScriptWinPath" type="text" /></label>
+                                        <label><span>Windows 参数</span><input id="flowScriptWinArgs" type="text" /></label>
+                                    </div>
+                                </div>
+                                <div class="flow-field flow-field-full manager-fieldset">
+                                    <div class="manager-fieldset-title">基础配置</div>
+                                    <div class="manager-inline-grid">
+                                        <label><span>城市</span><input id="flowConfigCity" type="text" placeholder="例如：苏州市" /></label>
+                                        <label><span>定位地址</span><input id="flowConfigLocation" type="text" placeholder="例如：相城区黄埭实验小学" /></label>
+                                    </div>
+                                </div>
+                                <div id="flowPublishFields" class="flow-field flow-field-full manager-fieldset">
+                                    <div class="manager-section-header"><div class="manager-fieldset-title">商品发布配置</div><button type="button" class="flow-btn" onclick="flowAddProductRow()">新增商品</button></div>
+                                    <div id="flowProductRows" class="manager-repeat-list"></div>
+                                </div>
+                                <div id="flowPricingFields" class="flow-field flow-field-full manager-fieldset" style="display:none">
+                                    <div class="manager-section-header"><div class="manager-fieldset-title">调价配置</div><button type="button" class="flow-btn" onclick="flowAddPricingTaskRow()">新增调价任务</button></div>
+                                    <label class="manager-check-row"><input id="flowPricingGlobalEnabled" type="checkbox" checked="checked" /> 启用全部调价任务</label>
+                                    <div class="manager-inline-grid">
+                                        <label><span>采集任务编号</span><input id="flowPricingCollectTaskId" type="text" /></label>
+                                        <label><span>采集结果编号</span><input id="flowPricingCollectResultId" type="text" /></label>
+                                    </div>
+                                    <div id="flowPricingRows" class="manager-repeat-list"></div>
+                                </div>
+                                <div id="flowAutoReplyFields" class="flow-field flow-field-full manager-fieldset" style="display:none">
+                                    <div class="manager-fieldset-title">自动回复配置</div>
+                                    <div class="manager-inline-grid">
+                                        <label><span>运行模式</span><select id="flowAutoMode"><option value="once">单次执行</option><option value="resident">常驻监控</option></select></label>
+                                        <label><span>固定回复文本</span><input id="flowAutoReplyText" type="text" placeholder="您好" /></label>
+                                        <label><span>轮询间隔（秒）</span><input id="flowAutoPollInterval" type="number" min="1" step="1" /></label>
+                                        <label><span>最大重试次数</span><input id="flowAutoMaxRetries" type="number" min="1" step="1" /></label>
+                                        <label><span>CDP 地址</span><input id="flowAutoCdpUrl" type="text" placeholder="http://127.0.0.1:9222" /></label>
+                                        <label><span>本地状态文件</span><input id="flowAutoStatePath" type="text" /></label>
+                                        <label class="manager-wide"><span>优先打开地址</span><input id="flowAutoPreferredUrl" type="text" /></label>
+                                        <label class="manager-wide"><span>备用打开地址</span><input id="flowAutoFallbackUrl" type="text" /></label>
+                                    </div>
+                                    <div class="manager-checks">
+                                        <label><input id="flowAutoEnabled" type="checkbox" /> 启用监控</label>
+                                        <label><input id="flowAutoMonitorRecent" type="checkbox" /> 监听最近联系人待回复</label>
+                                        <label><input id="flowAutoRequirePendingClear" type="checkbox" /> 待回复状态清空后进入下一轮</label>
+                                        <label><input id="flowAutoStartChrome" type="checkbox" /> 缺少调试浏览器时自动启动</label>
+                                    </div>
+                                </div>
                                 <label class="flow-field flow-field-full"><span>备注</span><textarea id="flowFormRemark" rows="3"></textarea></label>
                             </div>
                         </div>
@@ -1598,7 +1646,7 @@
                         <div class="collect-modal-header">
                             <div>
                                 <div id="collectModalTitle" class="collect-modal-title">新增采集任务</div>
-                                <div class="collect-modal-subtitle">配置目标设备、脚本入口和采集 JSON。</div>
+                                <div class="collect-modal-subtitle">配置目标设备、脚本入口和采集字段。</div>
                             </div>
                             <button type="button" class="collect-modal-close" onclick="collectCloseEditor()">×</button>
                         </div>
@@ -1611,8 +1659,34 @@
                                 <label class="collect-field"><span>目标系统 <b>*</b></span><select id="collectFormDeviceOs"><option value="macos">macOS</option><option value="windows">Windows</option></select></label>
                                 <label class="collect-field collect-field-full"><span>项目路径 <b>*</b></span><input id="collectFormProjectRoot" type="text" maxlength="2048" /></label>
                                 <label class="collect-field"><span>脚本名称 <b>*</b></span><input id="collectFormScriptName" type="text" maxlength="256" /></label>
-                                <label class="collect-field collect-field-full"><span>脚本入口配置 JSON <b>*</b></span><textarea id="collectFormScriptEntries" rows="5"></textarea></label>
-                                <label class="collect-field collect-field-full"><span>采集配置 JSON</span><textarea id="collectFormConfig" rows="12"></textarea></label>
+                                <input id="collectFormScriptEntries" type="hidden" />
+                                <input id="collectFormConfig" type="hidden" />
+                                <div class="collect-field collect-field-full manager-fieldset">
+                                    <div class="manager-fieldset-title">脚本入口</div>
+                                    <div class="manager-inline-grid">
+                                        <label><span>macOS 脚本路径</span><input id="collectScriptMacPath" type="text" /></label>
+                                        <label><span>macOS 参数</span><input id="collectScriptMacArgs" type="text" /></label>
+                                        <label><span>Windows 脚本路径</span><input id="collectScriptWinPath" type="text" /></label>
+                                        <label><span>Windows 参数</span><input id="collectScriptWinArgs" type="text" /></label>
+                                    </div>
+                                </div>
+                                <div class="collect-field collect-field-full manager-fieldset">
+                                    <div class="manager-fieldset-title">基础配置</div>
+                                    <div class="manager-inline-grid">
+                                        <label><span>城市</span><input id="collectConfigCity" type="text" placeholder="例如：苏州市" /></label>
+                                        <label><span>定位地址</span><input id="collectConfigLocation" type="text" placeholder="例如：相城区黄埭实验小学" /></label>
+                                        <label><span>输出目录</span><input id="collectConfigOutputPath" type="text" /></label>
+                                        <label class="manager-check-row"><input id="collectConfigSaveToDb" type="checkbox" checked="checked" /> 保存到数据库</label>
+                                    </div>
+                                </div>
+                                <div id="collectShopFields" class="collect-field collect-field-full manager-fieldset">
+                                    <div class="manager-section-header"><div class="manager-fieldset-title">店铺采集配置</div><button type="button" class="collect-btn" onclick="collectAddTargetShopRow()">新增目标店铺</button></div>
+                                    <div id="collectTargetShopRows" class="manager-repeat-list"></div>
+                                </div>
+                                <div id="collectPriceFields" class="collect-field collect-field-full manager-fieldset" style="display:none">
+                                    <div class="manager-section-header"><div class="manager-fieldset-title">价格采集配置</div><button type="button" class="collect-btn" onclick="collectAddPriceTaskRow()">新增价格任务</button></div>
+                                    <div id="collectPriceTaskRows" class="manager-repeat-list"></div>
+                                </div>
                                 <label class="collect-field collect-field-full"><span>备注</span><textarea id="collectFormRemark" rows="3"></textarea></label>
                             </div>
                         </div>
@@ -3135,6 +3209,24 @@
 
         function managerPrettyJson(value) { return JSON.stringify(value, null, 2); }
         function managerParseJson(value, fallback) { try { return JSON.parse(value); } catch (ex) { return fallback; } }
+        function managerToNumberOrNull(value) { var n = Number(value); return (value === '' || isFinite(n) !== true) ? null : n; }
+        function managerLinesToArray(value) { return String(value || '').split(/\r?\n/).map(function (x) { return x.trim(); }).filter(function (x) { return x !== ''; }); }
+        function managerArrayToLines(value) { return Array.isArray(value) ? value.join('\n') : ''; }
+        function managerLinesToMappings(value) {
+            var r = {}, lines = managerLinesToArray(value);
+            for (var i = 0; i < lines.length; i++) {
+                var p = lines[i].split('|'), key = (p.shift() || '').trim();
+                if (key !== '') r[key] = p.join('|').split(',').map(function (x) { return x.trim(); }).filter(function (x) { return x !== ''; });
+            }
+            return r;
+        }
+        function managerMappingsToLines(value) {
+            var r = [];
+            if (value == null || typeof value !== 'object') return '';
+            for (var k in value) { r.push(k + '|' + (Array.isArray(value[k]) ? value[k].join(',') : String(value[k] || ''))); }
+            return r.join('\n');
+        }
+        function managerSetChecked(id, value) { if (Q(id) != null) Q(id).checked = (value === true); }
         function managerInferDeviceOs(node) {
             if (node == null) return 'macos';
             var agentId = (node.agent && node.agent.id) ? node.agent.id : 0;
@@ -3316,10 +3408,173 @@
             QH('flowPagination', x); QV('flowPagination', true);
         }
         function flowSetSubmitBusy(busy) { QE('flowSubmitButton', !busy); Q('flowSubmitButton').value = Q('flowSubmitButton').innerText = busy ? '保存中...' : '保存'; }
+        function flowSetSectionVisibility(flowType) {
+            QV('flowPublishFields', flowType === 'publish');
+            QV('flowPricingFields', flowType === 'pricing');
+            QV('flowAutoReplyFields', flowType === 'auto_reply');
+        }
+        function flowBuildScriptEntriesFromFields() {
+            return {
+                macos: { path: Q('flowScriptMacPath').value.trim(), argsTemplate: Q('flowScriptMacArgs').value.trim() || '{configPath}' },
+                windows: { path: Q('flowScriptWinPath').value.trim(), argsTemplate: Q('flowScriptWinArgs').value.trim() || '-ConfigPath "{configPath}"' }
+            };
+        }
+        function flowLoadScriptEntriesToFields(scriptEntries, flowType) {
+            var defaults = managerDefaultFlowScriptEntries(flowType);
+            var entries = managerParseJson(typeof scriptEntries === 'string' ? scriptEntries : JSON.stringify(scriptEntries || defaults), defaults);
+            Q('flowScriptMacPath').value = (entries.macos && entries.macos.path) || defaults.macos.path || '';
+            Q('flowScriptMacArgs').value = (entries.macos && entries.macos.argsTemplate) || defaults.macos.argsTemplate || '{configPath}';
+            Q('flowScriptWinPath').value = (entries.windows && entries.windows.path) || defaults.windows.path || '';
+            Q('flowScriptWinArgs').value = (entries.windows && entries.windows.argsTemplate) || defaults.windows.argsTemplate || '-ConfigPath "{configPath}"';
+        }
+        function flowAddProductRow(product) {
+            product = product || {};
+            var id = 'flowProductRow_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
+            var x = '<div id="' + id + '" class="manager-repeat-card flow-product-row">';
+            x += '<div class="manager-repeat-head"><strong>商品</strong><button type="button" class="flow-btn flow-btn-danger" onclick="Q(\'' + id + '\').remove()">删除</button></div>';
+            x += '<div class="manager-inline-grid">';
+            x += '<label><span>商品 Key</span><input data-field="key" type="text" value="' + EscapeHtml(product.key || '') + '" placeholder="Product1" /></label>';
+            x += '<label><span>店铺名称</span><input data-field="shopName" type="text" value="' + EscapeHtml(product.shopName || '') + '" /></label>';
+            x += '<label class="manager-wide"><span>商品名称</span><input data-field="productName" type="text" value="' + EscapeHtml(product.productName || '') + '" /></label>';
+            x += '<label><span>覆盖策略</span><select data-field="overwritePolicy"><option value="overwrite">覆盖</option><option value="merge">合并</option><option value="skipIfExists">存在时跳过</option></select></label>';
+            x += '<label class="manager-wide"><span>属性值映射规则</span><textarea data-field="requiredAttributeMappings" rows="3" placeholder="每行一条：主花材|混搭花束,其他主花材">' + EscapeHtml(managerMappingsToLines(product.requiredAttributeMappings || {})) + '</textarea></label>';
+            x += '</div><div class="manager-checks"><label><input data-field="enabled" type="checkbox" /> 启用</label><label><input data-field="fetchFromH5" type="checkbox" /> 从 H5 抓取</label></div></div>';
+            Q('flowProductRows').insertAdjacentHTML('beforeend', x);
+            var row = Q(id);
+            row.querySelector('[data-field="overwritePolicy"]').value = product.overwritePolicy || 'overwrite';
+            row.querySelector('[data-field="enabled"]').checked = product.enabled !== false;
+            row.querySelector('[data-field="fetchFromH5"]').checked = product.fetchFromH5 !== false;
+        }
+        function flowReadProductRows() {
+            var rows = Q('flowProductRows').querySelectorAll('.flow-product-row'), r = [];
+            for (var i = 0; i < rows.length; i++) {
+                r.push({
+                    key: rows[i].querySelector('[data-field="key"]').value.trim() || ('Product' + (i + 1)),
+                    shopName: rows[i].querySelector('[data-field="shopName"]').value.trim(),
+                    productName: rows[i].querySelector('[data-field="productName"]').value.trim(),
+                    overwritePolicy: rows[i].querySelector('[data-field="overwritePolicy"]').value,
+                    requiredAttributeMappings: managerLinesToMappings(rows[i].querySelector('[data-field="requiredAttributeMappings"]').value),
+                    enabled: rows[i].querySelector('[data-field="enabled"]').checked,
+                    fetchFromH5: rows[i].querySelector('[data-field="fetchFromH5"]').checked
+                });
+            }
+            return r;
+        }
+        function flowAddPricingTaskRow(task) {
+            task = task || {};
+            var id = 'flowPricingRow_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
+            var x = '<div id="' + id + '" class="manager-repeat-card flow-pricing-row">';
+            x += '<div class="manager-repeat-head"><strong>调价任务</strong><button type="button" class="flow-btn flow-btn-danger" onclick="Q(\'' + id + '\').remove()">删除</button></div>';
+            x += '<div class="manager-inline-grid">';
+            x += '<label><span>任务 ID</span><input data-field="taskId" type="text" value="' + EscapeHtml(task.taskId || '') + '" placeholder="task_1" /></label>';
+            x += '<label><span>参考商品关键词</span><input data-field="referenceKeyword" type="text" value="' + EscapeHtml(task.referenceKeyword || '') + '" /></label>';
+            x += '<label class="manager-wide"><span>目标商品名称</span><input data-field="targetProductName" type="text" value="' + EscapeHtml(task.targetProductName || '') + '" /></label>';
+            x += '<label class="manager-wide"><span>参考店铺列表</span><textarea data-field="referenceShops" rows="3" placeholder="每行一个店铺名">' + EscapeHtml(managerArrayToLines(task.referenceShops || [])) + '</textarea></label>';
+            x += '<label><span>参考商品选择</span><select data-field="referenceProductSelection"><option value="first">第一项</option><option value="lowest">最低价</option><option value="highest">最高价</option><option value="average">平均价</option></select></label>';
+            x += '<label><span>调价策略</span><select data-field="strategy"><option value="average">平均价</option><option value="max">最高价</option><option value="min">最低价</option><option value="fixed">固定价</option></select></label>';
+            x += '<label><span>价格偏移</span><input data-field="priceOffset" type="number" step="any" value="' + EscapeHtml(String(task.priceOffset == null ? 0 : task.priceOffset)) + '" /></label>';
+            x += '<label><span>固定价格</span><input data-field="fixedPrice" type="number" step="any" value="' + EscapeHtml(String(task.fixedPrice == null ? '' : task.fixedPrice)) + '" /></label>';
+            x += '<label><span>重复商品处理</span><select data-field="duplicateTargetPolicy"><option value="fail">报错中止</option><option value="first">更新第一项</option></select></label>';
+            x += '<label><span>SKU 策略</span><select data-field="skuStrategy"><option value="allActive">全部生效规格</option><option value="first">仅第一项规格</option><option value="mainOnly">仅主价格</option></select></label>';
+            x += '<label><span>最低限价</span><input data-field="priceLimitMin" type="number" step="any" value="' + EscapeHtml(String(task.priceLimit && task.priceLimit.min != null ? task.priceLimit.min : '')) + '" /></label>';
+            x += '<label><span>最高限价</span><input data-field="priceLimitMax" type="number" step="any" value="' + EscapeHtml(String(task.priceLimit && task.priceLimit.max != null ? task.priceLimit.max : '')) + '" /></label>';
+            x += '</div><div class="manager-checks"><label><input data-field="enabled" type="checkbox" /> 启用任务</label></div></div>';
+            Q('flowPricingRows').insertAdjacentHTML('beforeend', x);
+            var row = Q(id);
+            row.querySelector('[data-field="referenceProductSelection"]').value = task.referenceProductSelection || 'average';
+            row.querySelector('[data-field="strategy"]').value = task.strategy || 'average';
+            row.querySelector('[data-field="duplicateTargetPolicy"]').value = task.duplicateTargetPolicy || 'fail';
+            row.querySelector('[data-field="skuStrategy"]').value = task.skuStrategy || 'allActive';
+            row.querySelector('[data-field="enabled"]').checked = task.enabled !== false;
+        }
+        function flowReadPricingRows() {
+            var rows = Q('flowPricingRows').querySelectorAll('.flow-pricing-row'), r = [];
+            for (var i = 0; i < rows.length; i++) {
+                var min = managerToNumberOrNull(rows[i].querySelector('[data-field="priceLimitMin"]').value);
+                var max = managerToNumberOrNull(rows[i].querySelector('[data-field="priceLimitMax"]').value);
+                var task = {
+                    taskId: rows[i].querySelector('[data-field="taskId"]').value.trim() || ('task_' + (i + 1)),
+                    enabled: rows[i].querySelector('[data-field="enabled"]').checked,
+                    targetProductName: rows[i].querySelector('[data-field="targetProductName"]').value.trim(),
+                    referenceKeyword: rows[i].querySelector('[data-field="referenceKeyword"]').value.trim(),
+                    referenceShops: managerLinesToArray(rows[i].querySelector('[data-field="referenceShops"]').value),
+                    referenceProductSelection: rows[i].querySelector('[data-field="referenceProductSelection"]').value,
+                    strategy: rows[i].querySelector('[data-field="strategy"]').value,
+                    priceOffset: managerToNumberOrNull(rows[i].querySelector('[data-field="priceOffset"]').value) || 0,
+                    fixedPrice: managerToNumberOrNull(rows[i].querySelector('[data-field="fixedPrice"]').value),
+                    duplicateTargetPolicy: rows[i].querySelector('[data-field="duplicateTargetPolicy"]').value,
+                    skuStrategy: rows[i].querySelector('[data-field="skuStrategy"]').value
+                };
+                if (min != null || max != null) task.priceLimit = { min: min, max: max };
+                r.push(task);
+            }
+            return r;
+        }
+        function flowLoadConfigToFields(config, flowType) {
+            config = config || managerDefaultFlowConfig(flowType);
+            Q('flowConfigCity').value = config.city || '';
+            Q('flowConfigLocation').value = config.myLocationAddress || '';
+            QH('flowProductRows', '');
+            QH('flowPricingRows', '');
+            if (flowType === 'publish') {
+                var products = Array.isArray(config.products) ? config.products : [];
+                for (var i = 0; i < products.length; i++) flowAddProductRow(products[i]);
+                if (products.length === 0) flowAddProductRow({ key: 'Product1', enabled: true, fetchFromH5: true, overwritePolicy: 'overwrite' });
+            } else if (flowType === 'pricing') {
+                managerSetChecked('flowPricingGlobalEnabled', config.globalEnabled !== false);
+                Q('flowPricingCollectTaskId').value = config.collectTaskId || '';
+                Q('flowPricingCollectResultId').value = config.collectResultId || '';
+                var tasks = Array.isArray(config.tasks) ? config.tasks : [];
+                for (var j = 0; j < tasks.length; j++) flowAddPricingTaskRow(tasks[j]);
+                if (tasks.length === 0) flowAddPricingTaskRow({ taskId: 'task_1', enabled: true, referenceProductSelection: 'average', strategy: 'average', priceOffset: 0 });
+            } else {
+                var reply = (config.autoReply || {});
+                Q('flowAutoMode').value = config.mode || 'once';
+                Q('flowAutoReplyText').value = reply.replyText || '您好';
+                Q('flowAutoPollInterval').value = reply.pollIntervalSeconds == null ? 3 : reply.pollIntervalSeconds;
+                Q('flowAutoMaxRetries').value = reply.maxRetries == null ? 3 : reply.maxRetries;
+                Q('flowAutoCdpUrl').value = reply.cdpUrl || 'http://127.0.0.1:9222';
+                Q('flowAutoPreferredUrl').value = reply.preferredUrl || '';
+                Q('flowAutoFallbackUrl').value = reply.fallbackOpenUrl || '';
+                Q('flowAutoStatePath').value = reply.statePath || './runtime/resident-auto-reply-state.json';
+                managerSetChecked('flowAutoEnabled', reply.enabled !== false);
+                managerSetChecked('flowAutoMonitorRecent', reply.monitorRecentContacts !== false);
+                managerSetChecked('flowAutoRequirePendingClear', reply.requirePendingClearForNextRound === true);
+                managerSetChecked('flowAutoStartChrome', reply.startChromeDebugIfNeeded !== false);
+            }
+        }
+        function flowBuildConfigFromFields(flowType) {
+            if (flowType === 'pricing') return {
+                city: Q('flowConfigCity').value.trim(),
+                myLocationAddress: Q('flowConfigLocation').value.trim(),
+                globalEnabled: Q('flowPricingGlobalEnabled').checked,
+                collectTaskId: Q('flowPricingCollectTaskId').value.trim(),
+                collectResultId: Q('flowPricingCollectResultId').value.trim(),
+                tasks: flowReadPricingRows()
+            };
+            if (flowType === 'auto_reply') return {
+                mode: Q('flowAutoMode').value,
+                autoReply: {
+                    enabled: Q('flowAutoEnabled').checked,
+                    replyText: Q('flowAutoReplyText').value,
+                    pollIntervalSeconds: managerToNumberOrNull(Q('flowAutoPollInterval').value) || 3,
+                    maxRetries: managerToNumberOrNull(Q('flowAutoMaxRetries').value) || 3,
+                    cdpUrl: Q('flowAutoCdpUrl').value.trim() || 'http://127.0.0.1:9222',
+                    preferredUrl: Q('flowAutoPreferredUrl').value.trim(),
+                    fallbackOpenUrl: Q('flowAutoFallbackUrl').value.trim(),
+                    monitorRecentContacts: Q('flowAutoMonitorRecent').checked,
+                    requirePendingClearForNextRound: Q('flowAutoRequirePendingClear').checked,
+                    startChromeDebugIfNeeded: Q('flowAutoStartChrome').checked,
+                    statePath: Q('flowAutoStatePath').value.trim() || './runtime/resident-auto-reply-state.json'
+                }
+            };
+            return { city: Q('flowConfigCity').value.trim(), myLocationAddress: Q('flowConfigLocation').value.trim(), products: flowReadProductRows() };
+        }
         function flowHandleTypeChange() {
             var flowType = Q('flowFormType').value;
-            if (Q('flowFormScriptEntries').value.trim() === '' || Q('flowFormScriptEntries').dataset.autoFill === '1') { Q('flowFormScriptEntries').value = managerPrettyJson(managerDefaultFlowScriptEntries(flowType)); Q('flowFormScriptEntries').dataset.autoFill = '1'; }
-            if (Q('flowFormConfig').value.trim() === '' || Q('flowFormConfig').dataset.autoFill === '1') { Q('flowFormConfig').value = managerPrettyJson(managerDefaultFlowConfig(flowType)); Q('flowFormConfig').dataset.autoFill = '1'; }
+            flowSetSectionVisibility(flowType);
+            flowLoadScriptEntriesToFields((Q('flowFormId').value === '') ? managerDefaultFlowScriptEntries(flowType) : Q('flowFormScriptEntries').value, flowType);
+            flowLoadConfigToFields(managerParseJson(Q('flowFormConfig').value || '{}', managerDefaultFlowConfig(flowType)), flowType);
             if (Q('flowFormScriptName').value.trim() === '') { Q('flowFormScriptName').value = flowType; }
         }
         function flowHandleDeviceChange() {
@@ -3338,8 +3593,6 @@
             Q('flowFormScriptName').value = flow ? (flow.script_name || flow.scriptName || '') : '';
             Q('flowFormScriptEntries').value = managerPrettyJson(managerParseJson(typeof (flow ? (flow.script_entries || flow.scriptEntries) : null) === 'string' ? (flow.script_entries || flow.scriptEntries) : JSON.stringify((flow ? (flow.script_entries || flow.scriptEntries) : managerDefaultFlowScriptEntries(Q('flowFormType').value))), managerDefaultFlowScriptEntries(Q('flowFormType').value)));
             Q('flowFormConfig').value = managerPrettyJson(managerParseJson(typeof (flow ? flow.config : null) === 'string' ? flow.config : JSON.stringify((flow ? flow.config : managerDefaultFlowConfig(Q('flowFormType').value))), managerDefaultFlowConfig(Q('flowFormType').value)));
-            Q('flowFormScriptEntries').dataset.autoFill = flow ? '0' : '1';
-            Q('flowFormConfig').dataset.autoFill = flow ? '0' : '1';
             Q('flowFormRemark').value = flow ? (flow.remark || '') : '';
             QH('flowModalTitle', flow ? '编辑流程' : '新增流程');
             flowHandleTypeChange();
@@ -3347,13 +3600,16 @@
         }
         function flowCloseEditor(event) { if (event && event.target && event.target.id !== 'flowModalMask') return; QV('flowModalMask', false); }
         function flowSubmitEditor() {
-            var payload = { id: Q('flowFormId').value, name: Q('flowFormName').value.trim(), flowType: Q('flowFormType').value, deviceId: Q('flowFormDeviceId').value, deviceOs: Q('flowFormDeviceOs').value, projectRoot: Q('flowFormProjectRoot').value.trim(), scriptName: Q('flowFormScriptName').value.trim(), scriptEntries: Q('flowFormScriptEntries').value.trim(), config: Q('flowFormConfig').value.trim(), remark: Q('flowFormRemark').value.trim() };
+            var flowType = Q('flowFormType').value;
+            var scriptEntries = flowBuildScriptEntriesFromFields();
+            var config = flowBuildConfigFromFields(flowType);
+            Q('flowFormScriptEntries').value = managerPrettyJson(scriptEntries);
+            Q('flowFormConfig').value = managerPrettyJson(config);
+            var payload = { id: Q('flowFormId').value, name: Q('flowFormName').value.trim(), flowType: flowType, deviceId: Q('flowFormDeviceId').value, deviceOs: Q('flowFormDeviceOs').value, projectRoot: Q('flowFormProjectRoot').value.trim(), scriptName: Q('flowFormScriptName').value.trim(), scriptEntries: Q('flowFormScriptEntries').value.trim(), config: Q('flowFormConfig').value.trim(), remark: Q('flowFormRemark').value.trim() };
             if (payload.name === '') { flowShowToast('流程名称不能为空。', true); return; }
             if (payload.deviceId === '') { flowShowToast('目标设备不能为空。', true); return; }
             if (payload.projectRoot === '') { flowShowToast('项目路径不能为空。', true); return; }
-            if (payload.scriptEntries === '') { flowShowToast('脚本入口配置不能为空。', true); return; }
-            if (managerParseJson(payload.scriptEntries, null) == null) { flowShowToast('脚本入口配置 JSON 无效。', true); return; }
-            if (managerParseJson(payload.config || '{}', null) == null) { flowShowToast('流程配置 JSON 无效。', true); return; }
+            if (scriptEntries[Q('flowFormDeviceOs').value].path === '') { flowShowToast('当前系统的脚本路径不能为空。', true); return; }
             flowSetSubmitBusy(true); flowState.pendingAction = payload.id !== '' ? 'flowupdate' : 'flowcreate'; meshserver.send({ action: flowState.pendingAction, id: payload.id, name: payload.name, flowType: payload.flowType, deviceId: payload.deviceId, deviceOs: payload.deviceOs, projectRoot: payload.projectRoot, scriptName: payload.scriptName, scriptEntries: payload.scriptEntries, config: payload.config, remark: payload.remark });
         }
         function flowConfirmDelete(id) { setDialogMode(2, '删除流程', 3, function (button, tag) { if (button === 1) meshserver.send({ action: 'flowdelete', id: tag }); }, '确认删除该流程吗？删除后将立即刷新列表。', id); }
@@ -3461,10 +3717,113 @@
             QH('collectPagination', x); QV('collectPagination', true);
         }
         function collectSetSubmitBusy(busy) { QE('collectSubmitButton', !busy); Q('collectSubmitButton').value = Q('collectSubmitButton').innerText = busy ? '保存中...' : '保存'; }
+        function collectSetSectionVisibility(collectType) {
+            QV('collectShopFields', collectType === 'collect_shop');
+            QV('collectPriceFields', collectType === 'collect_price');
+        }
+        function collectBuildScriptEntriesFromFields() {
+            return {
+                macos: { path: Q('collectScriptMacPath').value.trim(), argsTemplate: Q('collectScriptMacArgs').value.trim() || '{configPath}' },
+                windows: { path: Q('collectScriptWinPath').value.trim(), argsTemplate: Q('collectScriptWinArgs').value.trim() || '-ConfigPath "{configPath}"' }
+            };
+        }
+        function collectLoadScriptEntriesToFields(scriptEntries, collectType) {
+            var defaults = managerDefaultCollectScriptEntries(collectType);
+            var entries = managerParseJson(typeof scriptEntries === 'string' ? scriptEntries : JSON.stringify(scriptEntries || defaults), defaults);
+            Q('collectScriptMacPath').value = (entries.macos && entries.macos.path) || defaults.macos.path || '';
+            Q('collectScriptMacArgs').value = (entries.macos && entries.macos.argsTemplate) || defaults.macos.argsTemplate || '{configPath}';
+            Q('collectScriptWinPath').value = (entries.windows && entries.windows.path) || defaults.windows.path || '';
+            Q('collectScriptWinArgs').value = (entries.windows && entries.windows.argsTemplate) || defaults.windows.argsTemplate || '-ConfigPath "{configPath}"';
+        }
+        function collectAddTargetShopRow(shop) {
+            shop = (typeof shop === 'string') ? { shopName: shop } : (shop || {});
+            var id = 'collectShopRow_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
+            var x = '<div id="' + id + '" class="manager-repeat-card collect-shop-row">';
+            x += '<div class="manager-repeat-head"><strong>目标店铺</strong><button type="button" class="collect-btn collect-btn-danger" onclick="Q(\'' + id + '\').remove()">删除</button></div>';
+            x += '<div class="manager-inline-grid">';
+            x += '<label><span>店铺名称</span><input data-field="shopName" type="text" value="' + EscapeHtml(shop.shopName || shop.name || '') + '" /></label>';
+            x += '<label><span>搜索关键词</span><input data-field="keyword" type="text" value="' + EscapeHtml(shop.keyword || '') + '" /></label>';
+            x += '<label class="manager-wide"><span>店铺地址/备注</span><input data-field="address" type="text" value="' + EscapeHtml(shop.address || shop.remark || '') + '" /></label>';
+            x += '</div><div class="manager-checks"><label><input data-field="enabled" type="checkbox" /> 启用</label></div></div>';
+            Q('collectTargetShopRows').insertAdjacentHTML('beforeend', x);
+            Q(id).querySelector('[data-field="enabled"]').checked = shop.enabled !== false;
+        }
+        function collectReadTargetShopRows() {
+            var rows = Q('collectTargetShopRows').querySelectorAll('.collect-shop-row'), r = [];
+            for (var i = 0; i < rows.length; i++) {
+                r.push({
+                    shopName: rows[i].querySelector('[data-field="shopName"]').value.trim(),
+                    keyword: rows[i].querySelector('[data-field="keyword"]').value.trim(),
+                    address: rows[i].querySelector('[data-field="address"]').value.trim(),
+                    enabled: rows[i].querySelector('[data-field="enabled"]').checked
+                });
+            }
+            return r.filter(function (x) { return x.shopName !== '' || x.keyword !== '' || x.address !== ''; });
+        }
+        function collectAddPriceTaskRow(task) {
+            task = task || {};
+            var id = 'collectPriceRow_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
+            var x = '<div id="' + id + '" class="manager-repeat-card collect-price-row">';
+            x += '<div class="manager-repeat-head"><strong>价格任务</strong><button type="button" class="collect-btn collect-btn-danger" onclick="Q(\'' + id + '\').remove()">删除</button></div>';
+            x += '<div class="manager-inline-grid">';
+            x += '<label><span>任务 ID</span><input data-field="taskId" type="text" value="' + EscapeHtml(task.taskId || '') + '" placeholder="price_1" /></label>';
+            x += '<label><span>参考商品关键词</span><input data-field="referenceKeyword" type="text" value="' + EscapeHtml(task.referenceKeyword || task.keyword || '') + '" /></label>';
+            x += '<label class="manager-wide"><span>目标商品名称</span><input data-field="targetProductName" type="text" value="' + EscapeHtml(task.targetProductName || '') + '" /></label>';
+            x += '<label class="manager-wide"><span>参考店铺列表</span><textarea data-field="referenceShops" rows="3" placeholder="每行一个店铺名">' + EscapeHtml(managerArrayToLines(task.referenceShops || [])) + '</textarea></label>';
+            x += '</div><div class="manager-checks"><label><input data-field="enabled" type="checkbox" /> 启用</label></div></div>';
+            Q('collectPriceTaskRows').insertAdjacentHTML('beforeend', x);
+            Q(id).querySelector('[data-field="enabled"]').checked = task.enabled !== false;
+        }
+        function collectReadPriceTaskRows() {
+            var rows = Q('collectPriceTaskRows').querySelectorAll('.collect-price-row'), r = [];
+            for (var i = 0; i < rows.length; i++) {
+                r.push({
+                    taskId: rows[i].querySelector('[data-field="taskId"]').value.trim() || ('price_' + (i + 1)),
+                    enabled: rows[i].querySelector('[data-field="enabled"]').checked,
+                    referenceKeyword: rows[i].querySelector('[data-field="referenceKeyword"]').value.trim(),
+                    targetProductName: rows[i].querySelector('[data-field="targetProductName"]').value.trim(),
+                    referenceShops: managerLinesToArray(rows[i].querySelector('[data-field="referenceShops"]').value)
+                });
+            }
+            return r.filter(function (x) { return x.referenceKeyword !== '' || x.targetProductName !== '' || x.referenceShops.length > 0; });
+        }
+        function collectLoadConfigToFields(config, collectType) {
+            config = config || managerDefaultCollectConfig(collectType);
+            Q('collectConfigCity').value = config.city || '';
+            Q('collectConfigLocation').value = config.myLocationAddress || '';
+            Q('collectConfigOutputPath').value = config.outputPath || (collectType === 'collect_price' ? './collect-results/price/' : './collect-results/shop/');
+            managerSetChecked('collectConfigSaveToDb', config.saveToDb !== false);
+            QH('collectTargetShopRows', '');
+            QH('collectPriceTaskRows', '');
+            if (collectType === 'collect_price') {
+                var tasks = Array.isArray(config.priceTasks) ? config.priceTasks : [];
+                for (var i = 0; i < tasks.length; i++) collectAddPriceTaskRow(tasks[i]);
+                if (tasks.length === 0) collectAddPriceTaskRow({ taskId: 'price_1', enabled: true });
+            } else {
+                var shops = Array.isArray(config.targetShops) ? config.targetShops : [];
+                for (var j = 0; j < shops.length; j++) collectAddTargetShopRow(shops[j]);
+                if (shops.length === 0) collectAddTargetShopRow({ enabled: true });
+            }
+        }
+        function collectBuildConfigFromFields(collectType) {
+            var config = {
+                city: Q('collectConfigCity').value.trim(),
+                myLocationAddress: Q('collectConfigLocation').value.trim(),
+                outputPath: Q('collectConfigOutputPath').value.trim() || (collectType === 'collect_price' ? './collect-results/price/' : './collect-results/shop/'),
+                saveToDb: Q('collectConfigSaveToDb').checked
+            };
+            if (collectType === 'collect_price') {
+                config.priceTasks = collectReadPriceTaskRows();
+            } else {
+                config.targetShops = collectReadTargetShopRows();
+            }
+            return config;
+        }
         function collectHandleTypeChange() {
             var collectType = Q('collectFormType').value;
-            if (Q('collectFormScriptEntries').value.trim() === '' || Q('collectFormScriptEntries').dataset.autoFill === '1') { Q('collectFormScriptEntries').value = managerPrettyJson(managerDefaultCollectScriptEntries(collectType)); Q('collectFormScriptEntries').dataset.autoFill = '1'; }
-            if (Q('collectFormConfig').value.trim() === '' || Q('collectFormConfig').dataset.autoFill === '1') { Q('collectFormConfig').value = managerPrettyJson(managerDefaultCollectConfig(collectType)); Q('collectFormConfig').dataset.autoFill = '1'; }
+            collectSetSectionVisibility(collectType);
+            collectLoadScriptEntriesToFields((Q('collectFormId').value === '') ? managerDefaultCollectScriptEntries(collectType) : Q('collectFormScriptEntries').value, collectType);
+            collectLoadConfigToFields(managerParseJson(Q('collectFormConfig').value || '{}', managerDefaultCollectConfig(collectType)), collectType);
             if (Q('collectFormScriptName').value.trim() === '') { Q('collectFormScriptName').value = collectType; }
         }
         function collectHandleDeviceChange() {
@@ -3483,8 +3842,6 @@
             Q('collectFormScriptName').value = task ? (task.script_name || task.scriptName || '') : '';
             Q('collectFormScriptEntries').value = managerPrettyJson(managerParseJson(typeof (task ? (task.script_entries || task.scriptEntries) : null) === 'string' ? (task.script_entries || task.scriptEntries) : JSON.stringify((task ? (task.script_entries || task.scriptEntries) : managerDefaultCollectScriptEntries(Q('collectFormType').value))), managerDefaultCollectScriptEntries(Q('collectFormType').value)));
             Q('collectFormConfig').value = managerPrettyJson(managerParseJson(typeof (task ? task.config : null) === 'string' ? task.config : JSON.stringify((task ? task.config : managerDefaultCollectConfig(Q('collectFormType').value))), managerDefaultCollectConfig(Q('collectFormType').value)));
-            Q('collectFormScriptEntries').dataset.autoFill = task ? '0' : '1';
-            Q('collectFormConfig').dataset.autoFill = task ? '0' : '1';
             Q('collectFormRemark').value = task ? (task.remark || '') : '';
             QH('collectModalTitle', task ? '编辑采集任务' : '新增采集任务');
             collectHandleTypeChange();
@@ -3492,13 +3849,16 @@
         }
         function collectCloseEditor(event) { if (event && event.target && event.target.id !== 'collectModalMask') return; QV('collectModalMask', false); }
         function collectSubmitEditor() {
-            var payload = { id: Q('collectFormId').value, name: Q('collectFormName').value.trim(), collectType: Q('collectFormType').value, deviceId: Q('collectFormDeviceId').value, deviceOs: Q('collectFormDeviceOs').value, projectRoot: Q('collectFormProjectRoot').value.trim(), scriptName: Q('collectFormScriptName').value.trim(), scriptEntries: Q('collectFormScriptEntries').value.trim(), config: Q('collectFormConfig').value.trim(), remark: Q('collectFormRemark').value.trim() };
+            var collectType = Q('collectFormType').value;
+            var scriptEntries = collectBuildScriptEntriesFromFields();
+            var config = collectBuildConfigFromFields(collectType);
+            Q('collectFormScriptEntries').value = managerPrettyJson(scriptEntries);
+            Q('collectFormConfig').value = managerPrettyJson(config);
+            var payload = { id: Q('collectFormId').value, name: Q('collectFormName').value.trim(), collectType: collectType, deviceId: Q('collectFormDeviceId').value, deviceOs: Q('collectFormDeviceOs').value, projectRoot: Q('collectFormProjectRoot').value.trim(), scriptName: Q('collectFormScriptName').value.trim(), scriptEntries: Q('collectFormScriptEntries').value.trim(), config: Q('collectFormConfig').value.trim(), remark: Q('collectFormRemark').value.trim() };
             if (payload.name === '') { collectShowToast('任务名称不能为空。', true); return; }
             if (payload.deviceId === '') { collectShowToast('目标设备不能为空。', true); return; }
             if (payload.projectRoot === '') { collectShowToast('项目路径不能为空。', true); return; }
-            if (payload.scriptEntries === '') { collectShowToast('脚本入口配置不能为空。', true); return; }
-            if (managerParseJson(payload.scriptEntries, null) == null) { collectShowToast('脚本入口配置 JSON 无效。', true); return; }
-            if (managerParseJson(payload.config || '{}', null) == null) { collectShowToast('采集配置 JSON 无效。', true); return; }
+            if (scriptEntries[Q('collectFormDeviceOs').value].path === '') { collectShowToast('当前系统的脚本路径不能为空。', true); return; }
             collectSetSubmitBusy(true); collectState.pendingAction = payload.id !== '' ? 'collectupdate' : 'collectcreate'; meshserver.send({ action: collectState.pendingAction, id: payload.id, name: payload.name, collectType: payload.collectType, deviceId: payload.deviceId, deviceOs: payload.deviceOs, projectRoot: payload.projectRoot, scriptName: payload.scriptName, scriptEntries: payload.scriptEntries, config: payload.config, remark: payload.remark });
         }
         function collectConfirmDelete(id) {

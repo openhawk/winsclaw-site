@@ -4260,6 +4260,20 @@ a {
 .flow-form-grid, .collect-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .flow-field, .collect-field { display: flex; flex-direction: column; gap: 8px; color: #2f4b69; font-weight: 600; }
 .flow-field-full, .collect-field-full { grid-column: 1 / -1; }
+.manager-fieldset { border: 1px solid #dbe7f5; border-radius: 8px; background: #f8fbff; padding: 16px; }
+.manager-fieldset-title { font-size: 16px; font-weight: 800; color: #18324f; }
+.manager-section-header, .manager-repeat-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.manager-inline-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 12px; }
+.manager-inline-grid label { display: flex; flex-direction: column; gap: 8px; color: #2f4b69; font-weight: 600; }
+.manager-inline-grid .manager-check-row { flex-direction: row; align-items: center; margin-top: 28px; }
+.manager-inline-grid .manager-wide { grid-column: 1 / -1; }
+.manager-inline-grid input, .manager-inline-grid textarea, .manager-inline-grid select { width: 100%; border: 1px solid #cfe0f1; border-radius: 12px; background: #fff; padding: 11px 13px; box-sizing: border-box; }
+.manager-repeat-list { display: grid; gap: 12px; margin-top: 12px; }
+.manager-repeat-card { border: 1px solid #dbe7f5; border-radius: 8px; background: #fff; padding: 14px; }
+.manager-repeat-head strong { color: #18324f; }
+.manager-check-row { display: inline-flex; align-items: center; gap: 8px; margin-top: 12px; color: #2f4b69; }
+.manager-checks { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; color: #2f4b69; font-weight: 600; }
+.manager-checks label { display: inline-flex; align-items: center; gap: 6px; }
 .flow-history-modal, .collect-history-modal { width: min(980px, 100%); }
 .flow-history-list, .collect-history-list { display: flex; flex-direction: column; gap: 14px; }
 .flow-history-item, .collect-history-item { border: 1px solid #dce7f2; border-radius: 16px; padding: 16px; background: #fafcff; }
@@ -4290,6 +4304,10 @@ a {
     }
 
     .flow-form-grid, .collect-form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .manager-inline-grid {
         grid-template-columns: 1fr;
     }
 }
