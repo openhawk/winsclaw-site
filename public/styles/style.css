@@ -1804,6 +1804,97 @@ a {
     font-size: 28px;
 }
 
+.lb-shop:before {
+    content: "";
+    position: absolute;
+    left: 13px;
+    top: 14px;
+    width: 36px;
+    height: 12px;
+    border-radius: 3px 3px 1px 1px;
+    background: repeating-linear-gradient(90deg, #ffffff 0 7px, #ff6f61 7px 14px);
+    box-shadow: 0 18px 0 5px #145c7c;
+}
+
+.lb-shop:after {
+    content: "";
+    position: absolute;
+    left: 23px;
+    top: 35px;
+    width: 16px;
+    height: 21px;
+    border-radius: 3px 3px 0 0;
+    background: #ffffff;
+    box-shadow: -12px -2px 0 -5px #b7efff, 12px -2px 0 -5px #b7efff;
+}
+
+.lb9,
+.lb10 {
+    border-radius: 18px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.68), 0 8px 18px rgba(0,0,0,0.16);
+    overflow: hidden;
+}
+
+.lb9 {
+    background: linear-gradient(180deg, #dff7ff 0%, #52bfe8 100%);
+}
+
+.lb9:before {
+    content: "";
+    position: absolute;
+    left: 14px;
+    top: 14px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #083f78;
+    box-shadow: 24px 0 0 #083f78, 12px 25px 0 #083f78;
+}
+
+.lb9:after {
+    content: "";
+    position: absolute;
+    left: 19px;
+    top: 21px;
+    width: 31px;
+    height: 25px;
+    border-top: 5px solid #ffffff;
+    border-right: 5px solid #ffffff;
+    transform: skewX(-25deg);
+    opacity: 0.95;
+}
+
+.lb10 {
+    background: linear-gradient(180deg, #fff3bd 0%, #51c38a 100%);
+}
+
+.lb10:before {
+    content: "";
+    position: absolute;
+    left: 15px;
+    top: 12px;
+    width: 32px;
+    height: 36px;
+    border-radius: 50% / 16%;
+    background:
+        linear-gradient(180deg, rgba(255,255,255,0.95) 0 4px, transparent 4px),
+        linear-gradient(180deg, #116a4a 0%, #0d8c61 100%);
+    border: 3px solid #064a36;
+    box-sizing: border-box;
+}
+
+.lb10:after {
+    content: "";
+    position: absolute;
+    left: 26px;
+    top: 26px;
+    width: 10px;
+    height: 18px;
+    border-radius: 2px;
+    background: #ffffff;
+    box-shadow: 0 16px 0 -3px #ffffff;
+}
+
 .m0 {
     background: url(../images/images16.png) -32px 0px;
     height: 16px;
