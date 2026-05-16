@@ -70,6 +70,56 @@ module.exports.CreateDB = function (parent, func) {
         eventsSet: 0
     }
 
+    function managerMakeId(prefix) {
+        return prefix + '_' + Date.now().toString(36) + '_' + require('crypto').randomBytes(5).toString('hex');
+    }
+
+    function managerNormalizeScriptEntries(scriptEntries, defaults) {
+        if ((scriptEntries == null) || (typeof scriptEntries != 'object') || Array.isArray(scriptEntries)) { scriptEntries = {}; }
+        var result = {};
+        var keys = ['macos', 'windows'];
+        for (var i = 0; i < keys.length; i++) {
+            var key = keys[i];
+            var entry = scriptEntries[key] || defaults[key] || {};
+            result[key] = {
+                path: (typeof entry.path == 'string') ? entry.path : '',
+                argsTemplate: (typeof entry.argsTemplate == 'string') ? entry.argsTemplate : '{configPath}'
+            };
+        }
+        return result;
+    }
+
+    function managerDefaultCollectScriptEntries(collectType) {
+        var name = (collectType == 'collect_price') ? 'collect-price' : 'collect-shop';
+        return {
+            macos: { path: './scripts/' + name + '.sh', argsTemplate: '{configPath}' },
+            windows: { path: './scripts/' + name + '.ps1', argsTemplate: '{configPath}' }
+        };
+    }
+
+    function managerDefaultFlowScriptEntries(flowType) {
+        var name = (flowType == 'pricing') ? 'pricing-flow' : ((flowType == 'auto_reply') ? 'auto-reply-flow' : 'publish-flow');
+        return {
+            macos: { path: './scripts/' + name + '.sh', argsTemplate: '{configPath}' },
+            windows: { path: './scripts/' + name + '.ps1', argsTemplate: '{configPath}' }
+        };
+    }
+
+    function managerCountData(data) {
+        if (Array.isArray(data)) return data.length;
+        if ((data != null) && (typeof data == 'object')) return Object.keys(data).length;
+        return 0;
+    }
+
+    function pgQueryAsync(sql, args) {
+        return new Promise(function (resolve, reject) {
+            Datastore.query(sql, args || [], function (err, results) {
+                if (err != null) { reject(err); return; }
+                resolve(results);
+            });
+        });
+    }
+
     // MongoDB bulk operations state
     if (parent.config.settings.mongodbbulkoperations) {
         // Added counters
@@ -759,6 +809,10 @@ module.exports.CreateDB = function (parent, func) {
                     'CREATE TABLE IF NOT EXISTS smbios (id CHAR(255), time DATETIME, expire DATETIME, doc JSON, PRIMARY KEY(id), CHECK (json_valid(doc)))',
                     'CREATE TABLE IF NOT EXISTS plugin (id INT NOT NULL AUTO_INCREMENT, doc JSON, PRIMARY KEY(id), CHECK (json_valid(doc)))',
                     'CREATE TABLE IF NOT EXISTS pluginpermissions (id VARCHAR(255) PRIMARY KEY, doc JSON)'
+
+
+
+            
                 ], function (err) {
                     parent.debug('db', 'Checking indexes...');
                     sqlDbExec('CREATE INDEX ndxtypedomainextra ON main (type, domain, extra)', null, function (err, response) { });
@@ -1419,10 +1473,6 @@ module.exports.CreateDB = function (parent, func) {
             'ALTER TABLE IF EXISTS collect_tasks ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP NULL',
             'ALTER TABLE IF EXISTS flows ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN NOT NULL DEFAULT FALSE',
             'ALTER TABLE IF EXISTS flows ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP NULL',
-            'ALTER TABLE IF EXISTS meituan_h5_products ADD COLUMN IF NOT EXISTS collect_task_id VARCHAR(64) NULL',
-            'ALTER TABLE IF EXISTS meituan_h5_products ADD COLUMN IF NOT EXISTS collect_result_id VARCHAR(64) NULL',
-            'ALTER TABLE IF EXISTS meituan_h5_products ADD COLUMN IF NOT EXISTS collect_source_key VARCHAR(256) NULL',
-            'ALTER TABLE IF EXISTS meituan_h5_products ADD COLUMN IF NOT EXISTS source_type VARCHAR(32) NULL'
         ], function (results) {
             parent.debug('db', 'Creating indexes...');
             sqlDbExec('CREATE INDEX ndxtypedomainextra ON main (type, domain, extra)', null, function (err, response) { });
@@ -1442,7 +1492,11 @@ module.exports.CreateDB = function (parent, func) {
             sqlDbExec('CREATE INDEX IF NOT EXISTS ndx_collect_results_type_time ON collect_results (collect_type, collected_at DESC)', null, function (err, response) { });
             sqlDbExec('CREATE INDEX IF NOT EXISTS ndx_flows_name ON flows (name)', null, function (err, response) { });
             sqlDbExec('CREATE INDEX IF NOT EXISTS ndx_flow_runs_flow_time ON flow_runs (flow_id, started_at DESC)', null, function (err, response) { });
-            sqlDbExec('CREATE INDEX IF NOT EXISTS ndx_products_collect_source ON meituan_h5_products (collect_result_id, collect_source_key)', null, function (err, response) { });
+
+
+
+
+
             setupFunctions(func);
         });
     }
@@ -3262,7 +3316,6 @@ module.exports.CreateDB = function (parent, func) {
         }
 
         // Shop manager operations. This feature currently targets the PostgreSQL
-        // table "meituan_h5_shops" configured for this deployment.
         obj.GetShopList = function (search, page, limit, func) {
             if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Shop manager requires PostgreSQL.')); return; }
             if (typeof search != 'string') { search = ''; }
@@ -3408,159 +3461,44 @@ module.exports.CreateDB = function (parent, func) {
             });
         };
 
-        function pgQueryAsync(sql, args) {
-            return new Promise(function (resolve, reject) {
-                Datastore.query(sql, args || [], function (err, results) {
-                    if (err != null) { reject(err); return; }
-                    resolve(results);
-                });
+        obj.GetProductsByCollectResult = function (collectResultId, filters, func) {
+            if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Collect manager requires PostgreSQL.')); return; }
+            const args = [collectResultId], where = ['collect_result_id = $1'];
+            if (filters && typeof filters.shopName === 'string' && filters.shopName.trim() !== '') {
+                args.push(filters.shopName.trim());
+                where.push('(required_attributes_json->>\'storeName\') = $' + args.length);
+            }
+            if (filters && typeof filters.productName === 'string' && filters.productName.trim() !== '') {
+                args.push('%' + filters.productName.trim() + '%');
+                where.push('name ILIKE $' + args.length);
+            }
+            Datastore.query('SELECT * FROM meituan_h5_products WHERE ' + where.join(' AND ') + ' ORDER BY id ASC', args, function (err, results) {
+                if (err != null) { func(err); return; }
+                func(null, results.rows || []);
             });
-        }
-
-        function managerMakeId(prefix) {
-            return prefix + '_' + Date.now().toString(36) + '_' + require('crypto').randomBytes(5).toString('hex');
-        }
-
-        function managerJson(value, fallback) {
-            if (value == null) return fallback;
-            if (typeof value === 'string') {
-                try { return JSON.parse(value); } catch (ex) { return fallback; }
-            }
-            return value;
-        }
-
-        function managerContainsReference(value, target) {
-            if ((target == null) || (target === '')) return false;
-            if (value == null) return false;
-            if (typeof value === 'string') return (value === target);
-            if (Array.isArray(value)) { for (var i = 0; i < value.length; i++) { if (managerContainsReference(value[i], target)) return true; } return false; }
-            if (typeof value === 'object') {
-                for (var k in value) { if (managerContainsReference(value[k], target)) return true; }
-            }
-            return false;
-        }
-
-        function managerNormalizeScriptEntries(scriptEntries, defaults) {
-            scriptEntries = managerJson(scriptEntries, null);
-            if (scriptEntries == null || typeof scriptEntries !== 'object') scriptEntries = {};
-            const normalized = { macos: { path: '', argsTemplate: '{configPath}' }, windows: { path: '', argsTemplate: '-ConfigPath "{configPath}"' } };
-            if (defaults && defaults.macos) { normalized.macos = Object.assign(normalized.macos, defaults.macos); }
-            if (defaults && defaults.windows) { normalized.windows = Object.assign(normalized.windows, defaults.windows); }
-            if (scriptEntries.macos && typeof scriptEntries.macos === 'object') normalized.macos = Object.assign(normalized.macos, scriptEntries.macos);
-            if (scriptEntries.windows && typeof scriptEntries.windows === 'object') normalized.windows = Object.assign(normalized.windows, scriptEntries.windows);
-            return normalized;
-        }
-
-        function managerDefaultCollectScriptEntries(collectType) {
-            if (collectType === 'collect_price') {
-                return { macos: { path: 'scripts-mac/run-collect-price.sh', argsTemplate: '{configPath}' }, windows: { path: 'scripts/run-collect-price.ps1', argsTemplate: '-ConfigPath "{configPath}"' } };
-            }
-            return { macos: { path: 'scripts-mac/run-collect-shop.sh', argsTemplate: '{configPath}' }, windows: { path: 'scripts/run-collect-shop.ps1', argsTemplate: '-ConfigPath "{configPath}"' } };
-        }
-
-        function managerDefaultFlowScriptEntries(flowType) {
-            if (flowType === 'pricing') {
-                return { macos: { path: 'scripts-mac/run-pricing.sh', argsTemplate: '{configPath}' }, windows: { path: 'scripts/run-pricing.ps1', argsTemplate: '-ConfigPath "{configPath}"' } };
-            }
-            if (flowType === 'auto_reply') {
-                return { macos: { path: 'scripts-mac/run-resident-auto-reply.sh', argsTemplate: '--config "{configPath}"' }, windows: { path: 'scripts/run-resident-auto-reply.ps1', argsTemplate: '-ConfigPath "{configPath}"' } };
-            }
-            return { macos: { path: 'scripts-mac/run-publish-product.sh', argsTemplate: '{configPath}' }, windows: { path: 'scripts/run-publish-product.ps1', argsTemplate: '-ConfigPath "{configPath}"' } };
-        }
-
-        function managerNormalizeText(value, fallback) {
-            value = (typeof value === 'string') ? value.trim() : '';
-            if (value === '') value = fallback || '';
-            return value;
-        }
-
-        async function managerNextProductId() {
-            const results = await pgQueryAsync('SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM meituan_h5_products', []);
-            return results.rows[0].next_id;
-        }
-
-        function managerCollectItemToProduct(taskId, resultId, item, index) {
-            item = item || {};
-            const sourceKey = String(item.collectSourceKey || item.productId || item.id || item.skuId || item.key || (index + 1));
-            const storeName = managerNormalizeText(item.shopName || item.storeName || item.shop || '', '');
-            const productName = managerNormalizeText(item.productName || item.name || item.title || ('采集商品 ' + (index + 1)), '采集商品 ' + (index + 1));
-            const description = managerNormalizeText(item.description || item.subtitle || '采集同步商品', '采集同步商品');
-            const categoryPath = Array.isArray(item.categoryPath) ? item.categoryPath : ['花草园艺', '礼品花', '礼品鲜花'];
-            const storeCategoryPath = Array.isArray(item.storeCategoryPath) ? item.storeCategoryPath : (typeof item.storeCategoryPath === 'string' ? item.storeCategoryPath.split('>').map(function (s) { return s.trim(); }).filter(Boolean) : []);
-            const imagePaths = Array.isArray(item.imagePaths) && item.imagePaths.length > 0 ? item.imagePaths : ['./images/mainwelcome.jpg'];
-            const imageUrls = Array.isArray(item.imageUrls) ? item.imageUrls : [];
-            const skuList = Array.isArray(item.skuList) ? item.skuList : [];
-            const sku = Array.isArray(item.sku) && item.sku.length > 0 ? item.sku : [{ name: '规格', value: managerNormalizeText(item.defaultSpec || '默认规格', '默认规格') }];
-            const price = Number(item.price != null ? item.price : item.currentPrice);
-            const originalPrice = (item.originalPrice != null || item.linePrice != null) ? Number(item.originalPrice != null ? item.originalPrice : item.linePrice) : null;
-            const inventory = Number(item.inventory != null ? item.inventory : (item.stock != null ? item.stock : 1));
-            return {
-                collectTaskId: taskId,
-                collectResultId: resultId,
-                collectSourceKey: sourceKey,
-                sourceType: 'collect_shop',
-                name: productName,
-                price: isFinite(price) ? price : 0,
-                originalPrice: isFinite(originalPrice) ? originalPrice : null,
-                description: description,
-                inventory: isFinite(inventory) ? inventory : 1,
-                imagePaths: imagePaths,
-                imageUrls: imageUrls,
-                sku: sku,
-                skuList: skuList,
-                categoryPath: categoryPath,
-                storeCategoryPath: storeCategoryPath,
-                requiredAttributes: {
-                    mainFlower: managerNormalizeText(item.mainFlower || item.flower || '待补充', '待补充'),
-                    color: managerNormalizeText(item.color || item.colorFamily || '待补充', '待补充'),
-                    audience: managerNormalizeText(item.audience || item.targetAudience || '待补充', '待补充'),
-                    storeName: storeName
-                },
-                entryUrl: managerNormalizeText(item.entryUrl || '', ''),
-                sourceUrl: managerNormalizeText(item.sourceUrl || item.url || '', ''),
-                useExistingOptionsOnly: item.useExistingOptionsOnly !== false,
-                publishHistory: []
-            };
-        }
-
-        async function managerSyncCollectShopProducts(task, resultRow, dataItems) {
-            if (Array.isArray(dataItems) !== true) dataItems = [];
-            for (let i = 0; i < dataItems.length; i++) {
-                const normalized = managerCollectItemToProduct(task.id, resultRow.id, dataItems[i], i);
-                const existing = await pgQueryAsync('SELECT id FROM meituan_h5_products WHERE collect_result_id = $1 AND collect_source_key = $2 LIMIT 1', [normalized.collectResultId, normalized.collectSourceKey]);
-                if (existing.rows.length > 0) {
-                    await pgQueryAsync(
-                        'UPDATE meituan_h5_products SET name = $2, price = $3, original_price = $4, description = $5, inventory = $6, image_paths_json = $7::jsonb, image_urls_json = $8::jsonb, sku_json = $9::jsonb, sku_list_json = $10::jsonb, category_path_json = $11::jsonb, store_category_path_json = $12::jsonb, required_attributes_json = $13::jsonb, entry_url = $14, use_existing_options_only = $15, publish_history_json = $16::jsonb, source_url = $17, collect_task_id = $18, collect_result_id = $19, collect_source_key = $20, source_type = $21, updated_at = $22 WHERE id = $1',
-                        [existing.rows[0].id, normalized.name, normalized.price, normalized.originalPrice, normalized.description, normalized.inventory, JSON.stringify(normalized.imagePaths), JSON.stringify(normalized.imageUrls), JSON.stringify(normalized.sku), JSON.stringify(normalized.skuList), JSON.stringify(normalized.categoryPath), JSON.stringify(normalized.storeCategoryPath), JSON.stringify(normalized.requiredAttributes), normalized.entryUrl, normalized.useExistingOptionsOnly, JSON.stringify(normalized.publishHistory), normalized.sourceUrl, normalized.collectTaskId, normalized.collectResultId, normalized.collectSourceKey, normalized.sourceType, new Date()]
-                    );
-                } else {
-                    const nextId = await managerNextProductId();
-                    await pgQueryAsync(
-                        'INSERT INTO meituan_h5_products (id, name, price, original_price, description, inventory, image_paths_json, image_urls_json, sku_json, sku_list_json, category_path_json, store_category_path_json, required_attributes_json, entry_url, use_existing_options_only, publish_history_json, source_url, collect_task_id, collect_result_id, collect_source_key, source_type, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9::jsonb, $10::jsonb, $11::jsonb, $12::jsonb, $13::jsonb, $14, $15, $16::jsonb, $17, $18, $19, $20, $21, $22, $23)',
-                        [nextId, normalized.name, normalized.price, normalized.originalPrice, normalized.description, normalized.inventory, JSON.stringify(normalized.imagePaths), JSON.stringify(normalized.imageUrls), JSON.stringify(normalized.sku), JSON.stringify(normalized.skuList), JSON.stringify(normalized.categoryPath), JSON.stringify(normalized.storeCategoryPath), JSON.stringify(normalized.requiredAttributes), normalized.entryUrl, normalized.useExistingOptionsOnly, JSON.stringify(normalized.publishHistory), normalized.sourceUrl, normalized.collectTaskId, normalized.collectResultId, normalized.collectSourceKey, normalized.sourceType, new Date(), new Date()]
-                    );
-                }
-            }
-        }
+        };
 
         obj.GetCollectTaskList = function (search, page, limit, func) {
             if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Collect manager requires PostgreSQL.')); return; }
-            if (typeof search != 'string') { search = ''; }
-            if (typeof page != 'number' || page < 1) { page = 1; }
-            if (typeof limit != 'number' || limit < 1) { limit = 10; }
-            const args = [], where = [];
+            if (typeof search != 'string') search = '';
+            if (typeof page != 'number' || page < 1) page = 1;
+            if (typeof limit != 'number' || limit < 1) limit = 10;
+            const args = [], where = ['is_deleted = FALSE'];
             search = search.trim();
-            if (search !== '') { args.push('%' + search + '%'); where.push('name ILIKE $' + args.length); }
-            const whereSql = (where.length > 0) ? (' WHERE ' + where.join(' AND ')) : '';
+            if (search !== '') {
+                args.push('%' + search + '%');
+                where.push('(name ILIKE $' + args.length + ' OR collect_type ILIKE $' + args.length + ')');
+            }
+            const whereSql = ' WHERE ' + where.join(' AND ');
             Datastore.query('SELECT COUNT(*) AS count FROM collect_tasks' + whereSql, args, function (err, countResults) {
                 if (err != null) { func(err); return; }
                 const total = parseInt(countResults.rows[0].count);
                 const listArgs = args.slice(0);
                 listArgs.push(limit);
                 listArgs.push((page - 1) * limit);
-                Datastore.query('SELECT * FROM collect_tasks' + whereSql + ' ORDER BY updated_at DESC NULLS LAST, created_at DESC LIMIT $' + (args.length + 1) + ' OFFSET $' + (args.length + 2), listArgs, function (listErr, listResults) {
+                Datastore.query('SELECT * FROM collect_tasks' + whereSql + ' ORDER BY updated_at DESC NULLS LAST, created_at DESC LIMIT $' + (args.length + 1) + ' OFFSET $' + (args.length + 2), listArgs, function (listErr, results) {
                     if (listErr != null) { func(listErr); return; }
-                    func(null, { total: total, tasks: listResults.rows });
+                    func(null, { total: total, tasks: results.rows });
                 });
             });
         };
@@ -3579,8 +3517,7 @@ module.exports.CreateDB = function (parent, func) {
             const now = new Date();
             const taskId = managerMakeId('collecttask');
             const scriptEntries = managerNormalizeScriptEntries(task.scriptEntries, managerDefaultCollectScriptEntries(task.collectType));
-            const values = [taskId, task.name, task.collectType, task.deviceOs, task.deviceId, task.projectRoot, task.scriptName, JSON.stringify(scriptEntries), JSON.stringify(task.config || {}), task.remark || '', now, now];
-            Datastore.query('INSERT INTO collect_tasks (id, name, collect_type, device_os, device_id, project_root, script_name, script_entries, config, remark, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10, $11, $12) RETURNING *', values, function (err, results) {
+            Datastore.query('INSERT INTO collect_tasks (id, name, collect_type, device_os, device_id, project_root, script_name, script_entries, config, remark, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10, $11, $12) RETURNING *', [taskId, task.name, task.collectType, task.deviceOs, task.deviceId, task.projectRoot, task.scriptName, JSON.stringify(scriptEntries), JSON.stringify(task.config || {}), task.remark || '', now, now], function (err, results) {
                 if (err != null) { func(err); return; }
                 func(null, results.rows[0]);
             });
@@ -3589,7 +3526,7 @@ module.exports.CreateDB = function (parent, func) {
         obj.UpdateCollectTask = function (taskId, task, func) {
             if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Collect manager requires PostgreSQL.')); return; }
             const scriptEntries = managerNormalizeScriptEntries(task.scriptEntries, managerDefaultCollectScriptEntries(task.collectType));
-            Datastore.query('UPDATE collect_tasks SET name = $2, collect_type = $3, device_os = $4, device_id = $5, project_root = $6, script_name = $7, script_entries = $8::jsonb, config = $9::jsonb, remark = $10, updated_at = $11 WHERE id = $1 RETURNING *', [taskId, task.name, task.collectType, task.deviceOs, task.deviceId, task.projectRoot, task.scriptName, JSON.stringify(scriptEntries), JSON.stringify(task.config || {}), task.remark || '', new Date()], function (err, results) {
+            Datastore.query('UPDATE collect_tasks SET name = $2, collect_type = $3, device_os = $4, device_id = $5, project_root = $6, script_name = $7, script_entries = $8::jsonb, config = $9::jsonb, remark = $10, updated_at = $11 WHERE id = $1 AND is_deleted = FALSE RETURNING *', [taskId, task.name, task.collectType, task.deviceOs, task.deviceId, task.projectRoot, task.scriptName, JSON.stringify(scriptEntries), JSON.stringify(task.config || {}), task.remark || '', new Date()], function (err, results) {
                 if (err != null) { func(err); return; }
                 if (!results.rows || results.rows.length === 0) { func(new Error('Collect task not found.')); return; }
                 func(null, results.rows[0]);
@@ -3599,39 +3536,21 @@ module.exports.CreateDB = function (parent, func) {
         obj.DeleteCollectTask = function (taskId, clearResults, func) {
             if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Collect manager requires PostgreSQL.')); return; }
             (async function () {
-                const taskRowRes = await pgQueryAsync('SELECT * FROM collect_tasks WHERE id = $1 AND is_deleted = FALSE', [taskId]);
-                if (!taskRowRes.rows || taskRowRes.rows.length === 0) throw new Error('Collect task not found.');
-                const taskResults = await pgQueryAsync('SELECT id, collect_type FROM collect_results WHERE task_id = $1 ORDER BY collected_at DESC', [taskId]);
-                const flowRows = await pgQueryAsync('SELECT id, config FROM flows WHERE is_deleted = FALSE', []);
-                for (let i = 0; i < flowRows.rows.length; i++) {
-                    if (managerContainsReference(flowRows.rows[i].config, taskId)) { throw new Error('该采集任务仍被流程配置引用，请先解除绑定。'); }
-                }
-                let removedResultCount = 0;
-                let keptResultCount = taskResults.rows.length;
+                const taskResults = await pgQueryAsync('SELECT id FROM collect_tasks WHERE id = $1 AND is_deleted = FALSE', [taskId]);
+                if (!taskResults.rows || taskResults.rows.length === 0) throw new Error('Collect task not found.');
+                var removedResultCount = 0;
+                var keptResultCount = 0;
                 if (clearResults === true) {
-                    const runRows = await pgQueryAsync('SELECT id, collect_bindings FROM flow_runs', []);
-                    for (let i = 0; i < taskResults.rows.length; i++) {
-                        const resultId = taskResults.rows[i].id;
-                        let referenced = false;
-                        for (let j = 0; j < flowRows.rows.length; j++) {
-                            if (managerContainsReference(flowRows.rows[j].config, resultId)) { referenced = true; break; }
-                        }
-                        if (referenced !== true) {
-                            for (let j = 0; j < runRows.rows.length; j++) {
-                                if (managerContainsReference(runRows.rows[j].collect_bindings, resultId)) { referenced = true; break; }
-                            }
-                        }
-                        if (referenced === true) continue;
-                        await pgQueryAsync('DELETE FROM meituan_h5_products WHERE collect_result_id = $1', [resultId]);
-                        await pgQueryAsync('DELETE FROM collect_results WHERE id = $1', [resultId]);
-                        removedResultCount++;
-                    }
-                    keptResultCount = taskResults.rows.length - removedResultCount;
+                    const deleteResults = await pgQueryAsync('DELETE FROM collect_results WHERE task_id = $1', [taskId]);
+                    removedResultCount = deleteResults.rowCount || 0;
+                } else {
+                    const countResults = await pgQueryAsync('SELECT COUNT(*) AS count FROM collect_results WHERE task_id = $1', [taskId]);
+                    keptResultCount = parseInt(countResults.rows[0].count);
                 }
                 await pgQueryAsync('UPDATE collect_tasks SET is_deleted = TRUE, deleted_at = $2, updated_at = $2 WHERE id = $1', [taskId, new Date()]);
                 return { id: taskId, removedResultCount: removedResultCount, keptResultCount: keptResultCount };
-            })().then(function (deleteResult) {
-                func(null, deleteResult);
+            })().then(function (result) {
+                func(null, result);
             }).catch(function (err) {
                 func(err);
             });
@@ -3662,15 +3581,11 @@ module.exports.CreateDB = function (parent, func) {
 
         obj.GetLatestCollectResult = function (taskId, collectType, maxAgeDays, requireSyncSuccess, func) {
             if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Collect manager requires PostgreSQL.')); return; }
-            const args = [], where = ['cr.status = \'success\'', 'ct.is_deleted = FALSE'];
-            if (taskId != null) { args.push(taskId); where.push('cr.task_id = $' + args.length); }
-            if (collectType != null) { args.push(collectType); where.push('cr.collect_type = $' + args.length); }
-            if (requireSyncSuccess === true) { where.push('cr.sync_status = \'success\''); }
-            if (typeof maxAgeDays === 'number' && maxAgeDays > 0) {
-                args.push(new Date(Date.now() - (maxAgeDays * 24 * 60 * 60 * 1000)));
-                where.push('cr.collected_at >= $' + args.length);
-            }
-            Datastore.query('SELECT cr.* FROM collect_results cr INNER JOIN collect_tasks ct ON ct.id = cr.task_id WHERE ' + where.join(' AND ') + ' ORDER BY cr.collected_at DESC LIMIT 1', args, function (err, results) {
+            const args = [collectType], where = ['collect_type = $1', "status = 'success'"];
+            if (taskId) { args.push(taskId); where.push('task_id = $' + args.length); }
+            if (typeof maxAgeDays == 'number' && maxAgeDays > 0) { args.push(new Date(Date.now() - (maxAgeDays * 24 * 60 * 60 * 1000))); where.push('collected_at >= $' + args.length); }
+            if (requireSyncSuccess === true) { where.push("sync_status = 'success'"); }
+            Datastore.query('SELECT * FROM collect_results WHERE ' + where.join(' AND ') + ' ORDER BY collected_at DESC LIMIT 1', args, function (err, results) {
                 if (err != null) { func(err); return; }
                 func(null, (results.rows && results.rows.length > 0) ? results.rows[0] : null);
             });
@@ -3678,11 +3593,11 @@ module.exports.CreateDB = function (parent, func) {
 
         obj.StartCollectRun = function (task, commandText, func) {
             if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Collect manager requires PostgreSQL.')); return; }
-            const now = new Date();
             const resultId = task.preparedResultId || managerMakeId('collectresult');
-            Datastore.query('INSERT INTO collect_results (id, task_id, collect_type, data, data_count, collected_at, device_id, status, stdout, stderr, sync_status, command_text, result_meta) VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb) RETURNING *', [resultId, task.id, task.collect_type || task.collectType, '[]', 0, now, task.device_id || task.deviceId, 'running', '', '', (task.collect_type || task.collectType) === 'collect_shop' ? 'pending' : null, commandText || '', JSON.stringify({})], function (err, results) {
+            const now = new Date();
+            Datastore.query('INSERT INTO collect_results (id, task_id, collect_type, data, data_count, collected_at, device_id, status, stdout, stderr, command_text, result_meta) VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, $8, $9, $10, $11, $12::jsonb) RETURNING *', [resultId, task.id, task.collect_type || task.collectType, '[]', 0, now, task.device_id || task.deviceId, 'running', '', '', commandText || '', '{}'], function (err, results) {
                 if (err != null) { func(err); return; }
-                Datastore.query('UPDATE collect_tasks SET last_run_at = $2, last_run_status = $3, updated_at = $4 WHERE id = $1', [task.id, now, 'running', now], function () {
+                Datastore.query('UPDATE collect_tasks SET last_run_at = $2, last_run_status = $3, updated_at = $2 WHERE id = $1', [task.id, now, 'running'], function () {
                     func(null, results.rows[0]);
                 });
             });
@@ -3691,59 +3606,24 @@ module.exports.CreateDB = function (parent, func) {
         obj.FinalizeCollectRun = function (resultId, updates, func) {
             if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Collect manager requires PostgreSQL.')); return; }
             (async function () {
-                const resultRes = await pgQueryAsync('SELECT * FROM collect_results WHERE id = $1', [resultId]);
-                if (!resultRes.rows || resultRes.rows.length === 0) throw new Error('Collect result not found.');
-                const resultRow = resultRes.rows[0];
-                const taskRes = await pgQueryAsync('SELECT * FROM collect_tasks WHERE id = $1', [resultRow.task_id]);
-                if (!taskRes.rows || taskRes.rows.length === 0) throw new Error('Collect task not found.');
-                const task = taskRes.rows[0];
-                const dataItems = Array.isArray(updates.data) ? updates.data : managerJson(updates.data, []);
-                let syncStatus = null, syncedAt = null, syncError = null;
-                if (resultRow.collect_type === 'collect_shop') {
-                    if (updates.status === 'success') {
-                        try {
-                            await pgQueryAsync('DELETE FROM meituan_h5_products WHERE collect_result_id = $1', [resultId]);
-                            await managerSyncCollectShopProducts(task, resultRow, dataItems);
-                            syncStatus = 'success';
-                            syncedAt = new Date();
-                        } catch (syncEx) {
-                            syncStatus = 'failed';
-                            syncError = syncEx.message ? syncEx.message : String(syncEx);
-                        }
-                    } else {
-                        syncStatus = 'pending';
-                    }
-                }
-                const finalStatus = (updates.status === 'success' && syncStatus === 'failed') ? 'manual_required' : updates.status;
-                const updateValues = [resultId, JSON.stringify(Array.isArray(dataItems) ? dataItems : []), Array.isArray(dataItems) ? dataItems.length : 0, finalStatus || 'failed', updates.exitCode == null ? null : updates.exitCode, updates.stdout || '', updates.stderr || '', syncStatus, syncedAt, syncError, JSON.stringify(updates.resultMeta || {})];
-                await pgQueryAsync('UPDATE collect_results SET data = $2::jsonb, data_count = $3, status = $4, exit_code = $5, stdout = $6, stderr = $7, sync_status = $8, synced_at = $9, sync_error = $10, result_meta = $11::jsonb WHERE id = $1', updateValues);
-                const lastSyncStatus = (resultRow.collect_type === 'collect_shop') ? syncStatus : null;
-                await pgQueryAsync('UPDATE collect_tasks SET last_run_at = $2, last_run_status = $3, last_data_count = $4, last_sync_status = $5, updated_at = $6 WHERE id = $1', [task.id, new Date(), finalStatus || 'failed', Array.isArray(dataItems) ? dataItems.length : 0, lastSyncStatus, new Date()]);
-                const finalResult = await pgQueryAsync('SELECT * FROM collect_results WHERE id = $1', [resultId]);
-                return finalResult.rows[0];
-            })().then(function (row) {
-                func(null, row);
+                const runRes = await pgQueryAsync('SELECT * FROM collect_results WHERE id = $1', [resultId]);
+                if (!runRes.rows || runRes.rows.length === 0) throw new Error('Collect result not found.');
+                const runRow = runRes.rows[0];
+                const data = updates.data == null ? [] : updates.data;
+                const dataCount = managerCountData(data);
+                const finalStatus = updates.status || runRow.status || 'failed';
+                const now = new Date();
+                await pgQueryAsync('UPDATE collect_results SET data = $2::jsonb, data_count = $3, collected_at = $4, status = $5, exit_code = $6, stdout = $7, stderr = $8, result_meta = $9::jsonb WHERE id = $1', [resultId, JSON.stringify(data), dataCount, now, finalStatus, updates.exitCode == null ? null : updates.exitCode, updates.stdout || '', updates.stderr || '', JSON.stringify(updates.resultMeta || {})]);
+                await pgQueryAsync('UPDATE collect_tasks SET last_run_at = $2, last_run_status = $3, last_data_count = $4, updated_at = $2 WHERE id = $1', [runRow.task_id, now, finalStatus, dataCount]);
+                const finalRun = await pgQueryAsync('SELECT * FROM collect_results WHERE id = $1', [resultId]);
+                return finalRun.rows[0];
+            })().then(function (run) {
+                func(null, run);
             }).catch(function (err) {
                 func(err);
             });
         };
 
-        obj.GetProductsByCollectResult = function (collectResultId, filters, func) {
-            if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Collect manager requires PostgreSQL.')); return; }
-            const args = [collectResultId], where = ['collect_result_id = $1'];
-            if (filters && typeof filters.shopName === 'string' && filters.shopName.trim() !== '') {
-                args.push(filters.shopName.trim());
-                where.push('(required_attributes_json->>\'storeName\') = $' + args.length);
-            }
-            if (filters && typeof filters.productName === 'string' && filters.productName.trim() !== '') {
-                args.push('%' + filters.productName.trim() + '%');
-                where.push('name ILIKE $' + args.length);
-            }
-            Datastore.query('SELECT * FROM meituan_h5_products WHERE ' + where.join(' AND ') + ' ORDER BY id ASC', args, function (err, results) {
-                if (err != null) { func(err); return; }
-                func(null, results.rows || []);
-            });
-        };
 
         obj.GetFlowList = function (search, page, limit, func) {
             if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Flow manager requires PostgreSQL.')); return; }
