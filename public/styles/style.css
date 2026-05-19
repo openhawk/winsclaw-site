@@ -43,32 +43,32 @@ body {
 }
 
 .fullscreen.login #container {
-    -ms-grid-rows: 66px 24px 1fr 45px;
-    grid-template-rows: 66px 24px auto 45px;
+    -ms-grid-rows: 42px 24px 1fr 45px;
+    grid-template-rows: 42px 24px auto 45px;
     -ms-grid-columns: 90px 1fr;
     /*grid-template-columns: 90px repeat(auto-fit, minmax(900px, 1fr));*/
     grid-template-areas: "header header" "nav nav" "content content" "footer footer";
 }
 
 .fullscreen.arg_hide #container {
-    -ms-grid-rows: 66px 24px 1fr 45px;
-    grid-template-rows: 66px 24px auto 45px;
+    -ms-grid-rows: 42px 24px 1fr 45px;
+    grid-template-rows: 42px 24px auto 45px;
     -ms-grid-columns: 90px 1fr;
     /*grid-template-columns: 90px repeat(auto-fit, minmax(900px, 1fr));*/
     grid-template-areas: "header header" "nav nav" "content content" "footer footer";
 }
 
 .fullscreen.menu_stack #container {
-    -ms-grid-rows: 66px minmax(24px, max-content) 1fr 45px;
-    grid-template-rows: 66px minmax(24px, max-content) auto 45px;
+    -ms-grid-rows: 42px minmax(24px, max-content) 1fr 45px;
+    grid-template-rows: 42px minmax(24px, max-content) auto 45px;
     -ms-grid-columns: 90px 1fr;
     /*grid-template-columns: 90px repeat(auto-fit, minmax(900px, 1fr));*/
     grid-template-areas: "header header" "nav nav" "content content" "footer footer";
 }
 
 .nofooter.fullscreen.menu_stack #container {
-    -ms-grid-rows: 66px minmax(24px, max-content) 1fr 0px;
-    grid-template-rows: 66px minmax(24px, max-content) auto 0px;
+    -ms-grid-rows: 42px minmax(24px, max-content) 1fr 0px;
+    grid-template-rows: 42px minmax(24px, max-content) auto 0px;
     -ms-grid-columns: 90px 1fr;
     /*grid-template-columns: 90px repeat(auto-fit, minmax(900px, 1fr));*/
     grid-template-areas: "header header" "nav nav" "content content" "footer footer";
@@ -88,13 +88,13 @@ body {
     grid-template-areas: "header header" "sidebar nav" "sidebar content" "sidebar footer";
     -ms-grid-columns: 90px 1fr;
     grid-template-columns: 90px auto;
-    -ms-grid-rows: 66px 24px 1fr 45px;
-    grid-template-rows: 66px 24px auto 45px;
+    -ms-grid-rows: 42px 24px 1fr 45px;
+    grid-template-rows: 42px 24px auto 45px;
 }
 
 .nofooter #container {
-    -ms-grid-rows: 66px 24px 1fr 0px;
-    grid-template-rows: 66px 24px auto 0px;
+    -ms-grid-rows: 42px 24px 1fr 0px;
+    grid-template-rows: 42px 24px auto 0px;
 }
 
 .fulldesk #container {
@@ -135,7 +135,7 @@ body {
     background-attachment: initial;
     background-repeat: no-repeat;
     /*width: 960px;*/
-    height: 66px;
+    height: 42px;
 }
 
 .fullscreen #masthead {
@@ -159,27 +159,11 @@ body {
 }
 
 #masthead .title {
-    float: left;
-    height: 66px;
-    color: #c8c8c8;
-    padding-left: 14px;
-    padding-top: 7px;
-    font-size: 46px;
-    font-family: Arial,Helvetica,sans-serif;
-    font-weight: bold;
-    text-shadow: 1px 1px 2px #000;
+    display: none;
 }
 
 #masthead .title2 {
-    float: left;
-    height: 66px;
-    color: #c8c8c8;
-    padding-left: 5px;
-    padding-top: 14px;
-    font-size: 14px;
-    font-family: Arial,Helvetica,sans-serif;
-    font-weight: bold;
-    text-shadow: 1px 1px 2px #000;
+    display: none;
 }
 
 #page_leftbar {
@@ -1711,7 +1695,7 @@ a {
     border-radius: 5px;
     background-color: white;
     margin-left: 8px;
-    margin-top: 8px;
+    margin-top: 10px;
     position: relative;
     cursor: pointer;
     opacity: 0.5;
@@ -1826,6 +1810,40 @@ a {
     border-radius: 3px 3px 0 0;
     background: #ffffff;
     box-shadow: -12px -2px 0 -5px #b7efff, 12px -2px 0 -5px #b7efff;
+}
+
+.lb-myshop {
+    background: linear-gradient(180deg, #e7fff6 0%, #44d1b8 100%);
+    border-radius: 18px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.72), 0 8px 18px rgba(0,0,0,0.14);
+}
+
+.lb-myshop:before {
+    content: "";
+    position: absolute;
+    left: 13px;
+    top: 18px;
+    width: 36px;
+    height: 12px;
+    border-radius: 3px 3px 1px 1px;
+    background: repeating-linear-gradient(90deg, #ffffff 0 6px, #2d8cff 6px 12px);
+    box-shadow: 0 17px 0 5px #0d5f72;
+}
+
+.lb-myshop:after {
+    content: "★";
+    position: absolute;
+    right: 8px;
+    top: 6px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #fff3a3;
+    color: #0d5f72;
+    font-size: 13px;
+    line-height: 20px;
+    text-align: center;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.16);
 }
 
 .lb9,
@@ -3772,18 +3790,6 @@ a {
 .shop-card:hover {
     transform: translateY(-4px);
     box-shadow: 0 20px 38px rgba(17,24,39,0.12);
-}
-
-.shop-card-cover {
-    height: 148px;
-    background: #f3f4f6;
-}
-
-.shop-card-cover img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
 }
 
 .shop-card-body {

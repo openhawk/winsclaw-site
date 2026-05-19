@@ -5725,6 +5725,10 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         'serverconsole': serverCommandServerConsole,
         'servererrors': serverCommandServerErrors,
         'serverconfig': serverCommandServerConfig,
+        'myshopcreate': serverCommandMyShopCreate,
+        'myshopdelete': serverCommandMyShopDelete,
+        'myshoplist': serverCommandMyShopList,
+        'myshopupdate': serverCommandMyShopUpdate,
         'shopcreate': serverCommandShopCreate,
         'shopdelete': serverCommandShopDelete,
         'shoplist': serverCommandShopList,
@@ -7316,6 +7320,74 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         });
     }
 
+    function getMyShopId(value) {
+        if (typeof value !== 'string') return null;
+        value = value.trim();
+        if ((value.length < 3) || (value.length > 64)) return null;
+        if (/^[0-9]+$/.test(value)) return null;
+        if (/^[A-Za-z0-9_\-]+$/.test(value) !== true) return null;
+        return value;
+    }
+
+    function serverCommandMyShopList(command) {
+        var search = '';
+        var page = 1;
+        var limit = 10;
+        if (typeof command.search == 'string') {
+            search = command.search.trim();
+            if (search.length > 128) { obj.send({ action: 'myshoplist', result: 'Invalid search.' }); return; }
+        }
+        if (common.validateInt(command.page, 1, 100000) == true) { page = command.page; }
+        if (common.validateInt(command.limit, 1, 50) == true) { limit = command.limit; }
+        db.GetMyShopList(search, page, limit, function (err, result) {
+            if (err != null) { obj.send({ action: 'myshoplist', result: err.message ? err.message : 'Unable to load my shops.' }); return; }
+            obj.send({ action: 'myshoplist', search: search, page: page, limit: limit, total: result.total, shops: result.shops });
+        });
+    }
+
+    function serverCommandMyShopCreate(command) {
+        var name = getShopTextField(command.name, 256);
+        var phone = getShopTextField(command.phone, 64);
+        var cityRegion = getShopTextField(command.cityRegion || '', 128);
+        var address = getShopTextField(command.address || '', 512);
+        var category = getShopTextField(command.category || '', 128);
+        var businessHours = getShopTextField(command.businessHours || '', 128);
+        if ((name == null) || (name.length == 0)) { obj.send({ action: 'myshopcreate', result: '店铺名称不能为空。' }); return; }
+        if ((phone == null) || (phone.length == 0)) { obj.send({ action: 'myshopcreate', result: '联系电话不能为空。' }); return; }
+        if ((cityRegion == null) || (address == null) || (category == null) || (businessHours == null)) { obj.send({ action: 'myshopcreate', result: '表单内容无效。' }); return; }
+        db.CreateMyShop({ name: name, phone: phone, category: category, address: composeShopAddress(cityRegion, address), businessHours: businessHours }, function (err, shop) {
+            if (err != null) { obj.send({ action: 'myshopcreate', result: err.message ? err.message : '新增失败。' }); return; }
+            obj.send({ action: 'myshopcreate', success: true, shop: shop });
+        });
+    }
+
+    function serverCommandMyShopUpdate(command) {
+        var shopId = getMyShopId(command.id);
+        var name = getShopTextField(command.name, 256);
+        var phone = getShopTextField(command.phone, 64);
+        var cityRegion = getShopTextField(command.cityRegion || '', 128);
+        var address = getShopTextField(command.address || '', 512);
+        var category = getShopTextField(command.category || '', 128);
+        var businessHours = getShopTextField(command.businessHours || '', 128);
+        if (shopId == null) { obj.send({ action: 'myshopupdate', result: '无效的店铺编号。' }); return; }
+        if ((name == null) || (name.length == 0)) { obj.send({ action: 'myshopupdate', result: '店铺名称不能为空。' }); return; }
+        if ((phone == null) || (phone.length == 0)) { obj.send({ action: 'myshopupdate', result: '联系电话不能为空。' }); return; }
+        if ((cityRegion == null) || (address == null) || (category == null) || (businessHours == null)) { obj.send({ action: 'myshopupdate', result: '表单内容无效。' }); return; }
+        db.UpdateMyShop(shopId, { name: name, phone: phone, category: category, address: composeShopAddress(cityRegion, address), businessHours: businessHours }, function (err, shop) {
+            if (err != null) { obj.send({ action: 'myshopupdate', result: err.message ? err.message : '保存失败。' }); return; }
+            obj.send({ action: 'myshopupdate', success: true, shop: shop });
+        });
+    }
+
+    function serverCommandMyShopDelete(command) {
+        var shopId = getMyShopId(command.id);
+        if (shopId == null) { obj.send({ action: 'myshopdelete', result: '无效的店铺编号。' }); return; }
+        db.DeleteMyShop(shopId, function (err, deletedId) {
+            if (err != null) { obj.send({ action: 'myshopdelete', result: err.message ? err.message : '删除失败。' }); return; }
+            obj.send({ action: 'myshopdelete', success: true, id: deletedId });
+        });
+    }
+
     function getProductJsonArrayField(value, maxItems, maxTextLen) {
         if ((typeof value !== 'string') || (value.length === 0)) return [];
         var parsed = null;
@@ -7456,18 +7528,24 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         return String(value == null ? '' : value).replace(/'/g, "''");
     }
 
-    function managerExtractScriptEntry(scriptEntries, deviceOs) {
-        if ((scriptEntries == null) || (typeof scriptEntries !== 'object')) return null;
-        var entry = scriptEntries[deviceOs];
-        if ((entry == null) || (typeof entry !== 'object')) return null;
-        if (typeof entry.path !== 'string' || entry.path.trim() === '') return null;
-        return { path: entry.path.trim(), argsTemplate: (typeof entry.argsTemplate === 'string') ? entry.argsTemplate : '{configPath}' };
-    }
-
     function managerReplaceArgsTemplate(template, tokens) {
         var result = (typeof template === 'string' && template !== '') ? template : '{configPath}';
         for (var k in tokens) { result = result.split('{' + k + '}').join(tokens[k]); }
         return result;
+    }
+
+    function managerGetScriptDirectory(scriptPath, deviceOs) {
+        scriptPath = String(scriptPath || '').trim();
+        if (scriptPath === '') return deviceOs === 'windows' ? 'C:\\' : '/';
+        var normalized = deviceOs === 'windows' ? scriptPath.replace(/\//g, '\\') : scriptPath;
+        var index = deviceOs === 'windows' ? normalized.lastIndexOf('\\') : normalized.lastIndexOf('/');
+        if (index <= 0) return deviceOs === 'windows' ? 'C:\\' : '.';
+        return normalized.substring(0, index);
+    }
+
+    function managerGetScriptArgsTemplate(scriptPath, flowOrCollectType, isPublish) {
+        if (isPublish === true) return '';
+        return (/\.ps1$/i.test(String(scriptPath || ''))) ? '-ConfigPath "{configPath}"' : '{configPath}';
     }
 
     function managerBuildShellCommand(projectRoot, scriptPath, argsText, configText, recordId, prefix, background) {
@@ -7494,18 +7572,25 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
             lines.push('printf "\\n__MC_OUTPUT_END__\\n"');
             lines.push('rm -f "$MC_OUTPUT_PATH" "$MC_CONFIG_PATH"');
         }
-        return { commandType: 3, cmds: lines.join('\n'), configPath: configPath, outputPath: outputPath, scriptPath: scriptPath, arguments: [configPath] };
+        return { commandType: 3, cmds: lines.join('\n'), configPath: configPath, outputPath: outputPath, scriptPath: scriptPath, arguments: argsText ? [configPath] : [] };
     }
 
     function managerBuildPowerShellCommand(projectRoot, scriptPath, argsText, configText, recordId, prefix, background) {
         var configPath = 'C:\\Windows\\Temp\\' + prefix + '-' + recordId + '.json';
         var outputPath = 'C:\\Windows\\Temp\\' + prefix + '-' + recordId + '.log';
         var configB64 = Buffer.from(configText, 'utf8').toString('base64');
+        var psProjectRoot = projectRoot.replace(/\//g, '\\');
         var psScriptPath = scriptPath.replace(/\//g, '\\');
+        if (/^[A-Za-z]:\\/.test(psScriptPath) === false && psScriptPath.indexOf('\\\\') !== 0) {
+            psScriptPath = psProjectRoot.replace(/\\+$/, '') + '\\' + psScriptPath.replace(/^\\+/, '');
+        }
         var lines = [];
+        lines.push("$ErrorActionPreference = 'Continue'");
+        lines.push("[Console]::OutputEncoding = [System.Text.Encoding]::UTF8");
+        lines.push("$OutputEncoding = [System.Text.Encoding]::UTF8");
         lines.push("$ConfigPath = '" + managerPowerShellEscape(configPath) + "'");
         lines.push("$OutputPath = '" + managerPowerShellEscape(outputPath) + "'");
-        lines.push("$ProjectRoot = '" + managerPowerShellEscape(projectRoot.replace(/\//g, '\\')) + "'");
+        lines.push("$ProjectRoot = '" + managerPowerShellEscape(psProjectRoot) + "'");
         lines.push("$ScriptPath = '" + managerPowerShellEscape(psScriptPath) + "'");
         lines.push("[System.IO.File]::WriteAllText($ConfigPath, [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('" + configB64 + "')))");
         lines.push("Set-Location -Path $ProjectRoot");
@@ -7515,24 +7600,30 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
             lines.push('Write-Output "__MC_EXIT_CODE__:0"');
         } else {
             lines.push('& $ScriptPath ' + argsText + ' *>&1 | Out-File -FilePath $OutputPath -Encoding UTF8');
-            lines.push('$MCExitCode = $LASTEXITCODE');
+            lines.push('$MCExitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }');
             lines.push('Write-Output ("__MC_EXIT_CODE__:" + $MCExitCode)');
-            lines.push('Write-Output "__MC_OUTPUT_START__"');
-            lines.push('if (Test-Path $OutputPath) { Get-Content -Path $OutputPath -Raw }');
-            lines.push('Write-Output "__MC_OUTPUT_END__"');
+            lines.push('Write-Output "__MC_OUTPUT_B64_START__"');
+            lines.push('if (Test-Path $OutputPath) { [Convert]::ToBase64String([System.IO.File]::ReadAllBytes($OutputPath)) }');
+            lines.push('Write-Output "__MC_OUTPUT_B64_END__"');
             lines.push('Remove-Item -Force -ErrorAction SilentlyContinue $OutputPath, $ConfigPath');
         }
-        return { commandType: 2, cmds: lines.join("\r\n"), configPath: configPath, outputPath: outputPath, scriptPath: psScriptPath, arguments: [configPath] };
+        var encodedCommand = Buffer.from(lines.join("\r\n"), 'utf16le').toString('base64');
+        return { commandType: 1, cmds: 'powershell.exe -NoProfile -ExecutionPolicy Bypass -EncodedCommand ' + encodedCommand, configPath: configPath, outputPath: outputPath, scriptPath: psScriptPath, arguments: argsText ? [configPath] : [] };
     }
 
-    function managerBuildRemoteCommand(deviceOs, projectRoot, scriptEntries, configObject, recordId, prefix, options) {
-        var entry = managerExtractScriptEntry(scriptEntries, deviceOs);
-        if (entry == null) throw new Error('未配置对应平台脚本入口。');
+    function managerBuildRemoteCommand(deviceOs, scriptPath, configObject, recordId, prefix, options) {
+        scriptPath = (typeof scriptPath === 'string') ? scriptPath.trim() : '';
+        if (scriptPath === '') throw new Error('脚本路径不能为空。');
+        if ((deviceOs === 'windows') && /(^|[\\\/])run-publish-product\.sh$/i.test(scriptPath)) {
+            scriptPath = scriptPath.replace(/run-publish-product\.sh$/i, 'run-publish-product.ps1');
+        }
+        var projectRoot = managerGetScriptDirectory(scriptPath, deviceOs);
         var configText = JSON.stringify(configObject || {}, null, 2);
         var configPathToken = (deviceOs === 'windows') ? ('C:\\Windows\\Temp\\' + prefix + '-' + recordId + '.json') : ('/tmp/' + prefix + '-' + recordId + '.json');
-        var replacedArgs = managerReplaceArgsTemplate(entry.argsTemplate, { configPath: configPathToken, projectRoot: projectRoot || '' });
-        if (deviceOs === 'windows') { return managerBuildPowerShellCommand(projectRoot, entry.path, replacedArgs, configText, recordId, prefix, options && options.background === true); }
-        return managerBuildShellCommand(projectRoot, entry.path, replacedArgs, configText, recordId, prefix, options && options.background === true);
+        var argsTemplate = managerGetScriptArgsTemplate(scriptPath, options && options.taskType, options && options.useScriptDefaults === true);
+        var replacedArgs = managerReplaceArgsTemplate(argsTemplate, { configPath: configPathToken, projectRoot: projectRoot || '' });
+        if (deviceOs === 'windows') { return managerBuildPowerShellCommand(projectRoot, scriptPath, replacedArgs, configText, recordId, prefix, options && options.background === true); }
+        return managerBuildShellCommand(projectRoot, scriptPath, replacedArgs, configText, recordId, prefix, options && options.background === true);
     }
 
     function managerExtractBetween(text, startMarker, endMarker) {
@@ -7565,19 +7656,16 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         var name = managerGetTextField(command.name || '', 256, false);
         var deviceId = managerGetTextField(command.deviceId || '', 256, false);
         var deviceOs = managerNormalizeDeviceOs(command.deviceOs);
-        var projectRoot = managerGetTextField(command.projectRoot || '', 2048, false);
-        var scriptName = managerGetTextField(command.scriptName || '', 256, true) || ('collect-' + (collectType || 'task'));
-        var scriptEntries = managerGetJsonField(command.scriptEntries || '{}', {});
+        var scriptPath = managerGetTextField(command.scriptPath || '', 2048, false);
         var config = managerGetJsonField(command.config || '{}', {});
         var remark = managerGetTextField(command.remark || '', 4096, true) || '';
         if ((collectType !== 'collect_shop') && (collectType !== 'collect_price')) return { error: '无效的采集类型。' };
         if (name == null) return { error: '任务名称不能为空。' };
         if (deviceId == null) return { error: '目标设备不能为空。' };
         if (deviceOs == null) return { error: '目标设备系统无效。' };
-        if (projectRoot == null) return { error: '项目路径不能为空。' };
-        if (scriptEntries == null || typeof scriptEntries !== 'object') return { error: '脚本入口配置无效。' };
+        if (scriptPath == null || scriptPath === '') return { error: '脚本路径不能为空。' };
         if (config == null || typeof config !== 'object') return { error: '采集配置 JSON 无效。' };
-        return { name: name, collectType: collectType, deviceId: deviceId, deviceOs: deviceOs, projectRoot: projectRoot, scriptName: scriptName, scriptEntries: scriptEntries, config: config, remark: remark };
+        return { name: name, collectType: collectType, deviceId: deviceId, deviceOs: deviceOs, scriptPath: scriptPath, config: config, remark: remark };
     }
 
     function getFlowPayload(command) {
@@ -7585,19 +7673,16 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         var name = managerGetTextField(command.name || '', 256, false);
         var deviceId = managerGetTextField(command.deviceId || '', 256, false);
         var deviceOs = managerNormalizeDeviceOs(command.deviceOs);
-        var projectRoot = managerGetTextField(command.projectRoot || '', 2048, false);
-        var scriptName = managerGetTextField(command.scriptName || '', 256, true) || ('flow-' + (flowType || 'task'));
-        var scriptEntries = managerGetJsonField(command.scriptEntries || '{}', {});
+        var scriptPath = managerGetTextField(command.scriptPath || '', 2048, false);
         var config = managerGetJsonField(command.config || '{}', {});
         var remark = managerGetTextField(command.remark || '', 4096, true) || '';
         if ((flowType !== 'publish') && (flowType !== 'pricing') && (flowType !== 'auto_reply')) return { error: '无效的流程类型。' };
         if (name == null) return { error: '流程名称不能为空。' };
         if (deviceId == null) return { error: '目标设备不能为空。' };
         if (deviceOs == null) return { error: '目标设备系统无效。' };
-        if (projectRoot == null) return { error: '项目路径不能为空。' };
-        if (scriptEntries == null || typeof scriptEntries !== 'object') return { error: '脚本入口配置无效。' };
+        if (scriptPath == null || scriptPath === '') return { error: '脚本路径不能为空。' };
         if (config == null || typeof config !== 'object') return { error: '流程配置 JSON 无效。' };
-        return { name: name, flowType: flowType, deviceId: deviceId, deviceOs: deviceOs, projectRoot: projectRoot, scriptName: scriptName, scriptEntries: scriptEntries, config: config, remark: remark };
+        return { name: name, flowType: flowType, deviceId: deviceId, deviceOs: deviceOs, scriptPath: scriptPath, config: config, remark: remark };
     }
 
     async function managerResolveCollectResultReference(reference, collectType, options) {
@@ -7618,22 +7703,9 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
     }
 
     async function managerPreparePublishFlowConfig(flowConfig) {
-        var cloned = managerCloneJson(flowConfig || {});
-        var products = Array.isArray(cloned.products) ? cloned.products : [];
-        var bindings = [];
-        for (var i = 0; i < products.length; i++) {
-            if (products[i] == null || products[i].enabled === false) continue;
-            var resolvedResult = await managerResolveCollectResultReference({ collectTaskId: products[i].collectTaskId, collectResultId: products[i].collectResultId }, 'collect_shop', { requireSyncSuccess: true, notFoundMessage: '商品发布流程缺少可用的店铺采集结果。' });
-            var sourceProducts = await managerDbPromise('GetProductsByCollectResult', resolvedResult.id, { shopName: products[i].shopName || '', productName: products[i].productName || '' });
-            if (!Array.isArray(sourceProducts) || sourceProducts.length === 0) throw new Error('未找到与商品项匹配的标准化商品数据：' + (products[i].productName || products[i].key || ('第' + (i + 1) + '项')));
-            bindings.push({ productKey: products[i].key || ('product-' + (i + 1)), collectTaskId: resolvedResult.task_id, collectResultId: resolvedResult.id });
-            products[i].sourceProductData = (sourceProducts.length === 1) ? sourceProducts[0] : sourceProducts;
-            products[i].resolvedCollectTaskId = resolvedResult.task_id;
-            products[i].resolvedCollectResultId = resolvedResult.id;
-        }
-        cloned.products = products;
-        cloned.collectBindingsResolved = bindings;
-        return { config: cloned, bindings: bindings };
+        var cloned = {};
+        cloned._meshFlow = { flowType: 'publish', requestedAt: new Date().toISOString() };
+        return { config: cloned, bindings: null };
     }
 
     async function managerPreparePricingFlowConfig(flowConfig) {
@@ -7725,7 +7797,7 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
             var collectType = task.collect_type || task.collectType;
             var config = managerGetJsonField(task.config, {});
             config._meshCollect = { taskId: task.id, collectType: collectType, requestedAt: new Date().toISOString() };
-            var remote = managerBuildRemoteCommand(task.device_os || task.deviceOs, task.project_root || task.projectRoot, managerGetJsonField(task.script_entries || task.scriptEntries, {}), config, preparedResultId, 'collect', { background: false });
+            var remote = managerBuildRemoteCommand(task.device_os || task.deviceOs, task.script_path || task.scriptPath, config, preparedResultId, 'collect', { background: false, taskType: task.collect_type || task.collectType });
             var runRow = await managerDbPromise('StartCollectRun', task, remote.cmds);
             return { task: task, runRow: runRow, remote: remote };
         })().then(function (prepared) {
@@ -7810,11 +7882,11 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
             var flow = await managerDbPromise('GetFlow', flowId);
             var runId = managerMakeId('flowrun');
             var prepared = await managerPrepareFlowExecution(flow);
-            var remote = managerBuildRemoteCommand(flow.device_os || flow.deviceOs, flow.project_root || flow.projectRoot, managerGetJsonField(flow.script_entries || flow.scriptEntries, {}), prepared.config, runId, 'flow', { background: prepared.background === true });
-            var runRow = await managerDbPromise('StartFlowRun', flow, { id: runId, collectBindings: prepared.bindings, scriptName: flow.script_name || flow.scriptName, scriptPath: remote.scriptPath, arguments: remote.arguments, resultSummary: prepared.background === true ? '常驻流程启动中。' : '流程执行中。' });
+            var remote = managerBuildRemoteCommand(flow.device_os || flow.deviceOs, flow.script_path || flow.scriptPath, prepared.config, runId, 'flow', { background: prepared.background === true, useScriptDefaults: (flow.flow_type === 'publish'), taskType: flow.flow_type || flow.flowType });
+            var runRow = await managerDbPromise('StartFlowRun', flow, { id: runId, collectBindings: prepared.bindings, scriptPath: remote.scriptPath, arguments: remote.arguments, resultSummary: prepared.background === true ? '常驻流程启动中。' : '流程执行中。' });
             return { flow: flow, runRow: runRow, remote: remote, prepared: prepared };
         })().then(function (prepared) {
-            obj.send({ action: 'flowprepareexecute', success: true, flowId: prepared.flow.id, runId: prepared.runRow.id, nodeId: prepared.flow.device_id || prepared.flow.deviceId, commandType: prepared.remote.commandType, cmds: prepared.remote.cmds, flowType: prepared.flow.flow_type || prepared.flow.flowType, runMode: prepared.prepared.background === true ? 'background' : 'foreground', collectBindings: prepared.prepared.bindings, commandMeta: { configPath: prepared.remote.configPath, outputPath: prepared.remote.outputPath, scriptPath: prepared.remote.scriptPath }, responseid: 'flowexec_' + prepared.runRow.id });
+            obj.send({ action: 'flowprepareexecute', success: true, flowId: prepared.flow.id, runId: prepared.runRow.id, nodeId: prepared.flow.device_id || prepared.flow.deviceId, commandType: prepared.remote.commandType, cmds: prepared.remote.cmds, flowType: prepared.flow.flow_type || prepared.flow.flowType, runMode: prepared.prepared.background === true ? 'background' : 'foreground', runAsUser: 0, collectBindings: prepared.prepared.bindings, commandMeta: { configPath: prepared.remote.configPath, outputPath: prepared.remote.outputPath, scriptPath: prepared.remote.scriptPath }, responseid: 'flowexec_' + prepared.runRow.id });
         }).catch(function (err) {
             obj.send({ action: 'flowprepareexecute', result: err.message ? err.message : '无法准备流程执行。' });
         });

@@ -1,0 +1,3 @@
+{"$$indexCreated":{"fieldName":"ids","unique":false,"sparse":false}}
+{"$$indexCreated":{"fieldName":"nodeid","unique":false,"sparse":true}}
+{"$$indexCreated":{"fieldName":"time","unique":false,"sparse":false}}

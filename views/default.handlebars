@@ -170,9 +170,12 @@
             </div>
         </div>
         <div id="page_leftbar">
-            <div style="height:16px"></div>
+            <div style="height:10px"></div>
             <div id="LeftMenuShopManager" tabindex="0" class="lbbutton" title="店铺管理" onmouseup="go(100,event)" onkeypress="if (event.key=='Enter') { go(100); }">
                 <div class="lbtg lb7 lb-shop"></div>
+            </div>
+            <div id="LeftMenuMyShopManager" tabindex="0" class="lbbutton" title="我的店铺" onmouseup="go(104,event)" onkeypress="if (event.key=='Enter') { go(104); }">
+                <div class="lbtg lb-myshop"></div>
             </div>
             <div id="LeftMenuProductManager" tabindex="0" class="lbbutton" title="商品管理" onmouseup="go(101,event)" onkeypress="if (event.key=='Enter') { go(101); }">
                 <div class="lbtg lb8"></div>
@@ -236,6 +239,7 @@
                             <td tabindex="0" id="MainMenuMyUsers" class="topbar_td style3x" onmouseup="go(4,event)" onkeypress="if (event.key == 'Enter') go(4)">我的用户</td>
                             <td tabindex="0" id="MainMenuMyServer" class="topbar_td style3x" onmouseup="go(6,event)" onkeypress="if (event.key == 'Enter') go(6)">我的服务器</td>
                             <td tabindex="0" id="MainMenuShopManager" class="topbar_td style3x" onmouseup="go(100,event)" onkeypress="if (event.key == 'Enter') go(100)">店铺管理</td>
+                            <td tabindex="0" id="MainMenuMyShopManager" class="topbar_td style3x" onmouseup="go(104,event)" onkeypress="if (event.key == 'Enter') go(104)">我的店铺</td>
                             <td tabindex="0" id="MainMenuProductManager" class="topbar_td style3x" onmouseup="go(101,event)" onkeypress="if (event.key == 'Enter') go(101)">商品管理</td>
                             <td tabindex="0" id="MainMenuFlowManager" class="topbar_td style3x" onmouseup="go(102,event)" onkeypress="if (event.key == 'Enter') go(102)">流程管理</td>
                             <td tabindex="0" id="MainMenuCollectManager" class="topbar_td style3x" onmouseup="go(103,event)" onkeypress="if (event.key == 'Enter') go(103)">采集管理</td>
@@ -1380,7 +1384,7 @@
                         <div class="shop-modal-header">
                             <div>
                                 <div id="shopModalTitle" class="shop-modal-title">新增店铺</div>
-                                <div class="shop-modal-subtitle">封面图当前统一使用系统内置图片。</div>
+                                <div class="shop-modal-subtitle">维护店铺名称、电话、区域与地址信息。</div>
                             </div>
                             <button type="button" class="shop-modal-close" onclick="shopCloseEditor()">×</button>
                         </div>
@@ -1407,10 +1411,6 @@
                                     <span>营业时间</span>
                                     <input id="shopFormBusinessHours" type="text" maxlength="128" placeholder="例如：09:00-21:00" />
                                 </label>
-                                <label class="shop-field shop-field-disabled">
-                                    <span>封面图</span>
-                                    <input type="text" value="系统统一封面图（images/mainwelcome.jpg）" disabled="disabled" />
-                                </label>
                                 <label class="shop-field shop-field-full">
                                     <span>详细地址</span>
                                     <textarea id="shopFormAddress" rows="3" maxlength="512" placeholder="例如：平江路 XX 号 1 层"></textarea>
@@ -1420,6 +1420,77 @@
                         <div class="shop-modal-footer">
                             <button type="button" class="shop-btn" onclick="shopCloseEditor()">取消</button>
                             <button type="button" id="shopSubmitButton" class="shop-btn shop-btn-primary" onclick="shopSubmitEditor()">保存</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id=p104 style="display:none">
+                <div class="shop-page-shell">
+                    <div class="shop-page-top">
+                        <div>
+                            <h1 class="shop-page-title">我的店铺</h1>
+                            <div class="shop-page-subtitle">独立维护本地使用的店铺资料，不影响店铺管理采集数据。</div>
+                        </div>
+                        <div class="shop-toolbar-actions">
+                            <button type="button" class="shop-btn shop-btn-primary" onclick="myShopOpenEditor()">新增店铺</button>
+                        </div>
+                    </div>
+                    <div class="shop-toolbar">
+                        <div class="shop-search">
+                            <input id="myShopSearchInput" type="search" placeholder="搜索我的店铺" autocomplete="off" oninput="myShopHandleSearchInput()" />
+                        </div>
+                        <div class="shop-toolbar-meta" id="myShopToolbarMeta">共 0 家店铺</div>
+                    </div>
+                    <div id="myShopLoadingState" class="shop-state shop-state-loading" style="display:none">正在加载我的店铺...</div>
+                    <div id="myShopEmptyState" class="shop-state shop-empty" style="display:none">
+                        <div class="shop-empty-title">暂无我的店铺</div>
+                        <div class="shop-empty-text">点击右上角“新增店铺”，维护本地脚本使用的店铺资料。</div>
+                    </div>
+                    <div id="myShopCardList" class="shop-card-grid"></div>
+                    <div id="myShopPagination" class="shop-pagination" style="display:none"></div>
+                </div>
+                <div id="myShopToast" class="shop-toast" style="display:none"></div>
+                <div id="myShopModalMask" class="shop-modal-mask" style="display:none" onclick="myShopCloseEditor(event)">
+                    <div class="shop-modal" onclick="event.stopPropagation()">
+                        <div class="shop-modal-header">
+                            <div>
+                                <div id="myShopModalTitle" class="shop-modal-title">新增店铺</div>
+                                <div class="shop-modal-subtitle">保存到独立“我的店铺”表，编号自动生成字符串。</div>
+                            </div>
+                            <button type="button" class="shop-modal-close" onclick="myShopCloseEditor()">×</button>
+                        </div>
+                        <div class="shop-modal-body">
+                            <input id="myShopFormId" type="hidden" />
+                            <div class="shop-form-grid">
+                                <label class="shop-field">
+                                    <span>店铺名称 <b>*</b></span>
+                                    <input id="myShopFormName" type="text" maxlength="256" placeholder="例如：西悦鲜花店" />
+                                </label>
+                                <label class="shop-field">
+                                    <span>联系电话 <b>*</b></span>
+                                    <input id="myShopFormPhone" type="text" maxlength="64" placeholder="例如：13800000000" />
+                                </label>
+                                <label class="shop-field">
+                                    <span>所在城市/区域</span>
+                                    <input id="myShopFormCityRegion" type="text" maxlength="128" placeholder="例如：江苏省苏州市姑苏区" />
+                                </label>
+                                <label class="shop-field">
+                                    <span>主营分类</span>
+                                    <input id="myShopFormCategory" type="text" maxlength="128" placeholder="例如：浪漫鲜花" />
+                                </label>
+                                <label class="shop-field">
+                                    <span>营业时间</span>
+                                    <input id="myShopFormBusinessHours" type="text" maxlength="128" placeholder="例如：09:00-21:00" />
+                                </label>
+                                <label class="shop-field shop-field-full">
+                                    <span>详细地址</span>
+                                    <textarea id="myShopFormAddress" rows="3" maxlength="512" placeholder="例如：平江路 XX 号 1 层"></textarea>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="shop-modal-footer">
+                            <button type="button" class="shop-btn" onclick="myShopCloseEditor()">取消</button>
+                            <button type="button" id="myShopSubmitButton" class="shop-btn shop-btn-primary" onclick="myShopSubmitEditor()">保存</button>
                         </div>
                     </div>
                 </div>
@@ -1475,10 +1546,6 @@
                                 <label class="product-field"><span>适用人群 <b>*</b></span><input id="productFormAudience" type="text" maxlength="128" /></label>
                                 <label class="product-field"><span>默认规格</span><input id="productFormSkuDefault" type="text" maxlength="128" value="默认规格" /></label>
                                 <label class="product-field product-field-full"><span>主图路径</span><textarea id="productFormImagePaths" rows="2" maxlength="1024">./images/mainwelcome.jpg</textarea></label>
-                                <label class="product-field product-field-full"><span>图片 URL</span><textarea id="productFormImageUrls" rows="2" maxlength="2048" placeholder="每行一个 URL"></textarea></label>
-                                <label class="product-field product-field-full"><span>商家后台入口 URL</span><input id="productFormEntryUrl" type="text" maxlength="2048" /></label>
-                                <label class="product-field product-field-full"><span>抓取来源 URL</span><input id="productFormSourceUrl" type="text" maxlength="2048" /></label>
-                                <label class="product-field product-field-full"><span>发布历史占位</span><textarea id="productFormPublishHistory" rows="2" maxlength="2048" placeholder="每行一条备注"></textarea></label>
                                 <label class="product-field product-field-checkbox"><input id="productFormUseExistingOptionsOnly" type="checkbox" checked="checked" /><span>仅使用已有选项</span></label>
                             </div>
                             <div class="product-sku-section">
@@ -1527,7 +1594,7 @@
                         <div class="flow-modal-header">
                             <div>
                                 <div id="flowModalTitle" class="flow-modal-title">新增流程</div>
-                                <div class="flow-modal-subtitle">流程配置、脚本入口和设备信息统一在这里维护。</div>
+                                <div class="flow-modal-subtitle">流程配置、脚本路径和设备信息统一在这里维护。</div>
                             </div>
                             <button type="button" class="flow-modal-close" onclick="flowCloseEditor()">×</button>
                         </div>
@@ -1538,30 +1605,8 @@
                                 <label class="flow-field"><span>流程类型 <b>*</b></span><select id="flowFormType" onchange="flowHandleTypeChange()"><option value="publish">publish</option><option value="pricing">pricing</option><option value="auto_reply">auto_reply</option></select></label>
                                 <label class="flow-field"><span>目标设备 <b>*</b></span><select id="flowFormDeviceId" onchange="flowHandleDeviceChange()"></select></label>
                                 <label class="flow-field"><span>目标系统 <b>*</b></span><select id="flowFormDeviceOs"><option value="macos">macOS</option><option value="windows">Windows</option></select></label>
-                                <label class="flow-field flow-field-full"><span>项目路径 <b>*</b></span><input id="flowFormProjectRoot" type="text" maxlength="2048" /></label>
-                                <label class="flow-field"><span>脚本名称 <b>*</b></span><input id="flowFormScriptName" type="text" maxlength="256" /></label>
-                                <input id="flowFormScriptEntries" type="hidden" />
+                                <label class="flow-field flow-field-full"><span>脚本路径 <b>*</b></span><input id="flowFormScriptPath" type="text" maxlength="2048" placeholder="例如：D:\winsclaw-work\aibot\scripts\run-publish-product.ps1" /></label>
                                 <input id="flowFormConfig" type="hidden" />
-                                <div class="flow-field flow-field-full manager-fieldset">
-                                    <div class="manager-fieldset-title">脚本入口</div>
-                                    <div class="manager-inline-grid">
-                                        <label><span>macOS 脚本路径</span><input id="flowScriptMacPath" type="text" /></label>
-                                        <label><span>macOS 参数</span><input id="flowScriptMacArgs" type="text" /></label>
-                                        <label><span>Windows 脚本路径</span><input id="flowScriptWinPath" type="text" /></label>
-                                        <label><span>Windows 参数</span><input id="flowScriptWinArgs" type="text" /></label>
-                                    </div>
-                                </div>
-                                <div class="flow-field flow-field-full manager-fieldset">
-                                    <div class="manager-fieldset-title">基础配置</div>
-                                    <div class="manager-inline-grid">
-                                        <label><span>城市</span><input id="flowConfigCity" type="text" placeholder="例如：苏州市" /></label>
-                                        <label><span>定位地址</span><input id="flowConfigLocation" type="text" placeholder="例如：相城区黄埭实验小学" /></label>
-                                    </div>
-                                </div>
-                                <div id="flowPublishFields" class="flow-field flow-field-full manager-fieldset">
-                                    <div class="manager-section-header"><div class="manager-fieldset-title">商品发布配置</div><button type="button" class="flow-btn" onclick="flowAddProductRow()">新增商品</button></div>
-                                    <div id="flowProductRows" class="manager-repeat-list"></div>
-                                </div>
                                 <div id="flowPricingFields" class="flow-field flow-field-full manager-fieldset" style="display:none">
                                     <div class="manager-section-header"><div class="manager-fieldset-title">调价配置</div><button type="button" class="flow-btn" onclick="flowAddPricingTaskRow()">新增调价任务</button></div>
                                     <label class="manager-check-row"><input id="flowPricingGlobalEnabled" type="checkbox" checked="checked" /> 启用全部调价任务</label>
@@ -1646,7 +1691,7 @@
                         <div class="collect-modal-header">
                             <div>
                                 <div id="collectModalTitle" class="collect-modal-title">新增采集任务</div>
-                                <div class="collect-modal-subtitle">配置目标设备、脚本入口和采集字段。</div>
+                                <div class="collect-modal-subtitle">配置目标设备、脚本路径和采集字段。</div>
                             </div>
                             <button type="button" class="collect-modal-close" onclick="collectCloseEditor()">×</button>
                         </div>
@@ -1657,19 +1702,8 @@
                                 <label class="collect-field"><span>采集类型 <b>*</b></span><select id="collectFormType" onchange="collectHandleTypeChange()"><option value="collect_shop">collect_shop</option><option value="collect_price">collect_price</option></select></label>
                                 <label class="collect-field"><span>目标设备 <b>*</b></span><select id="collectFormDeviceId" onchange="collectHandleDeviceChange()"></select></label>
                                 <label class="collect-field"><span>目标系统 <b>*</b></span><select id="collectFormDeviceOs"><option value="macos">macOS</option><option value="windows">Windows</option></select></label>
-                                <label class="collect-field collect-field-full"><span>项目路径 <b>*</b></span><input id="collectFormProjectRoot" type="text" maxlength="2048" /></label>
-                                <label class="collect-field"><span>脚本名称 <b>*</b></span><input id="collectFormScriptName" type="text" maxlength="256" /></label>
-                                <input id="collectFormScriptEntries" type="hidden" />
+                                <label class="collect-field collect-field-full"><span>脚本路径 <b>*</b></span><input id="collectFormScriptPath" type="text" maxlength="2048" placeholder="例如：D:\winsclaw-work\aibot\scripts\run-collect-shop.ps1" /></label>
                                 <input id="collectFormConfig" type="hidden" />
-                                <div class="collect-field collect-field-full manager-fieldset">
-                                    <div class="manager-fieldset-title">脚本入口</div>
-                                    <div class="manager-inline-grid">
-                                        <label><span>macOS 脚本路径</span><input id="collectScriptMacPath" type="text" /></label>
-                                        <label><span>macOS 参数</span><input id="collectScriptMacArgs" type="text" /></label>
-                                        <label><span>Windows 脚本路径</span><input id="collectScriptWinPath" type="text" /></label>
-                                        <label><span>Windows 参数</span><input id="collectScriptWinArgs" type="text" /></label>
-                                    </div>
-                                </div>
                                 <div class="collect-field collect-field-full manager-fieldset">
                                     <div class="manager-fieldset-title">基础配置</div>
                                     <div class="manager-inline-grid">
@@ -2696,6 +2730,8 @@
             QV('LeftMenuMyFiles', siteRights & 8);
             QV('MainMenuShopManager', true);
             QV('LeftMenuShopManager', true);
+            QV('MainMenuMyShopManager', true);
+            QV('LeftMenuMyShopManager', true);
             if (((siteRights & 8) == 0) && (xxcurrentView == 5)) { setDialogMode(0); go(1); }
             if (currentNode != null) { gotoDevice(currentNode._id, xxcurrentView, true); }
 
@@ -2762,6 +2798,7 @@
         }
 
         var shopState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null };
+        var myShopState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null };
         var productState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null };
         var flowState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, currentRunsFlowId: null, runsPage: 1, runsLimit: 10 };
         var collectState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, currentResultsTaskId: null, resultsPage: 1, resultsLimit: 10 };
@@ -2844,9 +2881,7 @@
                 var phone = (shop.phone && shop.phone !== '') ? EscapeHtml(shop.phone) : '暂未填写';
                 var rating = (shop.rating_text && shop.rating_text !== '') ? EscapeHtml(shop.rating_text) : '暂无评分';
                 var sales = (shop.monthly_sales_text && shop.monthly_sales_text !== '') ? EscapeHtml(shop.monthly_sales_text) : '新收录店铺';
-                var cover = 'images/mainwelcome.jpg';
                 x += '<article class="shop-card" onclick="shopOpenEditorById(\'' + EscapeHtml(String(shop.id)) + '\')">';
-                x += '<div class="shop-card-cover"><img src="' + cover + '" alt="' + EscapeHtml(shop.name) + '"></div>';
                 x += '<div class="shop-card-body">';
                 x += '<div class="shop-card-head"><div><h3>' + EscapeHtml(shop.name) + '</h3><div class="shop-card-category">' + EscapeHtml(shop.category || '浪漫鲜花') + '</div></div>';
                 x += '<div class="shop-card-badges"><span>' + rating + '</span><span>' + sales + '</span></div></div>';
@@ -2983,10 +3018,219 @@
             shopState.toastTimer = setTimeout(function () { QV('shopToast', false); }, 2600);
         }
 
+        function myShopEnterPage() {
+            if (Q('p104') == null) return;
+            QC('p104').remove('shop-page-active');
+            void Q('p104').offsetWidth;
+            QC('p104').add('shop-page-active');
+            if (Q('myShopSearchInput') != null) { Q('myShopSearchInput').value = myShopState.search; }
+            if (myShopState.loaded !== true) { myShopRefreshList(1); } else { myShopRender(); }
+        }
+
+        function myShopHandleSearchInput() {
+            if (myShopState.searchTimer != null) { clearTimeout(myShopState.searchTimer); }
+            myShopState.searchTimer = setTimeout(function () {
+                myShopState.search = Q('myShopSearchInput').value.trim();
+                myShopRefreshList(1);
+            }, 260);
+        }
+
+        function myShopRefreshList(page) {
+            if (typeof page == 'number') { myShopState.page = page; }
+            myShopState.loaded = true;
+            myShopState.loading = true;
+            QV('myShopLoadingState', true);
+            QV('myShopEmptyState', false);
+            QH('myShopCardList', '');
+            meshserver.send({ action: 'myshoplist', search: myShopState.search, page: myShopState.page, limit: myShopState.limit });
+        }
+
+        function myShopHandleListResponse(message) {
+            myShopState.loading = false;
+            QV('myShopLoadingState', false);
+            if (message.result != null) {
+                myShopState.items = [];
+                myShopState.total = 0;
+                myShopShowToast(message.result, true);
+            } else {
+                myShopState.items = Array.isArray(message.shops) ? message.shops : [];
+                myShopState.total = (typeof message.total == 'number') ? message.total : 0;
+                if (typeof message.page == 'number') { myShopState.page = message.page; }
+                if ((myShopState.items.length === 0) && (myShopState.total > 0) && (myShopState.page > 1)) {
+                    myShopRefreshList(Math.max(1, Math.ceil(myShopState.total / myShopState.limit)));
+                    return;
+                }
+            }
+            myShopRender();
+        }
+
+        function myShopHandleMutationResponse(kind, message) {
+            myShopState.pendingAction = null;
+            myShopSetSubmitBusy(false);
+            if (message.success !== true) {
+                myShopShowToast(message.result || '操作失败。', true);
+                return;
+            }
+            if (kind !== 'delete') { myShopCloseEditor(); }
+            if (kind === 'create') { myShopState.page = 1; }
+            myShopShowToast(kind === 'create' ? '我的店铺新增成功。' : (kind === 'update' ? '我的店铺保存成功。' : '我的店铺删除成功。'), false);
+            myShopRefreshList(myShopState.page);
+        }
+
+        function myShopRender() {
+            if (Q('myShopToolbarMeta') != null) { QH('myShopToolbarMeta', '共 ' + myShopState.total + ' 家店铺'); }
+            var list = myShopState.items || [];
+            if (list.length === 0) {
+                QH('myShopCardList', '');
+                QV('myShopEmptyState', !myShopState.loading);
+                QV('myShopPagination', false);
+                return;
+            }
+            QV('myShopEmptyState', false);
+            var x = '';
+            for (var i = 0; i < list.length; i++) {
+                var shop = list[i];
+                var cityRegion = shopExtractCityRegion(shop.address);
+                var businessHours = shopGetBusinessHours(shop);
+                var phone = (shop.phone && shop.phone !== '') ? EscapeHtml(shop.phone) : '暂未填写';
+                var rating = (shop.rating_text && shop.rating_text !== '') ? EscapeHtml(shop.rating_text) : '暂无评分';
+                var sales = (shop.monthly_sales_text && shop.monthly_sales_text !== '') ? EscapeHtml(shop.monthly_sales_text) : '我的店铺';
+                x += '<article class="shop-card" onclick="myShopOpenEditorById(\'' + EscapeHtml(String(shop.id)) + '\')">';
+                x += '<div class="shop-card-body">';
+                x += '<div class="shop-card-head"><div><h3>' + EscapeHtml(shop.name) + '</h3><div class="shop-card-category">' + EscapeHtml(shop.category || '浪漫鲜花') + '</div></div>';
+                x += '<div class="shop-card-badges"><span>' + rating + '</span><span>' + sales + '</span></div></div>';
+                x += '<div class="shop-card-meta"><span>编号</span><strong>' + EscapeHtml(shop.id || '') + '</strong></div>';
+                x += '<div class="shop-card-meta"><span>区域</span><strong>' + EscapeHtml(cityRegion || '待补充') + '</strong></div>';
+                x += '<div class="shop-card-meta"><span>电话</span><strong>' + phone + '</strong></div>';
+                x += '<div class="shop-card-meta"><span>营业时间</span><strong>' + EscapeHtml(businessHours) + '</strong></div>';
+                x += '<div class="shop-card-meta"><span>详细地址</span><strong>' + EscapeHtml(shop.address || '未填写地址') + '</strong></div>';
+                x += '<div class="shop-card-footer"><div class="shop-card-hints"><span>' + EscapeHtml(shop.min_price_tip || '起送 ¥0') + '</span><span>' + EscapeHtml(shop.delivery_fee_tip || '配送 约¥0') + '</span></div>';
+                x += '<div class="shop-card-actions">';
+                x += '<button type="button" class="shop-btn" onclick="event.stopPropagation();myShopOpenEditorById(\'' + EscapeHtml(String(shop.id)) + '\')">编辑</button>';
+                x += '<button type="button" class="shop-btn shop-btn-danger" onclick="event.stopPropagation();myShopConfirmDelete(\'' + EscapeHtml(String(shop.id)) + '\')">删除</button>';
+                x += '</div></div></div></article>';
+            }
+            QH('myShopCardList', x);
+            myShopRenderPagination();
+        }
+
+        function myShopRenderPagination() {
+            var totalPages = Math.max(1, Math.ceil(myShopState.total / myShopState.limit));
+            var current = Math.min(Math.max(1, myShopState.page), totalPages);
+            var startItem = (myShopState.total === 0) ? 0 : ((current - 1) * myShopState.limit + 1);
+            var endItem = Math.min(myShopState.total, current * myShopState.limit);
+            var x = '';
+            x += '<button type="button" class="shop-page-btn" ' + (current <= 1 ? 'disabled="disabled"' : 'onclick="myShopRefreshList(1)"') + '>首页</button>';
+            x += '<button type="button" class="shop-page-btn" ' + (current <= 1 ? 'disabled="disabled"' : 'onclick="myShopRefreshList(' + (current - 1) + ')"') + '>上一页</button>';
+            x += '<span class="shop-page-indicator">第 ' + current + ' / ' + totalPages + ' 页，显示 ' + startItem + '-' + endItem + '，共 ' + myShopState.total + ' 家</span>';
+            x += '<button type="button" class="shop-page-btn" ' + (current >= totalPages ? 'disabled="disabled"' : 'onclick="myShopRefreshList(' + (current + 1) + ')"') + '>下一页</button>';
+            x += '<button type="button" class="shop-page-btn" ' + (current >= totalPages ? 'disabled="disabled"' : 'onclick="myShopRefreshList(' + totalPages + ')"') + '>末页</button>';
+            QH('myShopPagination', x);
+            QV('myShopPagination', true);
+        }
+
+        function myShopOpenEditorById(id) {
+            for (var i = 0; i < myShopState.items.length; i++) {
+                if (String(myShopState.items[i].id) === String(id)) { myShopOpenEditor(myShopState.items[i]); return; }
+            }
+        }
+
+        function myShopOpenEditor(shop) {
+            var parts = shopSplitAddress(shop ? shop.address : '');
+            Q('myShopFormId').value = shop ? shop.id : '';
+            Q('myShopFormName').value = shop ? (shop.name || '') : '';
+            Q('myShopFormPhone').value = shop ? (shop.phone || '') : '';
+            Q('myShopFormCityRegion').value = parts.cityRegion || '';
+            Q('myShopFormAddress').value = parts.address || '';
+            Q('myShopFormCategory').value = shop ? (shop.category || '') : '';
+            Q('myShopFormBusinessHours').value = shop ? (shop.review_highlight || '') : '';
+            QH('myShopModalTitle', shop ? '编辑我的店铺' : '新增我的店铺');
+            myShopSetSubmitBusy(false);
+            QV('myShopModalMask', true);
+        }
+
+        function myShopCloseEditor(event) {
+            if (event && event.target && event.target.id !== 'myShopModalMask') return;
+            QV('myShopModalMask', false);
+        }
+
+        function myShopSetSubmitBusy(busy) {
+            QE('myShopSubmitButton', !busy);
+            Q('myShopSubmitButton').value = Q('myShopSubmitButton').innerText = busy ? '保存中...' : '保存';
+        }
+
+        function myShopSubmitEditor() {
+            var payload = {
+                id: Q('myShopFormId').value,
+                name: Q('myShopFormName').value.trim(),
+                phone: Q('myShopFormPhone').value.trim(),
+                cityRegion: Q('myShopFormCityRegion').value.trim(),
+                address: Q('myShopFormAddress').value.trim(),
+                category: Q('myShopFormCategory').value.trim(),
+                businessHours: Q('myShopFormBusinessHours').value.trim()
+            };
+            if (payload.name === '') { myShopShowToast('店铺名称不能为空。', true); return; }
+            if (payload.phone === '') { myShopShowToast('联系电话不能为空。', true); return; }
+            myShopSetSubmitBusy(true);
+            myShopState.pendingAction = (payload.id !== '') ? 'myshopupdate' : 'myshopcreate';
+            meshserver.send({ action: myShopState.pendingAction, id: payload.id, name: payload.name, phone: payload.phone, cityRegion: payload.cityRegion, address: payload.address, category: payload.category, businessHours: payload.businessHours });
+        }
+
+        function myShopConfirmDelete(id) {
+            var shopName = '该店铺';
+            for (var i = 0; i < myShopState.items.length; i++) {
+                if (String(myShopState.items[i].id) === String(id)) { shopName = myShopState.items[i].name; break; }
+            }
+            setDialogMode(2, '删除我的店铺', 3, function (button, tag) {
+                if (button !== 1) return;
+                meshserver.send({ action: 'myshopdelete', id: tag });
+            }, '确认删除我的店铺“' + EscapeHtml(shopName) + '”吗？删除后将立即刷新列表。', id);
+        }
+
+        function myShopShowToast(text, isError) {
+            if (Q('myShopToast') == null) return;
+            if (myShopState.toastTimer != null) { clearTimeout(myShopState.toastTimer); }
+            QH('myShopToast', EscapeHtml(text));
+            Q('myShopToast').className = 'shop-toast' + (isError ? ' shop-toast-error' : ' shop-toast-success');
+            QV('myShopToast', true);
+            myShopState.toastTimer = setTimeout(function () { QV('myShopToast', false); }, 2600);
+        }
+
         function productSafeJsonParse(value, fallback) {
             if (value == null) return fallback;
             if (typeof value === 'string') { try { return JSON.parse(value); } catch (ex) { return fallback; } }
             return value;
+        }
+
+        function productFindFileTreeFolder(folderName) {
+            if (folderName == null) return null;
+            var target = String(folderName).toLowerCase();
+            if ((filetree != null) && (filetree.f != null)) {
+                for (var key in filetree.f) {
+                    if (filetree.f[key] == null) continue;
+                    var displayName = filetree.f[key].n || key;
+                    if ((String(displayName).toLowerCase() === target) || (String(key).toLowerCase() === target)) return key;
+                }
+            }
+            if (typeof meshes == 'object') {
+                for (var meshId in meshes) {
+                    if ((meshes[meshId] != null) && (String(meshes[meshId].name || '').toLowerCase() === target)) return meshId;
+                }
+            }
+            return null;
+        }
+
+        function productResolveImageSrc(path) {
+            if ((path == null) || (String(path).trim() === '')) return 'images/mainwelcome.jpg';
+            var cleanPath = String(path).trim().replace(/\\/g, '/').replace(/^\.?\//, '');
+            if (/^(https?:|data:|blob:)/i.test(cleanPath)) return cleanPath;
+            if (cleanPath.indexOf('images/') === 0) return cleanPath;
+            if (cleanPath.indexOf('publish-product/') === 0) cleanPath = cleanPath.substring('publish-product/'.length);
+            if ((cleanPath.indexOf('/') < 0) && (productFindFileTreeFolder('flows') != null)) cleanPath = 'flows/' + cleanPath;
+            var parts = cleanPath.split('/'), firstFolder = productFindFileTreeFolder(parts[0]);
+            if (firstFolder != null) { parts[0] = firstFolder; return 'downloadfile.ashx?link=' + encodeURIComponentEx(parts.join('/')); }
+            if ((cleanPath.indexOf('user/') === 0) || (cleanPath.indexOf('mesh/') === 0)) return 'downloadfile.ashx?link=' + encodeURIComponentEx(cleanPath);
+            return cleanPath;
         }
 
         function productEnterPage() {
@@ -3058,7 +3302,7 @@
                 var storeCategoryPath = productSafeJsonParse(product.store_category_path_json || product.storeCategoryPath, []);
                 var attrs = productSafeJsonParse(product.required_attributes_json || product.requiredAttributes, {});
                 var skuList = productSafeJsonParse(product.sku_list_json || product.skuList, []);
-                var cover = (Array.isArray(imagePaths) && imagePaths.length > 0) ? imagePaths[0] : 'images/mainwelcome.jpg';
+                var cover = productResolveImageSrc((Array.isArray(imagePaths) && imagePaths.length > 0) ? imagePaths[0] : '');
                 x += '<article class="product-card" onclick="productOpenEditorById(\'' + EscapeHtml(String(product.id)) + '\')">';
                 x += '<div class="product-card-cover"><img src="' + EscapeHtml(cover) + '" alt="' + EscapeHtml(product.name || '') + '"></div>';
                 x += '<div class="product-card-body">';
@@ -3107,33 +3351,41 @@
         function productReadLines(id) { var lines = Q(id).value.replace(/\r/g, '').split('\n'), result = []; for (var i = 0; i < lines.length; i++) { var line = lines[i].trim(); if (line !== '') result.push(line); } return result; }
 
         function productOpenEditor(product) {
-            var attrs = productSafeJsonParse(product ? (product.required_attributes_json || product.requiredAttributes) : null, {});
-            var imagePaths = productSafeJsonParse(product ? (product.image_paths_json || product.imagePaths) : null, ['./images/mainwelcome.jpg']);
-            var imageUrls = productSafeJsonParse(product ? (product.image_urls_json || product.imageUrls) : null, []);
-            var storeCategoryPath = productSafeJsonParse(product ? (product.store_category_path_json || product.storeCategoryPath) : null, []);
-            var categoryPath = productSafeJsonParse(product ? (product.category_path_json || product.categoryPath) : null, ['花草园艺', '礼品花', '礼品鲜花']);
-            var sku = productSafeJsonParse(product ? (product.sku_json || product.sku) : null, [{ name: '规格', value: '默认规格' }]);
-            var skuList = productSafeJsonParse(product ? (product.sku_list_json || product.skuList) : null, []);
-            var publishHistory = productSafeJsonParse(product ? (product.publish_history_json || product.publishHistory) : null, []);
+            var defaultProduct = {
+                name: '花束模板',
+                categoryPath: ['花卉园艺', '礼品花', '礼品鲜花'],
+                storeCategoryPath: ['人气热销'],
+                requiredAttributes: { mainFlower: '其他主花材', color: '其他', audience: '' },
+                price: 500,
+                originalPrice: '',
+                inventory: 1,
+                description: '上架商品',
+                sku: [{ name: '规格', value: '默认规格' }],
+                skuList: [{ specs: [{ name: '规格', value: '默认规格' }], price: 500, originalPrice: null, inventory: 1 }],
+                imagePaths: ['Product1-main.jpg'],
+                useExistingOptionsOnly: true
+            };
+            var attrs = productSafeJsonParse(product ? (product.required_attributes_json || product.requiredAttributes) : null, defaultProduct.requiredAttributes);
+            var imagePaths = productSafeJsonParse(product ? (product.image_paths_json || product.imagePaths) : null, defaultProduct.imagePaths);
+            var storeCategoryPath = productSafeJsonParse(product ? (product.store_category_path_json || product.storeCategoryPath) : null, defaultProduct.storeCategoryPath);
+            var categoryPath = productSafeJsonParse(product ? (product.category_path_json || product.categoryPath) : null, defaultProduct.categoryPath);
+            var sku = productSafeJsonParse(product ? (product.sku_json || product.sku) : null, defaultProduct.sku);
+            var skuList = productSafeJsonParse(product ? (product.sku_list_json || product.skuList) : null, defaultProduct.skuList);
             Q('productFormId').value = product ? product.id : '';
-            Q('productFormName').value = product ? (product.name || '') : '';
+            Q('productFormName').value = product ? (product.name || '') : defaultProduct.name;
             Q('productFormStoreName').value = attrs.storeName || '';
             Q('productFormStoreCategoryPath').value = Array.isArray(storeCategoryPath) ? storeCategoryPath.join(' > ') : '';
-            Q('productFormDescription').value = product ? (product.description || '上架商品') : '上架商品';
-            Q('productFormPrice').value = product && product.price != null ? product.price : '';
-            Q('productFormOriginalPrice').value = product && product.original_price != null ? product.original_price : '';
-            Q('productFormInventory').value = product && product.inventory != null ? product.inventory : 1;
-            Q('productFormCategoryPath').value = Array.isArray(categoryPath) ? categoryPath.join(' > ') : '花草园艺 > 礼品花 > 礼品鲜花';
+            Q('productFormDescription').value = product ? (product.description || defaultProduct.description) : defaultProduct.description;
+            Q('productFormPrice').value = product && product.price != null ? product.price : defaultProduct.price;
+            Q('productFormOriginalPrice').value = product && product.original_price != null ? product.original_price : defaultProduct.originalPrice;
+            Q('productFormInventory').value = product && product.inventory != null ? product.inventory : defaultProduct.inventory;
+            Q('productFormCategoryPath').value = Array.isArray(categoryPath) ? categoryPath.join(' > ') : defaultProduct.categoryPath.join(' > ');
             Q('productFormMainFlower').value = attrs.mainFlower || '';
             Q('productFormColor').value = attrs.color || '';
             Q('productFormAudience').value = attrs.audience || '';
             Q('productFormSkuDefault').value = (Array.isArray(sku) && sku.length > 0 && sku[0].value) ? sku[0].value : '默认规格';
-            Q('productFormImagePaths').value = Array.isArray(imagePaths) ? imagePaths.join('\n') : './images/mainwelcome.jpg';
-            Q('productFormImageUrls').value = Array.isArray(imageUrls) ? imageUrls.join('\n') : '';
-            Q('productFormEntryUrl').value = product ? (product.entry_url || product.entryUrl || '') : '';
-            Q('productFormSourceUrl').value = product ? (product.source_url || product.sourceUrl || '') : '';
-            Q('productFormPublishHistory').value = Array.isArray(publishHistory) ? publishHistory.join('\n') : '';
-            Q('productFormUseExistingOptionsOnly').checked = product ? ((product.use_existing_options_only !== false) && (product.useExistingOptionsOnly !== false)) : true;
+            Q('productFormImagePaths').value = Array.isArray(imagePaths) ? imagePaths.join('\n') : defaultProduct.imagePaths.join('\n');
+            Q('productFormUseExistingOptionsOnly').checked = product ? ((product.use_existing_options_only !== false) && (product.useExistingOptionsOnly !== false)) : defaultProduct.useExistingOptionsOnly;
             productRenderSkuRows(skuList);
             QH('productModalTitle', product ? '编辑商品' : '新增商品');
             productSetSubmitBusy(false);
@@ -3176,10 +3428,10 @@
                 sku: JSON.stringify([{ name: '规格', value: Q('productFormSkuDefault').value.trim() || '默认规格' }]),
                 skuList: JSON.stringify(productCollectSkuList()),
                 imagePaths: JSON.stringify(productReadLines('productFormImagePaths')),
-                imageUrls: JSON.stringify(productReadLines('productFormImageUrls')),
-                entryUrl: Q('productFormEntryUrl').value.trim(),
-                sourceUrl: Q('productFormSourceUrl').value.trim(),
-                publishHistory: JSON.stringify(productReadLines('productFormPublishHistory')),
+                imageUrls: JSON.stringify([]),
+                entryUrl: '',
+                sourceUrl: '',
+                publishHistory: JSON.stringify([]),
                 useExistingOptionsOnly: Q('productFormUseExistingOptionsOnly').checked
             };
             if (payload.name === '') { productShowToast('商品名称不能为空。', true); return; }
@@ -3245,34 +3497,37 @@
             return r;
         }
         function managerDefaultProjectRoot(deviceOs) { return (deviceOs === 'windows') ? 'C:\\Users\\<user>\\Documents\\ai-bot' : '/Users/<user>/Documents/ai-bot'; }
-        function managerDefaultCollectScriptEntries(collectType) {
-            if (collectType === 'collect_price') return { macos: { path: 'scripts-mac/run-collect-price.sh', argsTemplate: '{configPath}' }, windows: { path: 'scripts/run-collect-price.ps1', argsTemplate: '-ConfigPath "{configPath}"' } };
-            return { macos: { path: 'scripts-mac/run-collect-shop.sh', argsTemplate: '{configPath}' }, windows: { path: 'scripts/run-collect-shop.ps1', argsTemplate: '-ConfigPath "{configPath}"' } };
+        function managerDefaultCollectScriptPath(collectType, deviceOs) {
+            var base = managerDefaultProjectRoot(deviceOs);
+            if (deviceOs === 'windows') return base + '\\scripts\\' + (collectType === 'collect_price' ? 'run-collect-price.ps1' : 'run-collect-shop.ps1');
+            return base + '/scripts-mac/' + (collectType === 'collect_price' ? 'run-collect-price.sh' : 'run-collect-shop.sh');
         }
-        function managerDefaultFlowScriptEntries(flowType) {
-            if (flowType === 'pricing') return { macos: { path: 'scripts-mac/run-pricing.sh', argsTemplate: '{configPath}' }, windows: { path: 'scripts/run-pricing.ps1', argsTemplate: '-ConfigPath "{configPath}"' } };
-            if (flowType === 'auto_reply') return { macos: { path: 'scripts-mac/run-resident-auto-reply.sh', argsTemplate: '--config "{configPath}"' }, windows: { path: 'scripts/run-resident-auto-reply.ps1', argsTemplate: '-ConfigPath "{configPath}"' } };
-            return { macos: { path: 'scripts-mac/run-publish-product.sh', argsTemplate: '{configPath}' }, windows: { path: 'scripts/run-publish-product.ps1', argsTemplate: '-ConfigPath "{configPath}"' } };
+        function managerDefaultFlowScriptPath(flowType, deviceOs) {
+            var base = managerDefaultProjectRoot(deviceOs);
+            if (deviceOs === 'windows') {
+                if (flowType === 'pricing') return base + '\\scripts\\run-pricing.ps1';
+                if (flowType === 'auto_reply') return base + '\\scripts\\run-resident-auto-reply.ps1';
+                return base + '\\scripts\\run-publish-product.ps1';
+            }
+            if (flowType === 'pricing') return base + '/scripts-mac/run-pricing.sh';
+            if (flowType === 'auto_reply') return base + '/scripts-mac/run-resident-auto-reply.sh';
+            return base + '/scripts-mac/run-publish-product.sh';
         }
         function managerDefaultCollectConfig(collectType) {
             if (collectType === 'collect_price') return { city: '', myLocationAddress: '', priceTasks: [], outputPath: './collect-results/price/', saveToDb: true };
             return { city: '', myLocationAddress: '', targetShops: [], outputPath: './collect-results/shop/', saveToDb: true };
         }
         function managerDefaultFlowConfig(flowType) {
-            if (flowType === 'pricing') return { city: '', myLocationAddress: '', globalEnabled: true, collectTaskId: '', collectResultId: '', tasks: [] };
+            if (flowType === 'pricing') return { globalEnabled: true, collectTaskId: '', collectResultId: '', tasks: [] };
             if (flowType === 'auto_reply') return { mode: 'once', autoReply: { enabled: true, replyText: '您好', pollIntervalSeconds: 3, maxRetries: 3, cdpUrl: 'http://127.0.0.1:9222', preferredUrl: '', fallbackOpenUrl: '', monitorRecentContacts: true, requirePendingClearForNextRound: false, startChromeDebugIfNeeded: true, statePath: './runtime/resident-auto-reply-state.json' } };
-            return { city: '', myLocationAddress: '', products: [] };
+            return {};
         }
         function managerGetNodeLabel(deviceId) {
             var device = getNodeFromId(deviceId);
             if (device == null) return deviceId || '未选择设备';
             return (device.name || device._id) + (device.osdesc ? (' · ' + device.osdesc) : '');
         }
-        function managerCurrentScriptPath(scriptEntries, deviceOs) {
-            var entries = managerParseJson(typeof scriptEntries === 'string' ? scriptEntries : JSON.stringify(scriptEntries || {}), {});
-            if (entries[deviceOs] && entries[deviceOs].path) return entries[deviceOs].path;
-            return '未配置';
-        }
+        function managerCurrentScriptPath(scriptPath) { return String(scriptPath || '未配置'); }
         function managerRenderStatusBadge(prefix, status, syncStatus) {
             var text = status || 'idle', className = prefix + '-status-badge';
             if (['success', 'running', 'failed', 'manual_required', 'skipped', 'partial', 'stopped', 'idle'].indexOf(text) >= 0) className += ' ' + prefix + '-status-' + text;
@@ -3307,8 +3562,20 @@
             text = String(text || '');
             var exitMatch = text.match(/__MC_EXIT_CODE__:(-?\d+)/);
             var pidMatch = text.match(/__MC_PROCESS_ID__:(\d+)/);
+            var outputB64Match = text.match(/__MC_OUTPUT_B64_START__\s*([A-Za-z0-9+/=\r\n]+?)\s*__MC_OUTPUT_B64_END__/);
             var outputMatch = text.match(/__MC_OUTPUT_START__\s*([\s\S]*?)\s*__MC_OUTPUT_END__/);
-            return { raw: text, exitCode: exitMatch ? parseInt(exitMatch[1]) : null, processId: pidMatch ? pidMatch[1] : null, output: outputMatch ? outputMatch[1] : text };
+            var output = outputMatch ? outputMatch[1] : text;
+            if (outputB64Match) {
+                try {
+                    var binary = atob(outputB64Match[1].replace(/\s+/g, ''));
+                    var bytes = new Uint8Array(binary.length);
+                    for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                    output = new TextDecoder('utf-8').decode(bytes);
+                } catch (ex) {
+                    output = '';
+                }
+            }
+            return { raw: text, exitCode: exitMatch ? parseInt(exitMatch[1]) : null, processId: pidMatch ? pidMatch[1] : null, output: output };
         }
         function managerHandleRuncommandsAck(message) {
             var pending = managerExecutionMap[message.responseid];
@@ -3384,10 +3651,10 @@
                 x += '<div class="flow-card-body">';
                 x += '<div class="flow-card-head"><div><h3>' + EscapeHtml(flow.name || '') + '</h3><div class="flow-card-category">' + EscapeHtml(flowType || '') + ' · ' + EscapeHtml(managerGetNodeLabel(flow.device_id || flow.deviceId)) + '</div></div><div class="flow-card-badges">' + managerRenderStatusBadge('flow', flow.last_run_status || flow.lastRunStatus || 'idle') + '</div></div>';
                 x += '<div class="flow-card-meta"><span>系统</span><strong>' + EscapeHtml(deviceOs || '未知') + '</strong></div>';
-                x += '<div class="flow-card-meta"><span>当前脚本</span><strong>' + EscapeHtml(managerCurrentScriptPath(flow.script_entries || flow.scriptEntries, deviceOs || 'macos')) + '</strong></div>';
+                x += '<div class="flow-card-meta"><span>脚本路径</span><strong>' + EscapeHtml(managerCurrentScriptPath(flow.script_path || flow.scriptPath)) + '</strong></div>';
                 x += '<div class="flow-card-meta"><span>上次执行</span><strong>' + EscapeHtml(flow.last_run_at ? new Date(flow.last_run_at).toLocaleString() : '从未执行') + '</strong></div>';
                 x += '<div class="flow-card-meta"><span>摘要</span><strong>' + EscapeHtml(lastResult.resultSummary || '暂无') + '</strong></div>';
-                x += '<div class="flow-card-footer"><div class="flow-card-hints"><span>' + EscapeHtml(flow.project_root || flow.projectRoot || '') + '</span></div><div class="flow-card-actions">';
+                x += '<div class="flow-card-footer"><div class="flow-card-hints"><span>' + EscapeHtml(flow.flow_type || flow.flowType || '') + '</span></div><div class="flow-card-actions">';
                 x += '<button type="button" class="flow-btn" onclick="flowOpenEditorById(\'' + EscapeHtml(String(flow.id)) + '\')">编辑</button>';
                 x += '<button type="button" class="flow-btn flow-btn-danger" onclick="flowConfirmDelete(\'' + EscapeHtml(String(flow.id)) + '\')">删除</button>';
                 x += '<button type="button" class="flow-btn flow-btn-primary" onclick="flowExecute(\'' + EscapeHtml(String(flow.id)) + '\')">执行</button>';
@@ -3409,57 +3676,10 @@
         }
         function flowSetSubmitBusy(busy) { QE('flowSubmitButton', !busy); Q('flowSubmitButton').value = Q('flowSubmitButton').innerText = busy ? '保存中...' : '保存'; }
         function flowSetSectionVisibility(flowType) {
-            QV('flowPublishFields', flowType === 'publish');
             QV('flowPricingFields', flowType === 'pricing');
             QV('flowAutoReplyFields', flowType === 'auto_reply');
         }
-        function flowBuildScriptEntriesFromFields() {
-            return {
-                macos: { path: Q('flowScriptMacPath').value.trim(), argsTemplate: Q('flowScriptMacArgs').value.trim() || '{configPath}' },
-                windows: { path: Q('flowScriptWinPath').value.trim(), argsTemplate: Q('flowScriptWinArgs').value.trim() || '-ConfigPath "{configPath}"' }
-            };
-        }
-        function flowLoadScriptEntriesToFields(scriptEntries, flowType) {
-            var defaults = managerDefaultFlowScriptEntries(flowType);
-            var entries = managerParseJson(typeof scriptEntries === 'string' ? scriptEntries : JSON.stringify(scriptEntries || defaults), defaults);
-            Q('flowScriptMacPath').value = (entries.macos && entries.macos.path) || defaults.macos.path || '';
-            Q('flowScriptMacArgs').value = (entries.macos && entries.macos.argsTemplate) || defaults.macos.argsTemplate || '{configPath}';
-            Q('flowScriptWinPath').value = (entries.windows && entries.windows.path) || defaults.windows.path || '';
-            Q('flowScriptWinArgs').value = (entries.windows && entries.windows.argsTemplate) || defaults.windows.argsTemplate || '-ConfigPath "{configPath}"';
-        }
-        function flowAddProductRow(product) {
-            product = product || {};
-            var id = 'flowProductRow_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
-            var x = '<div id="' + id + '" class="manager-repeat-card flow-product-row">';
-            x += '<div class="manager-repeat-head"><strong>商品</strong><button type="button" class="flow-btn flow-btn-danger" onclick="Q(\'' + id + '\').remove()">删除</button></div>';
-            x += '<div class="manager-inline-grid">';
-            x += '<label><span>商品 Key</span><input data-field="key" type="text" value="' + EscapeHtml(product.key || '') + '" placeholder="Product1" /></label>';
-            x += '<label><span>店铺名称</span><input data-field="shopName" type="text" value="' + EscapeHtml(product.shopName || '') + '" /></label>';
-            x += '<label class="manager-wide"><span>商品名称</span><input data-field="productName" type="text" value="' + EscapeHtml(product.productName || '') + '" /></label>';
-            x += '<label><span>覆盖策略</span><select data-field="overwritePolicy"><option value="overwrite">覆盖</option><option value="merge">合并</option><option value="skipIfExists">存在时跳过</option></select></label>';
-            x += '<label class="manager-wide"><span>属性值映射规则</span><textarea data-field="requiredAttributeMappings" rows="3" placeholder="每行一条：主花材|混搭花束,其他主花材">' + EscapeHtml(managerMappingsToLines(product.requiredAttributeMappings || {})) + '</textarea></label>';
-            x += '</div><div class="manager-checks"><label><input data-field="enabled" type="checkbox" /> 启用</label><label><input data-field="fetchFromH5" type="checkbox" /> 从 H5 抓取</label></div></div>';
-            Q('flowProductRows').insertAdjacentHTML('beforeend', x);
-            var row = Q(id);
-            row.querySelector('[data-field="overwritePolicy"]').value = product.overwritePolicy || 'overwrite';
-            row.querySelector('[data-field="enabled"]').checked = product.enabled !== false;
-            row.querySelector('[data-field="fetchFromH5"]').checked = product.fetchFromH5 !== false;
-        }
-        function flowReadProductRows() {
-            var rows = Q('flowProductRows').querySelectorAll('.flow-product-row'), r = [];
-            for (var i = 0; i < rows.length; i++) {
-                r.push({
-                    key: rows[i].querySelector('[data-field="key"]').value.trim() || ('Product' + (i + 1)),
-                    shopName: rows[i].querySelector('[data-field="shopName"]').value.trim(),
-                    productName: rows[i].querySelector('[data-field="productName"]').value.trim(),
-                    overwritePolicy: rows[i].querySelector('[data-field="overwritePolicy"]').value,
-                    requiredAttributeMappings: managerLinesToMappings(rows[i].querySelector('[data-field="requiredAttributeMappings"]').value),
-                    enabled: rows[i].querySelector('[data-field="enabled"]').checked,
-                    fetchFromH5: rows[i].querySelector('[data-field="fetchFromH5"]').checked
-                });
-            }
-            return r;
-        }
+        function flowGetScriptPathValue() { return Q('flowFormScriptPath').value.trim(); }
         function flowAddPricingTaskRow(task) {
             task = task || {};
             var id = 'flowPricingRow_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
@@ -3512,14 +3732,9 @@
         }
         function flowLoadConfigToFields(config, flowType) {
             config = config || managerDefaultFlowConfig(flowType);
-            Q('flowConfigCity').value = config.city || '';
-            Q('flowConfigLocation').value = config.myLocationAddress || '';
-            QH('flowProductRows', '');
             QH('flowPricingRows', '');
             if (flowType === 'publish') {
-                var products = Array.isArray(config.products) ? config.products : [];
-                for (var i = 0; i < products.length; i++) flowAddProductRow(products[i]);
-                if (products.length === 0) flowAddProductRow({ key: 'Product1', enabled: true, fetchFromH5: true, overwritePolicy: 'overwrite' });
+                return;
             } else if (flowType === 'pricing') {
                 managerSetChecked('flowPricingGlobalEnabled', config.globalEnabled !== false);
                 Q('flowPricingCollectTaskId').value = config.collectTaskId || '';
@@ -3545,8 +3760,6 @@
         }
         function flowBuildConfigFromFields(flowType) {
             if (flowType === 'pricing') return {
-                city: Q('flowConfigCity').value.trim(),
-                myLocationAddress: Q('flowConfigLocation').value.trim(),
                 globalEnabled: Q('flowPricingGlobalEnabled').checked,
                 collectTaskId: Q('flowPricingCollectTaskId').value.trim(),
                 collectResultId: Q('flowPricingCollectResultId').value.trim(),
@@ -3568,19 +3781,18 @@
                     statePath: Q('flowAutoStatePath').value.trim() || './runtime/resident-auto-reply-state.json'
                 }
             };
-            return { city: Q('flowConfigCity').value.trim(), myLocationAddress: Q('flowConfigLocation').value.trim(), products: flowReadProductRows() };
+            return {};
         }
         function flowHandleTypeChange() {
             var flowType = Q('flowFormType').value;
             flowSetSectionVisibility(flowType);
-            flowLoadScriptEntriesToFields((Q('flowFormId').value === '') ? managerDefaultFlowScriptEntries(flowType) : Q('flowFormScriptEntries').value, flowType);
+            if (Q('flowFormId').value === '') Q('flowFormScriptPath').value = managerDefaultFlowScriptPath(flowType, Q('flowFormDeviceOs').value);
             flowLoadConfigToFields(managerParseJson(Q('flowFormConfig').value || '{}', managerDefaultFlowConfig(flowType)), flowType);
-            if (Q('flowFormScriptName').value.trim() === '') { Q('flowFormScriptName').value = flowType; }
         }
         function flowHandleDeviceChange() {
             var deviceId = Q('flowFormDeviceId').value, node = getNodeFromId(deviceId), os = managerInferDeviceOs(node);
             if (os) Q('flowFormDeviceOs').value = os;
-            if (Q('flowFormProjectRoot').value.trim() === '') Q('flowFormProjectRoot').value = managerDefaultProjectRoot(os);
+            if (Q('flowFormScriptPath').value.trim() === '') Q('flowFormScriptPath').value = managerDefaultFlowScriptPath(Q('flowFormType').value, os);
         }
         function flowOpenEditorById(id) { for (var i = 0; i < flowState.items.length; i++) { if (String(flowState.items[i].id) === String(id)) { flowOpenEditor(flowState.items[i]); return; } } }
         function flowOpenEditor(flow) {
@@ -3589,9 +3801,7 @@
             Q('flowFormName').value = flow ? (flow.name || '') : '';
             Q('flowFormType').value = flow ? (flow.flow_type || flow.flowType || 'publish') : 'publish';
             Q('flowFormDeviceOs').value = flow ? (flow.device_os || flow.deviceOs || 'macos') : 'macos';
-            Q('flowFormProjectRoot').value = flow ? (flow.project_root || flow.projectRoot || '') : managerDefaultProjectRoot(Q('flowFormDeviceOs').value);
-            Q('flowFormScriptName').value = flow ? (flow.script_name || flow.scriptName || '') : '';
-            Q('flowFormScriptEntries').value = managerPrettyJson(managerParseJson(typeof (flow ? (flow.script_entries || flow.scriptEntries) : null) === 'string' ? (flow.script_entries || flow.scriptEntries) : JSON.stringify((flow ? (flow.script_entries || flow.scriptEntries) : managerDefaultFlowScriptEntries(Q('flowFormType').value))), managerDefaultFlowScriptEntries(Q('flowFormType').value)));
+            Q('flowFormScriptPath').value = flow ? (flow.script_path || flow.scriptPath || '') : managerDefaultFlowScriptPath(Q('flowFormType').value, Q('flowFormDeviceOs').value);
             Q('flowFormConfig').value = managerPrettyJson(managerParseJson(typeof (flow ? flow.config : null) === 'string' ? flow.config : JSON.stringify((flow ? flow.config : managerDefaultFlowConfig(Q('flowFormType').value))), managerDefaultFlowConfig(Q('flowFormType').value)));
             Q('flowFormRemark').value = flow ? (flow.remark || '') : '';
             QH('flowModalTitle', flow ? '编辑流程' : '新增流程');
@@ -3601,16 +3811,13 @@
         function flowCloseEditor(event) { if (event && event.target && event.target.id !== 'flowModalMask') return; QV('flowModalMask', false); }
         function flowSubmitEditor() {
             var flowType = Q('flowFormType').value;
-            var scriptEntries = flowBuildScriptEntriesFromFields();
             var config = flowBuildConfigFromFields(flowType);
-            Q('flowFormScriptEntries').value = managerPrettyJson(scriptEntries);
             Q('flowFormConfig').value = managerPrettyJson(config);
-            var payload = { id: Q('flowFormId').value, name: Q('flowFormName').value.trim(), flowType: flowType, deviceId: Q('flowFormDeviceId').value, deviceOs: Q('flowFormDeviceOs').value, projectRoot: Q('flowFormProjectRoot').value.trim(), scriptName: Q('flowFormScriptName').value.trim(), scriptEntries: Q('flowFormScriptEntries').value.trim(), config: Q('flowFormConfig').value.trim(), remark: Q('flowFormRemark').value.trim() };
+            var payload = { id: Q('flowFormId').value, name: Q('flowFormName').value.trim(), flowType: flowType, deviceId: Q('flowFormDeviceId').value, deviceOs: Q('flowFormDeviceOs').value, scriptPath: flowGetScriptPathValue(), config: Q('flowFormConfig').value.trim(), remark: Q('flowFormRemark').value.trim() };
             if (payload.name === '') { flowShowToast('流程名称不能为空。', true); return; }
             if (payload.deviceId === '') { flowShowToast('目标设备不能为空。', true); return; }
-            if (payload.projectRoot === '') { flowShowToast('项目路径不能为空。', true); return; }
-            if (scriptEntries[Q('flowFormDeviceOs').value].path === '') { flowShowToast('当前系统的脚本路径不能为空。', true); return; }
-            flowSetSubmitBusy(true); flowState.pendingAction = payload.id !== '' ? 'flowupdate' : 'flowcreate'; meshserver.send({ action: flowState.pendingAction, id: payload.id, name: payload.name, flowType: payload.flowType, deviceId: payload.deviceId, deviceOs: payload.deviceOs, projectRoot: payload.projectRoot, scriptName: payload.scriptName, scriptEntries: payload.scriptEntries, config: payload.config, remark: payload.remark });
+            if (payload.scriptPath === '') { flowShowToast('脚本路径不能为空。', true); return; }
+            flowSetSubmitBusy(true); flowState.pendingAction = payload.id !== '' ? 'flowupdate' : 'flowcreate'; meshserver.send({ action: flowState.pendingAction, id: payload.id, name: payload.name, flowType: payload.flowType, deviceId: payload.deviceId, deviceOs: payload.deviceOs, scriptPath: payload.scriptPath, config: payload.config, remark: payload.remark });
         }
         function flowConfirmDelete(id) { setDialogMode(2, '删除流程', 3, function (button, tag) { if (button === 1) meshserver.send({ action: 'flowdelete', id: tag }); }, '确认删除该流程吗？删除后将立即刷新列表。', id); }
         function flowShowToast(text, isError) { if (flowState.toastTimer != null) clearTimeout(flowState.toastTimer); QH('flowToast', EscapeHtml(text)); Q('flowToast').className = 'flow-toast' + (isError ? ' flow-toast-error' : ' flow-toast-success'); QV('flowToast', true); flowState.toastTimer = setTimeout(function () { QV('flowToast', false); }, 2800); }
@@ -3623,7 +3830,7 @@
                 for (var i = 0; i < runs.length; i++) {
                     var resultJson = managerParseJson(typeof runs[i].result_json === 'string' ? runs[i].result_json : JSON.stringify(runs[i].result_json || null), null);
                     x += '<div class="flow-history-item"><div class="flow-history-head"><div>' + managerRenderStatusBadge('flow', runs[i].status || 'idle') + '</div><strong>' + EscapeHtml(runs[i].started_at ? new Date(runs[i].started_at).toLocaleString() : '') + '</strong></div>';
-                    x += '<div class="flow-history-meta"><span>脚本</span><strong>' + EscapeHtml(runs[i].script_path || runs[i].script_name || '') + '</strong></div>';
+                    x += '<div class="flow-history-meta"><span>脚本</span><strong>' + EscapeHtml(runs[i].script_path || '') + '</strong></div>';
                     x += '<div class="flow-history-meta"><span>采集绑定</span><strong>' + EscapeHtml(JSON.stringify(runs[i].collect_bindings || runs[i].collectBindings || null)) + '</strong></div>';
                     x += '<div class="flow-history-meta"><span>摘要</span><strong>' + EscapeHtml(runs[i].result_summary || '暂无') + '</strong></div>';
                     x += '<details class="flow-history-raw"><summary>查看原始输出</summary><pre>' + EscapeHtml(runs[i].stdout || '') + '</pre></details>';
@@ -3640,7 +3847,7 @@
         function flowHandlePrepareExecute(message) {
             if (message.success !== true) { flowShowToast(message.result || '无法准备流程执行。', true); return; }
             managerExecutionMap[message.responseid] = { kind: 'flow', runId: message.runId, flowId: message.flowId, runMode: message.runMode, collectBindings: message.collectBindings || null };
-            meshserver.send({ action: 'runcommands', nodeids: [message.nodeId], type: message.commandType, cmds: message.cmds, runAsUser: 0, reply: true, responseid: message.responseid });
+            meshserver.send({ action: 'runcommands', nodeids: [message.nodeId], type: message.commandType, cmds: message.cmds, runAsUser: (typeof message.runAsUser === 'number' ? message.runAsUser : 0), reply: true, responseid: message.responseid });
             flowShowToast(message.runMode === 'background' ? '正在启动常驻流程...' : '正在执行流程...', false);
         }
         function flowHandlePrepareStop(message) {
@@ -3694,10 +3901,10 @@
                 x += '<div class="collect-card-body">';
                 x += '<div class="collect-card-head"><div><h3>' + EscapeHtml(task.name || '') + '</h3><div class="collect-card-category">' + EscapeHtml(collectType || '') + ' · ' + EscapeHtml(managerGetNodeLabel(task.device_id || task.deviceId)) + '</div></div><div class="collect-card-badges">' + managerRenderStatusBadge('collect', task.last_run_status || task.lastRunStatus || 'idle', task.last_sync_status || task.lastSyncStatus || '') + '</div></div>';
                 x += '<div class="collect-card-meta"><span>系统</span><strong>' + EscapeHtml(deviceOs || '未知') + '</strong></div>';
-                x += '<div class="collect-card-meta"><span>当前脚本</span><strong>' + EscapeHtml(managerCurrentScriptPath(task.script_entries || task.scriptEntries, deviceOs || 'macos')) + '</strong></div>';
+                x += '<div class="collect-card-meta"><span>脚本路径</span><strong>' + EscapeHtml(managerCurrentScriptPath(task.script_path || task.scriptPath)) + '</strong></div>';
                 x += '<div class="collect-card-meta"><span>上次采集</span><strong>' + EscapeHtml(task.last_run_at ? new Date(task.last_run_at).toLocaleString() : '从未执行') + '</strong></div>';
                 x += '<div class="collect-card-meta"><span>数据条数</span><strong>' + EscapeHtml(String(task.last_data_count || task.lastDataCount || 0)) + '</strong></div>';
-                x += '<div class="collect-card-footer"><div class="collect-card-hints"><span>' + EscapeHtml(task.project_root || task.projectRoot || '') + '</span></div><div class="collect-card-actions">';
+                x += '<div class="collect-card-footer"><div class="collect-card-hints"><span>' + EscapeHtml(task.collect_type || task.collectType || '') + '</span></div><div class="collect-card-actions">';
                 x += '<button type="button" class="collect-btn" onclick="collectOpenEditorById(\'' + EscapeHtml(String(task.id)) + '\')">编辑</button>';
                 x += '<button type="button" class="collect-btn collect-btn-danger" onclick="collectConfirmDelete(\'' + EscapeHtml(String(task.id)) + '\')">删除</button>';
                 x += '<button type="button" class="collect-btn collect-btn-primary" onclick="collectExecute(\'' + EscapeHtml(String(task.id)) + '\')">执行采集</button>';
@@ -3721,20 +3928,7 @@
             QV('collectShopFields', collectType === 'collect_shop');
             QV('collectPriceFields', collectType === 'collect_price');
         }
-        function collectBuildScriptEntriesFromFields() {
-            return {
-                macos: { path: Q('collectScriptMacPath').value.trim(), argsTemplate: Q('collectScriptMacArgs').value.trim() || '{configPath}' },
-                windows: { path: Q('collectScriptWinPath').value.trim(), argsTemplate: Q('collectScriptWinArgs').value.trim() || '-ConfigPath "{configPath}"' }
-            };
-        }
-        function collectLoadScriptEntriesToFields(scriptEntries, collectType) {
-            var defaults = managerDefaultCollectScriptEntries(collectType);
-            var entries = managerParseJson(typeof scriptEntries === 'string' ? scriptEntries : JSON.stringify(scriptEntries || defaults), defaults);
-            Q('collectScriptMacPath').value = (entries.macos && entries.macos.path) || defaults.macos.path || '';
-            Q('collectScriptMacArgs').value = (entries.macos && entries.macos.argsTemplate) || defaults.macos.argsTemplate || '{configPath}';
-            Q('collectScriptWinPath').value = (entries.windows && entries.windows.path) || defaults.windows.path || '';
-            Q('collectScriptWinArgs').value = (entries.windows && entries.windows.argsTemplate) || defaults.windows.argsTemplate || '-ConfigPath "{configPath}"';
-        }
+        function collectGetScriptPathValue() { return Q('collectFormScriptPath').value.trim(); }
         function collectAddTargetShopRow(shop) {
             shop = (typeof shop === 'string') ? { shopName: shop } : (shop || {});
             var id = 'collectShopRow_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
@@ -3822,14 +4016,13 @@
         function collectHandleTypeChange() {
             var collectType = Q('collectFormType').value;
             collectSetSectionVisibility(collectType);
-            collectLoadScriptEntriesToFields((Q('collectFormId').value === '') ? managerDefaultCollectScriptEntries(collectType) : Q('collectFormScriptEntries').value, collectType);
+            if (Q('collectFormId').value === '') Q('collectFormScriptPath').value = managerDefaultCollectScriptPath(collectType, Q('collectFormDeviceOs').value);
             collectLoadConfigToFields(managerParseJson(Q('collectFormConfig').value || '{}', managerDefaultCollectConfig(collectType)), collectType);
-            if (Q('collectFormScriptName').value.trim() === '') { Q('collectFormScriptName').value = collectType; }
         }
         function collectHandleDeviceChange() {
             var deviceId = Q('collectFormDeviceId').value, node = getNodeFromId(deviceId), os = managerInferDeviceOs(node);
             if (os) Q('collectFormDeviceOs').value = os;
-            if (Q('collectFormProjectRoot').value.trim() === '') Q('collectFormProjectRoot').value = managerDefaultProjectRoot(os);
+            if (Q('collectFormScriptPath').value.trim() === '') Q('collectFormScriptPath').value = managerDefaultCollectScriptPath(Q('collectFormType').value, os);
         }
         function collectOpenEditorById(id) { for (var i = 0; i < collectState.items.length; i++) { if (String(collectState.items[i].id) === String(id)) { collectOpenEditor(collectState.items[i]); return; } } }
         function collectOpenEditor(task) {
@@ -3838,9 +4031,7 @@
             Q('collectFormName').value = task ? (task.name || '') : '';
             Q('collectFormType').value = task ? (task.collect_type || task.collectType || 'collect_shop') : 'collect_shop';
             Q('collectFormDeviceOs').value = task ? (task.device_os || task.deviceOs || 'macos') : 'macos';
-            Q('collectFormProjectRoot').value = task ? (task.project_root || task.projectRoot || '') : managerDefaultProjectRoot(Q('collectFormDeviceOs').value);
-            Q('collectFormScriptName').value = task ? (task.script_name || task.scriptName || '') : '';
-            Q('collectFormScriptEntries').value = managerPrettyJson(managerParseJson(typeof (task ? (task.script_entries || task.scriptEntries) : null) === 'string' ? (task.script_entries || task.scriptEntries) : JSON.stringify((task ? (task.script_entries || task.scriptEntries) : managerDefaultCollectScriptEntries(Q('collectFormType').value))), managerDefaultCollectScriptEntries(Q('collectFormType').value)));
+            Q('collectFormScriptPath').value = task ? (task.script_path || task.scriptPath || '') : managerDefaultCollectScriptPath(Q('collectFormType').value, Q('collectFormDeviceOs').value);
             Q('collectFormConfig').value = managerPrettyJson(managerParseJson(typeof (task ? task.config : null) === 'string' ? task.config : JSON.stringify((task ? task.config : managerDefaultCollectConfig(Q('collectFormType').value))), managerDefaultCollectConfig(Q('collectFormType').value)));
             Q('collectFormRemark').value = task ? (task.remark || '') : '';
             QH('collectModalTitle', task ? '编辑采集任务' : '新增采集任务');
@@ -3850,16 +4041,13 @@
         function collectCloseEditor(event) { if (event && event.target && event.target.id !== 'collectModalMask') return; QV('collectModalMask', false); }
         function collectSubmitEditor() {
             var collectType = Q('collectFormType').value;
-            var scriptEntries = collectBuildScriptEntriesFromFields();
             var config = collectBuildConfigFromFields(collectType);
-            Q('collectFormScriptEntries').value = managerPrettyJson(scriptEntries);
             Q('collectFormConfig').value = managerPrettyJson(config);
-            var payload = { id: Q('collectFormId').value, name: Q('collectFormName').value.trim(), collectType: collectType, deviceId: Q('collectFormDeviceId').value, deviceOs: Q('collectFormDeviceOs').value, projectRoot: Q('collectFormProjectRoot').value.trim(), scriptName: Q('collectFormScriptName').value.trim(), scriptEntries: Q('collectFormScriptEntries').value.trim(), config: Q('collectFormConfig').value.trim(), remark: Q('collectFormRemark').value.trim() };
+            var payload = { id: Q('collectFormId').value, name: Q('collectFormName').value.trim(), collectType: collectType, deviceId: Q('collectFormDeviceId').value, deviceOs: Q('collectFormDeviceOs').value, scriptPath: collectGetScriptPathValue(), config: Q('collectFormConfig').value.trim(), remark: Q('collectFormRemark').value.trim() };
             if (payload.name === '') { collectShowToast('任务名称不能为空。', true); return; }
             if (payload.deviceId === '') { collectShowToast('目标设备不能为空。', true); return; }
-            if (payload.projectRoot === '') { collectShowToast('项目路径不能为空。', true); return; }
-            if (scriptEntries[Q('collectFormDeviceOs').value].path === '') { collectShowToast('当前系统的脚本路径不能为空。', true); return; }
-            collectSetSubmitBusy(true); collectState.pendingAction = payload.id !== '' ? 'collectupdate' : 'collectcreate'; meshserver.send({ action: collectState.pendingAction, id: payload.id, name: payload.name, collectType: payload.collectType, deviceId: payload.deviceId, deviceOs: payload.deviceOs, projectRoot: payload.projectRoot, scriptName: payload.scriptName, scriptEntries: payload.scriptEntries, config: payload.config, remark: payload.remark });
+            if (payload.scriptPath === '') { collectShowToast('脚本路径不能为空。', true); return; }
+            collectSetSubmitBusy(true); collectState.pendingAction = payload.id !== '' ? 'collectupdate' : 'collectcreate'; meshserver.send({ action: collectState.pendingAction, id: payload.id, name: payload.name, collectType: payload.collectType, deviceId: payload.deviceId, deviceOs: payload.deviceOs, scriptPath: payload.scriptPath, config: payload.config, remark: payload.remark });
         }
         function collectConfirmDelete(id) {
             setDialogMode(2, '删除采集任务', 3, function (button, tag) {
@@ -4175,6 +4363,7 @@
                     filetree = setupBackPointers(message.filetree);
                     updateFiles();
                     d3updatefiles();
+                    if ((productState != null) && (productState.loaded === true)) productRender();
                     break;
                 }
                 case 'nodes': {
@@ -4754,6 +4943,22 @@
                 }
                 case 'shopdelete': {
                     shopHandleMutationResponse('delete', message);
+                    break;
+                }
+                case 'myshoplist': {
+                    myShopHandleListResponse(message);
+                    break;
+                }
+                case 'myshopcreate': {
+                    myShopHandleMutationResponse('create', message);
+                    break;
+                }
+                case 'myshopupdate': {
+                    myShopHandleMutationResponse('update', message);
+                    break;
+                }
+                case 'myshopdelete': {
+                    myShopHandleMutationResponse('delete', message);
                     break;
                 }
                 case 'collectlist': {
@@ -20649,7 +20854,7 @@
             if (xxcurrentView == 17) deviceDetailsStatsClear();
 
             // Edit this line when adding a new screen
-            for (var i = 0; i < 104; i++) { QV('p' + i, i == x); }
+            for (var i = 0; i < 105; i++) { QV('p' + i, i == x); }
             xxcurrentView = x;
 
             // Get out of fullscreen if needed
@@ -20672,14 +20877,14 @@
             }
 
             // Remove top bar selection
-            var mainBarItems = ['MainMenuMyDevices', 'MainMenuMyAccount', 'MainMenuMyEvents', 'MainMenuMyFiles', 'MainMenuMyUsers', 'MainMenuMyServer', 'MainMenuShopManager', 'MainMenuProductManager'];
+            var mainBarItems = ['MainMenuMyDevices', 'MainMenuMyAccount', 'MainMenuMyEvents', 'MainMenuMyFiles', 'MainMenuMyUsers', 'MainMenuMyServer', 'MainMenuShopManager', 'MainMenuMyShopManager', 'MainMenuProductManager'];
             for (var i in mainBarItems) {
                 QC(mainBarItems[i]).remove('fullselect');
                 QC(mainBarItems[i]).remove('semiselect');
             }
 
             // Remove left bar selection
-            var leftBarItems = ['LeftMenuMyDevices', 'LeftMenuMyAccount', 'LeftMenuMyEvents', 'LeftMenuMyFiles', 'LeftMenuMyUsers', 'LeftMenuMyServer', 'LeftMenuShopManager', 'LeftMenuProductManager', 'LeftMenuFlowManager', 'LeftMenuCollectManager'];
+            var leftBarItems = ['LeftMenuMyDevices', 'LeftMenuMyAccount', 'LeftMenuMyEvents', 'LeftMenuMyFiles', 'LeftMenuMyUsers', 'LeftMenuMyServer', 'LeftMenuShopManager', 'LeftMenuMyShopManager', 'LeftMenuProductManager', 'LeftMenuFlowManager', 'LeftMenuCollectManager'];
             for (var i in leftBarItems) {
                 QC(leftBarItems[i]).remove('lbbuttonsel');
                 QC(leftBarItems[i]).remove('lbbuttonsel2');
@@ -20720,6 +20925,10 @@
                 // Shop Manager
                 QC('MainMenuShopManager').add(mainMenuActiveClass);
                 QC('LeftMenuShopManager').add(leftMenuActiveClass);
+            } else if (x == 104) {
+                // My Shop Manager
+                QC('MainMenuMyShopManager').add(mainMenuActiveClass);
+                QC('LeftMenuMyShopManager').add(leftMenuActiveClass);
             } else if (x == 101) {
                 // Product Manager
                 QC('MainMenuProductManager').add(mainMenuActiveClass);
@@ -20750,6 +20959,7 @@
             QV('UsersSubMenuSpan', x == 4 || x == 50 || x == 52);
             QV('EventsSubMenuSpan', (x == 3) || (x == 60));
             if (x == 100) { shopEnterPage(); }
+            if (x == 104) { myShopEnterPage(); }
             if (x == 101) { productEnterPage(); }
             if (x == 102) { flowEnterPage(); }
             if (x == 103) { collectEnterPage(); }
@@ -20788,6 +20998,7 @@
 
             // Enter shop manager
             if (x == 100) { shopEnterPage(); }
+            if (x == 104) { myShopEnterPage(); }
             if (x == 102) { flowEnterPage(); }
             if (x == 103) { collectEnterPage(); }
 

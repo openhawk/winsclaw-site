@@ -74,37 +74,6 @@ module.exports.CreateDB = function (parent, func) {
         return prefix + '_' + Date.now().toString(36) + '_' + require('crypto').randomBytes(5).toString('hex');
     }
 
-    function managerNormalizeScriptEntries(scriptEntries, defaults) {
-        if ((scriptEntries == null) || (typeof scriptEntries != 'object') || Array.isArray(scriptEntries)) { scriptEntries = {}; }
-        var result = {};
-        var keys = ['macos', 'windows'];
-        for (var i = 0; i < keys.length; i++) {
-            var key = keys[i];
-            var entry = scriptEntries[key] || defaults[key] || {};
-            result[key] = {
-                path: (typeof entry.path == 'string') ? entry.path : '',
-                argsTemplate: (typeof entry.argsTemplate == 'string') ? entry.argsTemplate : '{configPath}'
-            };
-        }
-        return result;
-    }
-
-    function managerDefaultCollectScriptEntries(collectType) {
-        var name = (collectType == 'collect_price') ? 'collect-price' : 'collect-shop';
-        return {
-            macos: { path: './scripts/' + name + '.sh', argsTemplate: '{configPath}' },
-            windows: { path: './scripts/' + name + '.ps1', argsTemplate: '{configPath}' }
-        };
-    }
-
-    function managerDefaultFlowScriptEntries(flowType) {
-        var name = (flowType == 'pricing') ? 'pricing-flow' : ((flowType == 'auto_reply') ? 'auto-reply-flow' : 'publish-flow');
-        return {
-            macos: { path: './scripts/' + name + '.sh', argsTemplate: '{configPath}' },
-            windows: { path: './scripts/' + name + '.ps1', argsTemplate: '{configPath}' }
-        };
-    }
-
     function managerCountData(data) {
         if (Array.isArray(data)) return data.length;
         if ((data != null) && (typeof data == 'object')) return Object.keys(data).length;
@@ -1465,14 +1434,32 @@ module.exports.CreateDB = function (parent, func) {
             'CREATE TABLE IF NOT EXISTS smbios (id CHAR(255) PRIMARY KEY, time TIMESTAMP, expire TIMESTAMP, doc JSON)',
             'CREATE TABLE IF NOT EXISTS plugin (id SERIAL PRIMARY KEY, doc JSON)',
             'CREATE TABLE IF NOT EXISTS pluginpermissions (id VARCHAR(255) PRIMARY KEY, doc JSON)',
-            'CREATE TABLE IF NOT EXISTS collect_tasks (id VARCHAR(64) PRIMARY KEY, name VARCHAR(256) NOT NULL, collect_type VARCHAR(32) NOT NULL, device_os VARCHAR(16) NOT NULL, device_id VARCHAR(256) NOT NULL, project_root TEXT NOT NULL, script_name VARCHAR(256) NOT NULL, script_entries JSONB NOT NULL DEFAULT \'{}\'::jsonb, config JSONB NOT NULL DEFAULT \'{}\'::jsonb, remark TEXT NULL, last_run_at TIMESTAMP NULL, last_run_status VARCHAR(32) NOT NULL DEFAULT \'idle\', last_data_count INT NOT NULL DEFAULT 0, last_sync_status VARCHAR(32) NULL, is_deleted BOOLEAN NOT NULL DEFAULT FALSE, deleted_at TIMESTAMP NULL, created_at TIMESTAMP NOT NULL, updated_at TIMESTAMP NOT NULL)',
+            'CREATE TABLE IF NOT EXISTS collect_tasks (id VARCHAR(64) PRIMARY KEY, name VARCHAR(256) NOT NULL, collect_type VARCHAR(32) NOT NULL, device_os VARCHAR(16) NOT NULL, device_id VARCHAR(256) NOT NULL, script_path TEXT NOT NULL, config JSONB NOT NULL DEFAULT \'{}\'::jsonb, remark TEXT NULL, last_run_at TIMESTAMP NULL, last_run_status VARCHAR(32) NOT NULL DEFAULT \'idle\', last_data_count INT NOT NULL DEFAULT 0, last_sync_status VARCHAR(32) NULL, is_deleted BOOLEAN NOT NULL DEFAULT FALSE, deleted_at TIMESTAMP NULL, created_at TIMESTAMP NOT NULL, updated_at TIMESTAMP NOT NULL)',
             'CREATE TABLE IF NOT EXISTS collect_results (id VARCHAR(64) PRIMARY KEY, task_id VARCHAR(64) NOT NULL REFERENCES collect_tasks(id) ON DELETE RESTRICT, collect_type VARCHAR(32) NOT NULL, data JSONB NOT NULL DEFAULT \'[]\'::jsonb, data_count INT NOT NULL DEFAULT 0, collected_at TIMESTAMP NOT NULL, device_id VARCHAR(256) NOT NULL, status VARCHAR(32) NOT NULL, exit_code INT NULL, stdout TEXT NULL, stderr TEXT NULL, sync_status VARCHAR(32) NULL, synced_at TIMESTAMP NULL, sync_error TEXT NULL, command_text TEXT NULL, result_meta JSONB NOT NULL DEFAULT \'{}\'::jsonb)',
-            'CREATE TABLE IF NOT EXISTS flows (id VARCHAR(64) PRIMARY KEY, name VARCHAR(256) NOT NULL, flow_type VARCHAR(32) NOT NULL, device_os VARCHAR(16) NOT NULL, device_id VARCHAR(256) NOT NULL, project_root TEXT NOT NULL, script_name VARCHAR(256) NOT NULL, script_entries JSONB NOT NULL DEFAULT \'{}\'::jsonb, config JSONB NOT NULL DEFAULT \'{}\'::jsonb, remark TEXT NULL, last_run_at TIMESTAMP NULL, last_run_status VARCHAR(32) NOT NULL DEFAULT \'idle\', last_run_result JSONB NOT NULL DEFAULT \'{}\'::jsonb, active_run_id VARCHAR(64) NULL, is_deleted BOOLEAN NOT NULL DEFAULT FALSE, deleted_at TIMESTAMP NULL, created_at TIMESTAMP NOT NULL, updated_at TIMESTAMP NOT NULL)',
-            'CREATE TABLE IF NOT EXISTS flow_runs (id VARCHAR(64) PRIMARY KEY, flow_id VARCHAR(64) NOT NULL REFERENCES flows(id) ON DELETE RESTRICT, flow_type VARCHAR(32) NOT NULL, collect_bindings JSONB NULL, script_name VARCHAR(256) NOT NULL, script_path TEXT NULL, arguments JSONB NOT NULL DEFAULT \'[]\'::jsonb, device_id VARCHAR(256) NOT NULL, device_os VARCHAR(16) NOT NULL, status VARCHAR(32) NOT NULL, stdout TEXT NULL, stderr TEXT NULL, exit_code INT NULL, result_summary TEXT NULL, result_json JSONB NULL, session_id VARCHAR(128) NULL, process_id VARCHAR(128) NULL, last_heartbeat_at TIMESTAMP NULL, started_at TIMESTAMP NOT NULL, finished_at TIMESTAMP NULL, stop_reason TEXT NULL)',
+            'CREATE TABLE IF NOT EXISTS flows (id VARCHAR(64) PRIMARY KEY, name VARCHAR(256) NOT NULL, flow_type VARCHAR(32) NOT NULL, device_os VARCHAR(16) NOT NULL, device_id VARCHAR(256) NOT NULL, script_path TEXT NOT NULL, config JSONB NOT NULL DEFAULT \'{}\'::jsonb, remark TEXT NULL, last_run_at TIMESTAMP NULL, last_run_status VARCHAR(32) NOT NULL DEFAULT \'idle\', last_run_result JSONB NOT NULL DEFAULT \'{}\'::jsonb, active_run_id VARCHAR(64) NULL, is_deleted BOOLEAN NOT NULL DEFAULT FALSE, deleted_at TIMESTAMP NULL, created_at TIMESTAMP NOT NULL, updated_at TIMESTAMP NOT NULL)',
+            'CREATE TABLE IF NOT EXISTS flow_runs (id VARCHAR(64) PRIMARY KEY, flow_id VARCHAR(64) NOT NULL REFERENCES flows(id) ON DELETE RESTRICT, flow_type VARCHAR(32) NOT NULL, collect_bindings JSONB NULL, script_path TEXT NULL, arguments JSONB NOT NULL DEFAULT \'[]\'::jsonb, device_id VARCHAR(256) NOT NULL, device_os VARCHAR(16) NOT NULL, status VARCHAR(32) NOT NULL, stdout TEXT NULL, stderr TEXT NULL, exit_code INT NULL, result_summary TEXT NULL, result_json JSONB NULL, session_id VARCHAR(128) NULL, process_id VARCHAR(128) NULL, last_heartbeat_at TIMESTAMP NULL, started_at TIMESTAMP NOT NULL, finished_at TIMESTAMP NULL, stop_reason TEXT NULL)',
+            'CREATE TABLE IF NOT EXISTS meituan_h5_shops (id BIGINT PRIMARY KEY, name TEXT NOT NULL, scheme TEXT NOT NULL, poi_id_str TEXT, source_page_url TEXT NOT NULL DEFAULT \'\', category TEXT NOT NULL DEFAULT \'\', distance_text TEXT NOT NULL DEFAULT \'\', distance_km DOUBLE PRECISION NOT NULL DEFAULT 0, rating_text TEXT NOT NULL DEFAULT \'\', monthly_sales_text TEXT NOT NULL DEFAULT \'\', min_price_tip TEXT NOT NULL DEFAULT \'\', delivery_fee_tip TEXT NOT NULL DEFAULT \'\', delivery_time_tip TEXT NOT NULL DEFAULT \'\', review_highlight TEXT NOT NULL DEFAULT \'\', promo_tags_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, platform_tags_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, phone TEXT NOT NULL DEFAULT \'\', address TEXT NOT NULL DEFAULT \'\', detail_fetched BOOLEAN NOT NULL DEFAULT FALSE, detail_fetched_at TIMESTAMP WITH TIME ZONE, created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(), updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(), detail_status TEXT NOT NULL DEFAULT \'pending\', detail_started_at TIMESTAMP WITH TIME ZONE, detail_last_attempt_at TIMESTAMP WITH TIME ZONE, detail_attempt_count INTEGER NOT NULL DEFAULT 0, detail_error_message TEXT NOT NULL DEFAULT \'\')',
+            'CREATE TABLE IF NOT EXISTS my_shops (id VARCHAR(64) PRIMARY KEY, name TEXT NOT NULL, scheme TEXT NOT NULL DEFAULT \'\', poi_id_str TEXT, source_page_url TEXT NOT NULL DEFAULT \'\', category TEXT NOT NULL DEFAULT \'\', distance_text TEXT NOT NULL DEFAULT \'\', distance_km DOUBLE PRECISION NOT NULL DEFAULT 0, rating_text TEXT NOT NULL DEFAULT \'\', monthly_sales_text TEXT NOT NULL DEFAULT \'\', min_price_tip TEXT NOT NULL DEFAULT \'\', delivery_fee_tip TEXT NOT NULL DEFAULT \'\', delivery_time_tip TEXT NOT NULL DEFAULT \'\', review_highlight TEXT NOT NULL DEFAULT \'\', promo_tags_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, platform_tags_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, phone TEXT NOT NULL DEFAULT \'\', address TEXT NOT NULL DEFAULT \'\', detail_fetched BOOLEAN NOT NULL DEFAULT FALSE, detail_fetched_at TIMESTAMP WITH TIME ZONE, created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(), updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(), detail_status TEXT NOT NULL DEFAULT \'manual\', detail_started_at TIMESTAMP WITH TIME ZONE, detail_last_attempt_at TIMESTAMP WITH TIME ZONE, detail_attempt_count INTEGER NOT NULL DEFAULT 0, detail_error_message TEXT NOT NULL DEFAULT \'\', is_deleted BOOLEAN NOT NULL DEFAULT FALSE, deleted_at TIMESTAMP WITH TIME ZONE)',
+            'CREATE TABLE IF NOT EXISTS meituan_h5_products (id BIGINT PRIMARY KEY, name TEXT NOT NULL, price NUMERIC(10,2), original_price NUMERIC(10,2), description TEXT, inventory INTEGER, image_paths_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, image_urls_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, sku_json JSONB NOT NULL DEFAULT \'{}\'::jsonb, sku_list_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, category_path_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, store_category_path_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, required_attributes_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, entry_url TEXT, use_existing_options_only BOOLEAN DEFAULT FALSE, publish_history_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, source_url TEXT, collect_task_id VARCHAR(64), collect_result_id VARCHAR(64), collect_source_key VARCHAR(256), source_type VARCHAR(32), created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(), updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(), is_deleted BOOLEAN NOT NULL DEFAULT FALSE, deleted_at TIMESTAMP WITH TIME ZONE)',
             'ALTER TABLE IF EXISTS collect_tasks ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN NOT NULL DEFAULT FALSE',
             'ALTER TABLE IF EXISTS collect_tasks ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP NULL',
+            'ALTER TABLE IF EXISTS collect_tasks ADD COLUMN IF NOT EXISTS script_path TEXT',
+            'DO $mc$ DECLARE oldpath TEXT; BEGIN IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = \'collect_tasks\' AND column_name = \'script_entries\') THEN UPDATE collect_tasks SET script_path = COALESCE(NULLIF(script_path, \'\'), NULLIF(CASE WHEN device_os = \'windows\' THEN CASE WHEN (script_entries->\'windows\'->>\'path\') ~ \'^[A-Za-z]:[\\\\/]\' OR (script_entries->\'windows\'->>\'path\') LIKE chr(92)||chr(92)||\'%\' THEN replace(script_entries->\'windows\'->>\'path\', \'/\', chr(92)) ELSE regexp_replace(project_root, \'[\\\\/]+$\', \'\') || chr(92) || regexp_replace(replace(script_entries->\'windows\'->>\'path\', \'/\', chr(92)), \'^[\\\\/]+\', \'\') END ELSE CASE WHEN (script_entries->\'macos\'->>\'path\') LIKE \'/%\' THEN script_entries->\'macos\'->>\'path\' ELSE regexp_replace(project_root, \'/+$\', \'\') || \'/\' || regexp_replace(script_entries->\'macos\'->>\'path\', \'^/+\', \'\') END END, \'\'), script_name, \'\') WHERE script_path IS NULL OR script_path = \'\'; END IF; END $mc$',
+            'ALTER TABLE IF EXISTS collect_tasks ALTER COLUMN script_path SET DEFAULT \'\'',
+            'ALTER TABLE IF EXISTS collect_tasks ALTER COLUMN script_path SET NOT NULL',
+            'ALTER TABLE IF EXISTS collect_tasks DROP COLUMN IF EXISTS project_root',
+            'ALTER TABLE IF EXISTS collect_tasks DROP COLUMN IF EXISTS script_name',
+            'ALTER TABLE IF EXISTS collect_tasks DROP COLUMN IF EXISTS script_entries',
             'ALTER TABLE IF EXISTS flows ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN NOT NULL DEFAULT FALSE',
             'ALTER TABLE IF EXISTS flows ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP NULL',
+            'ALTER TABLE IF EXISTS flows ADD COLUMN IF NOT EXISTS script_path TEXT',
+            'DO $mc$ BEGIN IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = \'flows\' AND column_name = \'script_entries\') THEN UPDATE flows SET script_path = COALESCE(NULLIF(script_path, \'\'), NULLIF(CASE WHEN device_os = \'windows\' THEN CASE WHEN (script_entries->\'windows\'->>\'path\') ~ \'^[A-Za-z]:[\\\\/]\' OR (script_entries->\'windows\'->>\'path\') LIKE chr(92)||chr(92)||\'%\' THEN replace(script_entries->\'windows\'->>\'path\', \'/\', chr(92)) ELSE regexp_replace(project_root, \'[\\\\/]+$\', \'\') || chr(92) || regexp_replace(replace(script_entries->\'windows\'->>\'path\', \'/\', chr(92)), \'^[\\\\/]+\', \'\') END ELSE CASE WHEN (script_entries->\'macos\'->>\'path\') LIKE \'/%\' THEN script_entries->\'macos\'->>\'path\' ELSE regexp_replace(project_root, \'/+$\', \'\') || \'/\' || regexp_replace(script_entries->\'macos\'->>\'path\', \'^/+\', \'\') END END, \'\'), script_name, \'\') WHERE script_path IS NULL OR script_path = \'\'; END IF; END $mc$',
+            'ALTER TABLE IF EXISTS flows ALTER COLUMN script_path SET DEFAULT \'\'',
+            'ALTER TABLE IF EXISTS flows ALTER COLUMN script_path SET NOT NULL',
+            'ALTER TABLE IF EXISTS flows DROP COLUMN IF EXISTS project_root',
+            'ALTER TABLE IF EXISTS flows DROP COLUMN IF EXISTS script_name',
+            'ALTER TABLE IF EXISTS flows DROP COLUMN IF EXISTS script_entries',
+            'ALTER TABLE IF EXISTS flow_runs DROP COLUMN IF EXISTS script_name',
         ], function (results) {
             parent.debug('db', 'Creating indexes...');
             sqlDbExec('CREATE INDEX ndxtypedomainextra ON main (type, domain, extra)', null, function (err, response) { });
@@ -1493,6 +1480,10 @@ module.exports.CreateDB = function (parent, func) {
             sqlDbExec('CREATE INDEX IF NOT EXISTS ndx_flows_name ON flows (name)', null, function (err, response) { });
             sqlDbExec('CREATE INDEX IF NOT EXISTS ndx_flow_runs_flow_time ON flow_runs (flow_id, started_at DESC)', null, function (err, response) { });
 
+            sqlDbExec('CREATE INDEX IF NOT EXISTS ndx_meituan_h5_shops_name ON meituan_h5_shops (name)', null, function (err, response) { });
+            sqlDbExec('CREATE INDEX IF NOT EXISTS ndx_my_shops_name ON my_shops (name)', null, function (err, response) { });
+            sqlDbExec('CREATE INDEX IF NOT EXISTS ndx_meituan_h5_products_name ON meituan_h5_products (name)', null, function (err, response) { });
+            sqlDbExec('CREATE INDEX IF NOT EXISTS ndx_products_collect_source ON meituan_h5_products (collect_result_id, collect_source_key)', null, function (err, response) { });
 
 
 
@@ -3407,6 +3398,93 @@ module.exports.CreateDB = function (parent, func) {
             });
         };
 
+        obj.GetMyShopList = function (search, page, limit, func) {
+            if (obj.databaseType != DB_POSTGRESQL) { func(new Error('My shop manager requires PostgreSQL.')); return; }
+            if (typeof search != 'string') { search = ''; }
+            if (typeof page != 'number' || page < 1) { page = 1; }
+            if (typeof limit != 'number' || limit < 1) { limit = 10; }
+            const args = [], where = ['is_deleted = FALSE'];
+            search = search.trim();
+            if (search != '') { args.push('%' + search + '%'); where.push('name ILIKE $' + args.length); }
+            const whereSql = ' WHERE ' + where.join(' AND ');
+            Datastore.query('SELECT COUNT(*) AS count FROM my_shops' + whereSql, args, function (err, countResults) {
+                if (err != null) { func(err); return; }
+                const total = parseInt(countResults.rows[0].count);
+                const listArgs = args.slice(0);
+                listArgs.push(limit);
+                listArgs.push((page - 1) * limit);
+                Datastore.query('SELECT * FROM my_shops' + whereSql + ' ORDER BY updated_at DESC NULLS LAST, id DESC LIMIT $' + (args.length + 1) + ' OFFSET $' + (args.length + 2), listArgs, function (listErr, listResults) {
+                    if (listErr != null) { func(listErr); return; }
+                    func(null, { total: total, shops: listResults.rows });
+                });
+            });
+        };
+
+        obj.CreateMyShop = function (shop, func) {
+            if (obj.databaseType != DB_POSTGRESQL) { func(new Error('My shop manager requires PostgreSQL.')); return; }
+            const now = new Date();
+            const shopId = managerMakeId('myshop');
+            const values = [
+                shopId,
+                shop.name,
+                '',
+                '',
+                '',
+                shop.category || '浪漫鲜花',
+                '',
+                0,
+                '',
+                '',
+                '起送 ¥0',
+                '配送 约¥0',
+                '',
+                shop.businessHours || '',
+                '[]',
+                '[]',
+                shop.phone,
+                shop.address || '',
+                true,
+                now,
+                now,
+                now,
+                'manual',
+                now,
+                now,
+                1,
+                ''
+            ];
+            Datastore.query(
+                'INSERT INTO my_shops (id, name, scheme, poi_id_str, source_page_url, category, distance_text, distance_km, rating_text, monthly_sales_text, min_price_tip, delivery_fee_tip, delivery_time_tip, review_highlight, promo_tags_json, platform_tags_json, phone, address, detail_fetched, detail_fetched_at, created_at, updated_at, detail_status, detail_started_at, detail_last_attempt_at, detail_attempt_count, detail_error_message) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb, $16::jsonb, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27) RETURNING *',
+                values,
+                function (insertErr, insertResults) {
+                    if (insertErr != null) { func(insertErr); return; }
+                    func(null, insertResults.rows[0]);
+                }
+            );
+        };
+
+        obj.UpdateMyShop = function (shopId, shop, func) {
+            if (obj.databaseType != DB_POSTGRESQL) { func(new Error('My shop manager requires PostgreSQL.')); return; }
+            Datastore.query(
+                'UPDATE my_shops SET name = $2, category = $3, phone = $4, address = $5, review_highlight = $6, updated_at = $7, detail_fetched = $8, detail_fetched_at = $9 WHERE id = $1 AND is_deleted = FALSE RETURNING *',
+                [shopId, shop.name, shop.category || '浪漫鲜花', shop.phone, shop.address || '', shop.businessHours || '', new Date(), true, new Date()],
+                function (err, results) {
+                    if (err != null) { func(err); return; }
+                    if ((results.rows == null) || (results.rows.length === 0)) { func(new Error('My shop not found.')); return; }
+                    func(null, results.rows[0]);
+                }
+            );
+        };
+
+        obj.DeleteMyShop = function (shopId, func) {
+            if (obj.databaseType != DB_POSTGRESQL) { func(new Error('My shop manager requires PostgreSQL.')); return; }
+            Datastore.query('UPDATE my_shops SET is_deleted = TRUE, deleted_at = $2, updated_at = $2 WHERE id = $1 AND is_deleted = FALSE RETURNING id', [shopId, new Date()], function (err, results) {
+                if (err != null) { func(err); return; }
+                if ((results.rows == null) || (results.rows.length === 0)) { func(new Error('My shop not found.')); return; }
+                func(null, results.rows[0].id);
+            });
+        };
+
         obj.GetProductList = function (search, page, limit, func) {
             if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Product manager requires PostgreSQL.')); return; }
             if (typeof search != 'string') { search = ''; }
@@ -3516,8 +3594,7 @@ module.exports.CreateDB = function (parent, func) {
             if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Collect manager requires PostgreSQL.')); return; }
             const now = new Date();
             const taskId = managerMakeId('collecttask');
-            const scriptEntries = managerNormalizeScriptEntries(task.scriptEntries, managerDefaultCollectScriptEntries(task.collectType));
-            Datastore.query('INSERT INTO collect_tasks (id, name, collect_type, device_os, device_id, project_root, script_name, script_entries, config, remark, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10, $11, $12) RETURNING *', [taskId, task.name, task.collectType, task.deviceOs, task.deviceId, task.projectRoot, task.scriptName, JSON.stringify(scriptEntries), JSON.stringify(task.config || {}), task.remark || '', now, now], function (err, results) {
+            Datastore.query('INSERT INTO collect_tasks (id, name, collect_type, device_os, device_id, script_path, config, remark, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10) RETURNING *', [taskId, task.name, task.collectType, task.deviceOs, task.deviceId, task.scriptPath, JSON.stringify(task.config || {}), task.remark || '', now, now], function (err, results) {
                 if (err != null) { func(err); return; }
                 func(null, results.rows[0]);
             });
@@ -3525,8 +3602,7 @@ module.exports.CreateDB = function (parent, func) {
 
         obj.UpdateCollectTask = function (taskId, task, func) {
             if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Collect manager requires PostgreSQL.')); return; }
-            const scriptEntries = managerNormalizeScriptEntries(task.scriptEntries, managerDefaultCollectScriptEntries(task.collectType));
-            Datastore.query('UPDATE collect_tasks SET name = $2, collect_type = $3, device_os = $4, device_id = $5, project_root = $6, script_name = $7, script_entries = $8::jsonb, config = $9::jsonb, remark = $10, updated_at = $11 WHERE id = $1 AND is_deleted = FALSE RETURNING *', [taskId, task.name, task.collectType, task.deviceOs, task.deviceId, task.projectRoot, task.scriptName, JSON.stringify(scriptEntries), JSON.stringify(task.config || {}), task.remark || '', new Date()], function (err, results) {
+            Datastore.query('UPDATE collect_tasks SET name = $2, collect_type = $3, device_os = $4, device_id = $5, script_path = $6, config = $7::jsonb, remark = $8, updated_at = $9 WHERE id = $1 AND is_deleted = FALSE RETURNING *', [taskId, task.name, task.collectType, task.deviceOs, task.deviceId, task.scriptPath, JSON.stringify(task.config || {}), task.remark || '', new Date()], function (err, results) {
                 if (err != null) { func(err); return; }
                 if (!results.rows || results.rows.length === 0) { func(new Error('Collect task not found.')); return; }
                 func(null, results.rows[0]);
@@ -3661,8 +3737,7 @@ module.exports.CreateDB = function (parent, func) {
             if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Flow manager requires PostgreSQL.')); return; }
             const now = new Date();
             const flowId = managerMakeId('flow');
-            const scriptEntries = managerNormalizeScriptEntries(flow.scriptEntries, managerDefaultFlowScriptEntries(flow.flowType));
-            Datastore.query('INSERT INTO flows (id, name, flow_type, device_os, device_id, project_root, script_name, script_entries, config, remark, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10, $11, $12) RETURNING *', [flowId, flow.name, flow.flowType, flow.deviceOs, flow.deviceId, flow.projectRoot, flow.scriptName, JSON.stringify(scriptEntries), JSON.stringify(flow.config || {}), flow.remark || '', now, now], function (err, results) {
+            Datastore.query('INSERT INTO flows (id, name, flow_type, device_os, device_id, script_path, config, remark, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10) RETURNING *', [flowId, flow.name, flow.flowType, flow.deviceOs, flow.deviceId, flow.scriptPath, JSON.stringify(flow.config || {}), flow.remark || '', now, now], function (err, results) {
                 if (err != null) { func(err); return; }
                 func(null, results.rows[0]);
             });
@@ -3670,8 +3745,7 @@ module.exports.CreateDB = function (parent, func) {
 
         obj.UpdateFlow = function (flowId, flow, func) {
             if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Flow manager requires PostgreSQL.')); return; }
-            const scriptEntries = managerNormalizeScriptEntries(flow.scriptEntries, managerDefaultFlowScriptEntries(flow.flowType));
-            Datastore.query('UPDATE flows SET name = $2, flow_type = $3, device_os = $4, device_id = $5, project_root = $6, script_name = $7, script_entries = $8::jsonb, config = $9::jsonb, remark = $10, updated_at = $11 WHERE id = $1 RETURNING *', [flowId, flow.name, flow.flowType, flow.deviceOs, flow.deviceId, flow.projectRoot, flow.scriptName, JSON.stringify(scriptEntries), JSON.stringify(flow.config || {}), flow.remark || '', new Date()], function (err, results) {
+            Datastore.query('UPDATE flows SET name = $2, flow_type = $3, device_os = $4, device_id = $5, script_path = $6, config = $7::jsonb, remark = $8, updated_at = $9 WHERE id = $1 RETURNING *', [flowId, flow.name, flow.flowType, flow.deviceOs, flow.deviceId, flow.scriptPath, JSON.stringify(flow.config || {}), flow.remark || '', new Date()], function (err, results) {
                 if (err != null) { func(err); return; }
                 if (!results.rows || results.rows.length === 0) { func(new Error('Flow not found.')); return; }
                 func(null, results.rows[0]);
@@ -3719,9 +3793,10 @@ module.exports.CreateDB = function (parent, func) {
             if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Flow manager requires PostgreSQL.')); return; }
             const runId = runMeta.id || managerMakeId('flowrun');
             const now = new Date();
-            Datastore.query('INSERT INTO flow_runs (id, flow_id, flow_type, collect_bindings, script_name, script_path, arguments, device_id, device_os, status, stdout, stderr, result_summary, result_json, session_id, process_id, last_heartbeat_at, started_at, finished_at, stop_reason) VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7::jsonb, $8, $9, $10, $11, $12, $13, $14::jsonb, $15, $16, $17, $18, $19, $20) RETURNING *', [runId, flow.id, flow.flow_type || flow.flowType, JSON.stringify(runMeta.collectBindings || null), runMeta.scriptName || flow.script_name || flow.scriptName, runMeta.scriptPath || '', JSON.stringify(runMeta.arguments || []), flow.device_id || flow.deviceId, flow.device_os || flow.deviceOs, 'running', '', '', runMeta.resultSummary || '', JSON.stringify(runMeta.resultJson || null), runMeta.sessionId || null, runMeta.processId || null, runMeta.lastHeartbeatAt || null, now, null, null], function (err, results) {
+            Datastore.query('INSERT INTO flow_runs (id, flow_id, flow_type, collect_bindings, script_path, arguments, device_id, device_os, status, stdout, stderr, result_summary, result_json, session_id, process_id, last_heartbeat_at, started_at, finished_at, stop_reason) VALUES ($1, $2, $3, $4::jsonb, $5, $6::jsonb, $7, $8, $9, $10, $11, $12, $13::jsonb, $14, $15, $16, $17, $18, $19) RETURNING *', [runId, flow.id, flow.flow_type || flow.flowType, JSON.stringify(runMeta.collectBindings || null), runMeta.scriptPath || '', JSON.stringify(runMeta.arguments || []), flow.device_id || flow.deviceId, flow.device_os || flow.deviceOs, 'running', '', '', runMeta.resultSummary || '', JSON.stringify(runMeta.resultJson || null), runMeta.sessionId || null, runMeta.processId || null, runMeta.lastHeartbeatAt || null, now, null, null], function (err, results) {
                 if (err != null) { func(err); return; }
-                Datastore.query('UPDATE flows SET last_run_at = $2, last_run_status = $3, active_run_id = $4, updated_at = $5 WHERE id = $1', [flow.id, now, 'running', runMeta.processId ? runId : null, now], function () {
+                const runningResult = { stdout: '', stderr: '', exitCode: null, resultSummary: runMeta.resultSummary || '流程执行中。', resultJson: runMeta.resultJson || null, processId: runMeta.processId || null };
+                Datastore.query('UPDATE flows SET last_run_at = $2, last_run_status = $3, active_run_id = $4, last_run_result = $5::jsonb, updated_at = $6 WHERE id = $1', [flow.id, now, 'running', runMeta.processId ? runId : null, JSON.stringify(runningResult), now], function () {
                     func(null, results.rows[0]);
                 });
             });
