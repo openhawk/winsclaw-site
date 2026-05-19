@@ -1603,18 +1603,33 @@
                             <div class="flow-form-grid">
                                 <label class="flow-field"><span>流程名称 <b>*</b></span><input id="flowFormName" type="text" maxlength="256" /></label>
                                 <label class="flow-field"><span>流程类型 <b>*</b></span><select id="flowFormType" onchange="flowHandleTypeChange()"><option value="publish">publish</option><option value="pricing">pricing</option><option value="auto_reply">auto_reply</option></select></label>
+                                <label id="flowShopField" class="flow-field flow-field-full"><span>我的店铺</span><select id="flowFormMyShopId"></select></label>
+                                <div id="flowProductFields" class="flow-field flow-field-full manager-fieldset">
+                                    <div class="manager-fieldset-title">商品绑定</div>
+                                    <div class="manager-inline-grid">
+                                        <label><span>商品名称 <b>*</b></span><input id="flowFormProductName" type="text" maxlength="512" placeholder="必须存在于商品页面" /></label>
+                                        <label><span>我的商品名称</span><input id="flowFormMyProductName" type="text" maxlength="512" /></label>
+                                    </div>
+                                </div>
                                 <label class="flow-field"><span>目标设备 <b>*</b></span><select id="flowFormDeviceId" onchange="flowHandleDeviceChange()"></select></label>
                                 <label class="flow-field"><span>目标系统 <b>*</b></span><select id="flowFormDeviceOs"><option value="macos">macOS</option><option value="windows">Windows</option></select></label>
                                 <label class="flow-field flow-field-full"><span>脚本路径 <b>*</b></span><input id="flowFormScriptPath" type="text" maxlength="2048" placeholder="例如：D:\winsclaw-work\aibot\scripts\run-publish-product.ps1" /></label>
                                 <input id="flowFormConfig" type="hidden" />
                                 <div id="flowPricingFields" class="flow-field flow-field-full manager-fieldset" style="display:none">
-                                    <div class="manager-section-header"><div class="manager-fieldset-title">调价配置</div><button type="button" class="flow-btn" onclick="flowAddPricingTaskRow()">新增调价任务</button></div>
-                                    <label class="manager-check-row"><input id="flowPricingGlobalEnabled" type="checkbox" checked="checked" /> 启用全部调价任务</label>
+                                    <div class="manager-fieldset-title">调价配置</div>
                                     <div class="manager-inline-grid">
-                                        <label><span>采集任务编号</span><input id="flowPricingCollectTaskId" type="text" /></label>
-                                        <label><span>采集结果编号</span><input id="flowPricingCollectResultId" type="text" /></label>
+                                        <label class="manager-wide"><span>我的商铺</span><select id="flowPricingMyShopId"></select></label>
+                                        <label><span>参考商品关键词</span><input id="flowPricingReferenceKeyword" type="text" /></label>
+                                        <label class="manager-wide"><span>目标商品名称</span><input id="flowPricingTargetProductName" type="text" /></label>
+                                        <label class="manager-wide"><span>参考店铺列表</span><textarea id="flowPricingReferenceShops" rows="3" placeholder="每行一个店铺名"></textarea></label>
+                                        <label><span>参考商品选择</span><select id="flowPricingReferenceProductSelection"><option value="first">第一项</option><option value="lowest">最低价</option><option value="highest">最高价</option><option value="average">平均价</option></select></label>
+                                        <label><span>调价策略</span><select id="flowPricingStrategy"><option value="average">平均价</option><option value="max">最高价</option><option value="min">最低价</option><option value="fixed">固定价</option></select></label>
+                                        <label><span>价格偏移</span><input id="flowPricingPriceOffset" type="number" step="any" /></label>
+                                        <label><span>固定价格</span><input id="flowPricingFixedPrice" type="number" step="any" /></label>
+                                        <label><span>SKU 策略</span><select id="flowPricingSkuStrategy"><option value="allActive">全部生效规格</option><option value="first">仅第一项规格</option><option value="mainOnly">仅主价格</option></select></label>
+                                        <label><span>最低限价</span><input id="flowPricingLimitMin" type="number" step="any" /></label>
+                                        <label><span>最高限价</span><input id="flowPricingLimitMax" type="number" step="any" /></label>
                                     </div>
-                                    <div id="flowPricingRows" class="manager-repeat-list"></div>
                                 </div>
                                 <div id="flowAutoReplyFields" class="flow-field flow-field-full manager-fieldset" style="display:none">
                                     <div class="manager-fieldset-title">自动回复配置</div>
@@ -2800,7 +2815,7 @@
         var shopState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null };
         var myShopState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null };
         var productState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null };
-        var flowState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, currentRunsFlowId: null, runsPage: 1, runsLimit: 10 };
+        var flowState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, pendingMyShopId: '', currentRunsFlowId: null, runsPage: 1, runsLimit: 10 };
         var collectState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, currentResultsTaskId: null, resultsPage: 1, resultsLimit: 10 };
         var managerExecutionMap = {};
 
@@ -3518,7 +3533,7 @@
             return { city: '', myLocationAddress: '', targetShops: [], outputPath: './collect-results/shop/', saveToDb: true };
         }
         function managerDefaultFlowConfig(flowType) {
-            if (flowType === 'pricing') return { globalEnabled: true, collectTaskId: '', collectResultId: '', tasks: [] };
+            if (flowType === 'pricing') return { globalEnabled: true, myShopId: '', tasks: [{ taskId: 'task_1', enabled: true, referenceProductSelection: 'average', strategy: 'average', priceOffset: 0, duplicateTargetPolicy: 'fail', skuStrategy: 'allActive' }] };
             if (flowType === 'auto_reply') return { mode: 'once', autoReply: { enabled: true, replyText: '您好', pollIntervalSeconds: 3, maxRetries: 3, cdpUrl: 'http://127.0.0.1:9222', preferredUrl: '', fallbackOpenUrl: '', monitorRecentContacts: true, requirePendingClearForNextRound: false, startChromeDebugIfNeeded: true, statePath: './runtime/resident-auto-reply-state.json' } };
             return {};
         }
@@ -3541,6 +3556,27 @@
                 options += '<option value="' + EscapeHtml(list[i]._id) + '"' + ((selectedId && list[i]._id === selectedId) ? ' selected="selected"' : '') + '>' + EscapeHtml(managerGetNodeLabel(list[i]._id)) + '</option>';
             }
             QH(selectId, options);
+        }
+        function managerGetMyShopLabel(shopId, fallback) {
+            for (var i = 0; i < myShopState.items.length; i++) {
+                if (String(myShopState.items[i].id) === String(shopId)) return myShopState.items[i].name || shopId;
+            }
+            return fallback || shopId || '未选择';
+        }
+        function managerPopulateMyShopSelect(selectId, selectedId) {
+            var options = '<option value="">请选择我的店铺</option>', list = myShopState.items || [];
+            for (var i = 0; i < list.length; i++) {
+                options += '<option value="' + EscapeHtml(String(list[i].id)) + '"' + ((selectedId && String(list[i].id) === String(selectedId)) ? ' selected="selected"' : '') + '>' + EscapeHtml(list[i].name || list[i].id) + '</option>';
+            }
+            QH(selectId, options);
+        }
+        function managerEnsureMyShopOptions(selectedId) {
+            flowState.pendingMyShopId = selectedId || (Q('flowFormMyShopId') != null ? Q('flowFormMyShopId').value : '');
+            if (Q('flowFormMyShopId') != null) managerPopulateMyShopSelect('flowFormMyShopId', selectedId || Q('flowFormMyShopId').value);
+            if (Q('flowPricingMyShopId') != null) managerPopulateMyShopSelect('flowPricingMyShopId', selectedId || Q('flowPricingMyShopId').value);
+            if ((myShopState.loaded !== true) || ((myShopState.items || []).length < myShopState.total)) {
+                meshserver.send({ action: 'myshoplist', search: '', page: 1, limit: 200 });
+            }
         }
         function managerTryParseCollectData(output) {
             var trimmed = String(output || '').trim(), parsed = null, match = null;
@@ -3651,6 +3687,11 @@
                 x += '<div class="flow-card-body">';
                 x += '<div class="flow-card-head"><div><h3>' + EscapeHtml(flow.name || '') + '</h3><div class="flow-card-category">' + EscapeHtml(flowType || '') + ' · ' + EscapeHtml(managerGetNodeLabel(flow.device_id || flow.deviceId)) + '</div></div><div class="flow-card-badges">' + managerRenderStatusBadge('flow', flow.last_run_status || flow.lastRunStatus || 'idle') + '</div></div>';
                 x += '<div class="flow-card-meta"><span>系统</span><strong>' + EscapeHtml(deviceOs || '未知') + '</strong></div>';
+                x += '<div class="flow-card-meta"><span>我的店铺</span><strong>' + EscapeHtml(managerGetMyShopLabel(flow.my_shop_id || flow.myShopId || '', flow.my_shop_name || flow.myShopName || '未选择')) + '</strong></div>';
+                if ((flowType === 'publish') || (flowType === 'pricing')) {
+                    x += '<div class="flow-card-meta"><span>商品名称</span><strong>' + EscapeHtml(flow.product_name || flow.productName || '未设置') + '</strong></div>';
+                    x += '<div class="flow-card-meta"><span>我的商品名称</span><strong>' + EscapeHtml(flow.my_product_name || flow.myProductName || '未设置') + '</strong></div>';
+                }
                 x += '<div class="flow-card-meta"><span>脚本路径</span><strong>' + EscapeHtml(managerCurrentScriptPath(flow.script_path || flow.scriptPath)) + '</strong></div>';
                 x += '<div class="flow-card-meta"><span>上次执行</span><strong>' + EscapeHtml(flow.last_run_at ? new Date(flow.last_run_at).toLocaleString() : '从未执行') + '</strong></div>';
                 x += '<div class="flow-card-meta"><span>摘要</span><strong>' + EscapeHtml(lastResult.resultSummary || '暂无') + '</strong></div>';
@@ -3676,72 +3717,56 @@
         }
         function flowSetSubmitBusy(busy) { QE('flowSubmitButton', !busy); Q('flowSubmitButton').value = Q('flowSubmitButton').innerText = busy ? '保存中...' : '保存'; }
         function flowSetSectionVisibility(flowType) {
+            QV('flowProductFields', (flowType === 'publish') || (flowType === 'pricing'));
+            QV('flowShopField', flowType !== 'pricing');
             QV('flowPricingFields', flowType === 'pricing');
             QV('flowAutoReplyFields', flowType === 'auto_reply');
         }
         function flowGetScriptPathValue() { return Q('flowFormScriptPath').value.trim(); }
-        function flowAddPricingTaskRow(task) {
-            task = task || {};
-            var id = 'flowPricingRow_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
-            var x = '<div id="' + id + '" class="manager-repeat-card flow-pricing-row">';
-            x += '<div class="manager-repeat-head"><strong>调价任务</strong><button type="button" class="flow-btn flow-btn-danger" onclick="Q(\'' + id + '\').remove()">删除</button></div>';
-            x += '<div class="manager-inline-grid">';
-            x += '<label><span>任务 ID</span><input data-field="taskId" type="text" value="' + EscapeHtml(task.taskId || '') + '" placeholder="task_1" /></label>';
-            x += '<label><span>参考商品关键词</span><input data-field="referenceKeyword" type="text" value="' + EscapeHtml(task.referenceKeyword || '') + '" /></label>';
-            x += '<label class="manager-wide"><span>目标商品名称</span><input data-field="targetProductName" type="text" value="' + EscapeHtml(task.targetProductName || '') + '" /></label>';
-            x += '<label class="manager-wide"><span>参考店铺列表</span><textarea data-field="referenceShops" rows="3" placeholder="每行一个店铺名">' + EscapeHtml(managerArrayToLines(task.referenceShops || [])) + '</textarea></label>';
-            x += '<label><span>参考商品选择</span><select data-field="referenceProductSelection"><option value="first">第一项</option><option value="lowest">最低价</option><option value="highest">最高价</option><option value="average">平均价</option></select></label>';
-            x += '<label><span>调价策略</span><select data-field="strategy"><option value="average">平均价</option><option value="max">最高价</option><option value="min">最低价</option><option value="fixed">固定价</option></select></label>';
-            x += '<label><span>价格偏移</span><input data-field="priceOffset" type="number" step="any" value="' + EscapeHtml(String(task.priceOffset == null ? 0 : task.priceOffset)) + '" /></label>';
-            x += '<label><span>固定价格</span><input data-field="fixedPrice" type="number" step="any" value="' + EscapeHtml(String(task.fixedPrice == null ? '' : task.fixedPrice)) + '" /></label>';
-            x += '<label><span>重复商品处理</span><select data-field="duplicateTargetPolicy"><option value="fail">报错中止</option><option value="first">更新第一项</option></select></label>';
-            x += '<label><span>SKU 策略</span><select data-field="skuStrategy"><option value="allActive">全部生效规格</option><option value="first">仅第一项规格</option><option value="mainOnly">仅主价格</option></select></label>';
-            x += '<label><span>最低限价</span><input data-field="priceLimitMin" type="number" step="any" value="' + EscapeHtml(String(task.priceLimit && task.priceLimit.min != null ? task.priceLimit.min : '')) + '" /></label>';
-            x += '<label><span>最高限价</span><input data-field="priceLimitMax" type="number" step="any" value="' + EscapeHtml(String(task.priceLimit && task.priceLimit.max != null ? task.priceLimit.max : '')) + '" /></label>';
-            x += '</div><div class="manager-checks"><label><input data-field="enabled" type="checkbox" /> 启用任务</label></div></div>';
-            Q('flowPricingRows').insertAdjacentHTML('beforeend', x);
-            var row = Q(id);
-            row.querySelector('[data-field="referenceProductSelection"]').value = task.referenceProductSelection || 'average';
-            row.querySelector('[data-field="strategy"]').value = task.strategy || 'average';
-            row.querySelector('[data-field="duplicateTargetPolicy"]').value = task.duplicateTargetPolicy || 'fail';
-            row.querySelector('[data-field="skuStrategy"]').value = task.skuStrategy || 'allActive';
-            row.querySelector('[data-field="enabled"]').checked = task.enabled !== false;
+        function flowGetSinglePricingTask(config) {
+            var tasks = Array.isArray(config && config.tasks) ? config.tasks : [];
+            return tasks.length > 0 ? (tasks[0] || {}) : {};
         }
-        function flowReadPricingRows() {
-            var rows = Q('flowPricingRows').querySelectorAll('.flow-pricing-row'), r = [];
-            for (var i = 0; i < rows.length; i++) {
-                var min = managerToNumberOrNull(rows[i].querySelector('[data-field="priceLimitMin"]').value);
-                var max = managerToNumberOrNull(rows[i].querySelector('[data-field="priceLimitMax"]').value);
-                var task = {
-                    taskId: rows[i].querySelector('[data-field="taskId"]').value.trim() || ('task_' + (i + 1)),
-                    enabled: rows[i].querySelector('[data-field="enabled"]').checked,
-                    targetProductName: rows[i].querySelector('[data-field="targetProductName"]').value.trim(),
-                    referenceKeyword: rows[i].querySelector('[data-field="referenceKeyword"]').value.trim(),
-                    referenceShops: managerLinesToArray(rows[i].querySelector('[data-field="referenceShops"]').value),
-                    referenceProductSelection: rows[i].querySelector('[data-field="referenceProductSelection"]').value,
-                    strategy: rows[i].querySelector('[data-field="strategy"]').value,
-                    priceOffset: managerToNumberOrNull(rows[i].querySelector('[data-field="priceOffset"]').value) || 0,
-                    fixedPrice: managerToNumberOrNull(rows[i].querySelector('[data-field="fixedPrice"]').value),
-                    duplicateTargetPolicy: rows[i].querySelector('[data-field="duplicateTargetPolicy"]').value,
-                    skuStrategy: rows[i].querySelector('[data-field="skuStrategy"]').value
-                };
-                if (min != null || max != null) task.priceLimit = { min: min, max: max };
-                r.push(task);
-            }
-            return r;
+        function flowLoadPricingTask(task, config) {
+            task = task || {};
+            config = config || {};
+            Q('flowPricingMyShopId').value = config.myShopId || Q('flowFormMyShopId').value || '';
+            Q('flowPricingReferenceKeyword').value = task.referenceKeyword || '';
+            Q('flowPricingTargetProductName').value = task.targetProductName || '';
+            Q('flowPricingReferenceShops').value = managerArrayToLines(task.referenceShops || []);
+            Q('flowPricingReferenceProductSelection').value = task.referenceProductSelection || 'average';
+            Q('flowPricingStrategy').value = task.strategy || 'average';
+            Q('flowPricingPriceOffset').value = task.priceOffset == null ? 0 : task.priceOffset;
+            Q('flowPricingFixedPrice').value = task.fixedPrice == null ? '' : task.fixedPrice;
+            Q('flowPricingSkuStrategy').value = task.skuStrategy || 'allActive';
+            Q('flowPricingLimitMin').value = task.priceLimit && task.priceLimit.min != null ? task.priceLimit.min : '';
+            Q('flowPricingLimitMax').value = task.priceLimit && task.priceLimit.max != null ? task.priceLimit.max : '';
+        }
+        function flowReadSinglePricingTask() {
+            var min = managerToNumberOrNull(Q('flowPricingLimitMin').value);
+            var max = managerToNumberOrNull(Q('flowPricingLimitMax').value);
+            var task = {
+                taskId: 'task_1',
+                enabled: true,
+                targetProductName: Q('flowPricingTargetProductName').value.trim(),
+                referenceKeyword: Q('flowPricingReferenceKeyword').value.trim(),
+                referenceShops: managerLinesToArray(Q('flowPricingReferenceShops').value),
+                referenceProductSelection: Q('flowPricingReferenceProductSelection').value,
+                strategy: Q('flowPricingStrategy').value,
+                priceOffset: managerToNumberOrNull(Q('flowPricingPriceOffset').value) || 0,
+                fixedPrice: managerToNumberOrNull(Q('flowPricingFixedPrice').value),
+                duplicateTargetPolicy: 'fail',
+                skuStrategy: Q('flowPricingSkuStrategy').value
+            };
+            if (min != null || max != null) task.priceLimit = { min: min, max: max };
+            return task;
         }
         function flowLoadConfigToFields(config, flowType) {
             config = config || managerDefaultFlowConfig(flowType);
-            QH('flowPricingRows', '');
             if (flowType === 'publish') {
                 return;
             } else if (flowType === 'pricing') {
-                managerSetChecked('flowPricingGlobalEnabled', config.globalEnabled !== false);
-                Q('flowPricingCollectTaskId').value = config.collectTaskId || '';
-                Q('flowPricingCollectResultId').value = config.collectResultId || '';
-                var tasks = Array.isArray(config.tasks) ? config.tasks : [];
-                for (var j = 0; j < tasks.length; j++) flowAddPricingTaskRow(tasks[j]);
-                if (tasks.length === 0) flowAddPricingTaskRow({ taskId: 'task_1', enabled: true, referenceProductSelection: 'average', strategy: 'average', priceOffset: 0 });
+                flowLoadPricingTask(flowGetSinglePricingTask(config), config);
             } else {
                 var reply = (config.autoReply || {});
                 Q('flowAutoMode').value = config.mode || 'once';
@@ -3760,10 +3785,9 @@
         }
         function flowBuildConfigFromFields(flowType) {
             if (flowType === 'pricing') return {
-                globalEnabled: Q('flowPricingGlobalEnabled').checked,
-                collectTaskId: Q('flowPricingCollectTaskId').value.trim(),
-                collectResultId: Q('flowPricingCollectResultId').value.trim(),
-                tasks: flowReadPricingRows()
+                globalEnabled: true,
+                myShopId: Q('flowPricingMyShopId').value,
+                tasks: [flowReadSinglePricingTask()]
             };
             if (flowType === 'auto_reply') return {
                 mode: Q('flowAutoMode').value,
@@ -3797,15 +3821,21 @@
         function flowOpenEditorById(id) { for (var i = 0; i < flowState.items.length; i++) { if (String(flowState.items[i].id) === String(id)) { flowOpenEditor(flowState.items[i]); return; } } }
         function flowOpenEditor(flow) {
             managerPopulateDeviceSelect('flowFormDeviceId', flow ? (flow.device_id || flow.deviceId) : '');
+            managerPopulateMyShopSelect('flowFormMyShopId', flow ? (flow.my_shop_id || flow.myShopId || '') : '');
+            managerEnsureMyShopOptions(flow ? (flow.my_shop_id || flow.myShopId || '') : '');
             Q('flowFormId').value = flow ? flow.id : '';
             Q('flowFormName').value = flow ? (flow.name || '') : '';
             Q('flowFormType').value = flow ? (flow.flow_type || flow.flowType || 'publish') : 'publish';
+            Q('flowFormMyShopId').value = flow ? (flow.my_shop_id || flow.myShopId || '') : '';
+            Q('flowFormProductName').value = flow ? (flow.product_name || flow.productName || '') : '';
+            Q('flowFormMyProductName').value = flow ? (flow.my_product_name || flow.myProductName || '') : '';
             Q('flowFormDeviceOs').value = flow ? (flow.device_os || flow.deviceOs || 'macos') : 'macos';
             Q('flowFormScriptPath').value = flow ? (flow.script_path || flow.scriptPath || '') : managerDefaultFlowScriptPath(Q('flowFormType').value, Q('flowFormDeviceOs').value);
             Q('flowFormConfig').value = managerPrettyJson(managerParseJson(typeof (flow ? flow.config : null) === 'string' ? flow.config : JSON.stringify((flow ? flow.config : managerDefaultFlowConfig(Q('flowFormType').value))), managerDefaultFlowConfig(Q('flowFormType').value)));
             Q('flowFormRemark').value = flow ? (flow.remark || '') : '';
             QH('flowModalTitle', flow ? '编辑流程' : '新增流程');
             flowHandleTypeChange();
+            if (Q('flowPricingMyShopId') != null) Q('flowPricingMyShopId').value = flow ? (flow.my_shop_id || flow.myShopId || '') : '';
             flowSetSubmitBusy(false); QV('flowModalMask', true);
         }
         function flowCloseEditor(event) { if (event && event.target && event.target.id !== 'flowModalMask') return; QV('flowModalMask', false); }
@@ -3813,11 +3843,13 @@
             var flowType = Q('flowFormType').value;
             var config = flowBuildConfigFromFields(flowType);
             Q('flowFormConfig').value = managerPrettyJson(config);
-            var payload = { id: Q('flowFormId').value, name: Q('flowFormName').value.trim(), flowType: flowType, deviceId: Q('flowFormDeviceId').value, deviceOs: Q('flowFormDeviceOs').value, scriptPath: flowGetScriptPathValue(), config: Q('flowFormConfig').value.trim(), remark: Q('flowFormRemark').value.trim() };
+            var selectedMyShopId = (flowType === 'pricing') ? Q('flowPricingMyShopId').value : Q('flowFormMyShopId').value;
+            var payload = { id: Q('flowFormId').value, name: Q('flowFormName').value.trim(), flowType: flowType, myShopId: selectedMyShopId, productName: Q('flowFormProductName').value.trim(), myProductName: Q('flowFormMyProductName').value.trim(), deviceId: Q('flowFormDeviceId').value, deviceOs: Q('flowFormDeviceOs').value, scriptPath: flowGetScriptPathValue(), config: Q('flowFormConfig').value.trim(), remark: Q('flowFormRemark').value.trim() };
             if (payload.name === '') { flowShowToast('流程名称不能为空。', true); return; }
             if (payload.deviceId === '') { flowShowToast('目标设备不能为空。', true); return; }
             if (payload.scriptPath === '') { flowShowToast('脚本路径不能为空。', true); return; }
-            flowSetSubmitBusy(true); flowState.pendingAction = payload.id !== '' ? 'flowupdate' : 'flowcreate'; meshserver.send({ action: flowState.pendingAction, id: payload.id, name: payload.name, flowType: payload.flowType, deviceId: payload.deviceId, deviceOs: payload.deviceOs, scriptPath: payload.scriptPath, config: payload.config, remark: payload.remark });
+            if (((flowType === 'publish') || (flowType === 'pricing')) && (payload.productName === '')) { flowShowToast('商品名称不能为空。', true); return; }
+            flowSetSubmitBusy(true); flowState.pendingAction = payload.id !== '' ? 'flowupdate' : 'flowcreate'; meshserver.send({ action: flowState.pendingAction, id: payload.id, name: payload.name, flowType: payload.flowType, myShopId: payload.myShopId, productName: payload.productName, myProductName: payload.myProductName, deviceId: payload.deviceId, deviceOs: payload.deviceOs, scriptPath: payload.scriptPath, config: payload.config, remark: payload.remark });
         }
         function flowConfirmDelete(id) { setDialogMode(2, '删除流程', 3, function (button, tag) { if (button === 1) meshserver.send({ action: 'flowdelete', id: tag }); }, '确认删除该流程吗？删除后将立即刷新列表。', id); }
         function flowShowToast(text, isError) { if (flowState.toastTimer != null) clearTimeout(flowState.toastTimer); QH('flowToast', EscapeHtml(text)); Q('flowToast').className = 'flow-toast' + (isError ? ' flow-toast-error' : ' flow-toast-success'); QV('flowToast', true); flowState.toastTimer = setTimeout(function () { QV('flowToast', false); }, 2800); }
@@ -4947,6 +4979,8 @@
                 }
                 case 'myshoplist': {
                     myShopHandleListResponse(message);
+                    if (Q('flowModalMask') != null && Q('flowModalMask').style.display !== 'none' && Q('flowFormMyShopId') != null) managerPopulateMyShopSelect('flowFormMyShopId', Q('flowFormMyShopId').value || flowState.pendingMyShopId);
+                    if (Q('flowModalMask') != null && Q('flowModalMask').style.display !== 'none' && Q('flowPricingMyShopId') != null) managerPopulateMyShopSelect('flowPricingMyShopId', Q('flowPricingMyShopId').value || flowState.pendingMyShopId);
                     break;
                 }
                 case 'myshopcreate': {

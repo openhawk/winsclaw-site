@@ -7266,7 +7266,7 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
             if (search.length > 128) { obj.send({ action: 'shoplist', result: 'Invalid search.' }); return; }
         }
         if (common.validateInt(command.page, 1, 100000) == true) { page = command.page; }
-        if (common.validateInt(command.limit, 1, 50) == true) { limit = command.limit; }
+        if (common.validateInt(command.limit, 1, 200) == true) { limit = command.limit; }
         db.GetShopList(search, page, limit, function (err, result) {
             if (err != null) { obj.send({ action: 'shoplist', result: err.message ? err.message : 'Unable to load shops.' }); return; }
             obj.send({ action: 'shoplist', search: search, page: page, limit: limit, total: result.total, shops: result.shops });
@@ -7673,6 +7673,9 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         var name = managerGetTextField(command.name || '', 256, false);
         var deviceId = managerGetTextField(command.deviceId || '', 256, false);
         var deviceOs = managerNormalizeDeviceOs(command.deviceOs);
+        var myShopId = managerGetTextField(command.myShopId || '', 64, true) || '';
+        var productName = managerGetTextField(command.productName || '', 512, true) || '';
+        var myProductName = managerGetTextField(command.myProductName || '', 512, true) || '';
         var scriptPath = managerGetTextField(command.scriptPath || '', 2048, false);
         var config = managerGetJsonField(command.config || '{}', {});
         var remark = managerGetTextField(command.remark || '', 4096, true) || '';
@@ -7682,7 +7685,15 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         if (deviceOs == null) return { error: '目标设备系统无效。' };
         if (scriptPath == null || scriptPath === '') return { error: '脚本路径不能为空。' };
         if (config == null || typeof config !== 'object') return { error: '流程配置 JSON 无效。' };
-        return { name: name, flowType: flowType, deviceId: deviceId, deviceOs: deviceOs, scriptPath: scriptPath, config: config, remark: remark };
+        if (((flowType === 'publish') || (flowType === 'pricing')) && (productName === '')) return { error: '商品名称不能为空。' };
+        return { name: name, flowType: flowType, deviceId: deviceId, deviceOs: deviceOs, myShopId: myShopId, productName: productName, myProductName: myProductName, scriptPath: scriptPath, config: config, remark: remark };
+    }
+
+    async function validateFlowPayloadReferences(payload) {
+        if (payload.myShopId) { await managerDbPromise('GetMyShop', payload.myShopId); }
+        if ((payload.flowType === 'publish') || (payload.flowType === 'pricing')) {
+            await managerDbPromise('GetProductByExactName', payload.productName);
+        }
     }
 
     async function managerResolveCollectResultReference(reference, collectType, options) {
@@ -7702,19 +7713,34 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         return result;
     }
 
-    async function managerPreparePublishFlowConfig(flowConfig) {
-        var cloned = {};
-        cloned._meshFlow = { flowType: 'publish', requestedAt: new Date().toISOString() };
-        return { config: cloned, bindings: null };
+    function managerApplyFlowContext(config, flow) {
+        config._meshFlow = config._meshFlow || {};
+        config._meshFlow.flowId = flow.id;
+        config._meshFlow.flowType = flow.flow_type || flow.flowType;
+        config._meshFlow.myShopId = flow.my_shop_id || flow.myShopId || '';
+        config._meshFlow.myShopName = flow.my_shop_name || flow.myShopName || '';
+        config._meshFlow.productName = flow.product_name || flow.productName || '';
+        config._meshFlow.myProductName = flow.my_product_name || flow.myProductName || '';
+        config.myShopId = flow.my_shop_id || flow.myShopId || '';
+        config.myShopName = flow.my_shop_name || flow.myShopName || '';
+        config.productName = flow.product_name || flow.productName || '';
+        config.myProductName = flow.my_product_name || flow.myProductName || '';
+        return config;
     }
 
-    async function managerPreparePricingFlowConfig(flowConfig) {
+    async function managerPreparePublishFlowConfig(flowConfig, flow) {
+        var cloned = {};
+        cloned._meshFlow = { flowType: 'publish', requestedAt: new Date().toISOString() };
+        return { config: managerApplyFlowContext(cloned, flow), bindings: null };
+    }
+
+    async function managerPreparePricingFlowConfig(flowConfig, flow) {
         var cloned = managerCloneJson(flowConfig || {});
         var resolvedResult = await managerResolveCollectResultReference({ collectTaskId: cloned.collectTaskId, collectResultId: cloned.collectResultId }, 'collect_price', { maxAgeDays: 7, requireSyncSuccess: false, notFoundMessage: '调价流程缺少可用的价格采集结果。' });
         cloned.referenceCollectResultId = resolvedResult.id;
         cloned.referenceCollectTaskId = resolvedResult.task_id;
         cloned.referenceCollectData = managerGetJsonField(resolvedResult.data, []);
-        return { config: cloned, bindings: [{ collectTaskId: resolvedResult.task_id, collectResultId: resolvedResult.id }] };
+        return { config: managerApplyFlowContext(cloned, flow), bindings: [{ collectTaskId: resolvedResult.task_id, collectResultId: resolvedResult.id }] };
     }
 
     function managerPrepareAutoReplyFlowConfig(flowConfig) {
@@ -7727,8 +7753,8 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
 
     async function managerPrepareFlowExecution(flow) {
         var flowConfig = managerGetJsonField(flow.config, {});
-        if (flow.flow_type === 'publish') return managerPreparePublishFlowConfig(flowConfig);
-        if (flow.flow_type === 'pricing') return managerPreparePricingFlowConfig(flowConfig);
+        if (flow.flow_type === 'publish') return managerPreparePublishFlowConfig(flowConfig, flow);
+        if (flow.flow_type === 'pricing') return managerPreparePricingFlowConfig(flowConfig, flow);
         return managerPrepareAutoReplyFlowConfig(flowConfig);
     }
 
@@ -7837,9 +7863,13 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
     function serverCommandFlowCreate(command) {
         var payload = getFlowPayload(command);
         if (payload.error != null) { obj.send({ action: 'flowcreate', result: payload.error }); return; }
-        db.CreateFlow(payload, function (err, flow) {
-            if (err != null) { obj.send({ action: 'flowcreate', result: err.message ? err.message : '新增失败。' }); return; }
-            obj.send({ action: 'flowcreate', success: true, flow: flow });
+        validateFlowPayloadReferences(payload).then(function () {
+            db.CreateFlow(payload, function (err, flow) {
+                if (err != null) { obj.send({ action: 'flowcreate', result: err.message ? err.message : '新增失败。' }); return; }
+                obj.send({ action: 'flowcreate', success: true, flow: flow });
+            });
+        }).catch(function (err) {
+            obj.send({ action: 'flowcreate', result: err.message ? err.message : '新增失败。' });
         });
     }
 
@@ -7848,9 +7878,13 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         if (flowId == null) { obj.send({ action: 'flowupdate', result: '无效的流程编号。' }); return; }
         var payload = getFlowPayload(command);
         if (payload.error != null) { obj.send({ action: 'flowupdate', result: payload.error }); return; }
-        db.UpdateFlow(flowId, payload, function (err, flow) {
-            if (err != null) { obj.send({ action: 'flowupdate', result: err.message ? err.message : '保存失败。' }); return; }
-            obj.send({ action: 'flowupdate', success: true, flow: flow });
+        validateFlowPayloadReferences(payload).then(function () {
+            db.UpdateFlow(flowId, payload, function (err, flow) {
+                if (err != null) { obj.send({ action: 'flowupdate', result: err.message ? err.message : '保存失败。' }); return; }
+                obj.send({ action: 'flowupdate', success: true, flow: flow });
+            });
+        }).catch(function (err) {
+            obj.send({ action: 'flowupdate', result: err.message ? err.message : '保存失败。' });
         });
     }
 
