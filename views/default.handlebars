@@ -1607,7 +1607,7 @@
                                 <div id="flowProductFields" class="flow-field flow-field-full manager-fieldset">
                                     <div class="manager-fieldset-title">商品绑定</div>
                                     <div class="manager-inline-grid">
-                                        <label><span>商品名称 <b>*</b></span><input id="flowFormProductName" type="text" maxlength="512" placeholder="必须存在于商品页面" /></label>
+                                        <label><span id="flowFormProductNameLabel">商品名称 <b>*</b></span><input id="flowFormProductName" type="text" maxlength="512" placeholder="必须存在于商品页面" /></label>
                                         <label><span>我的商品名称</span><input id="flowFormMyProductName" type="text" maxlength="512" /></label>
                                     </div>
                                 </div>
@@ -1619,14 +1619,13 @@
                                     <div class="manager-fieldset-title">调价配置</div>
                                     <div class="manager-inline-grid">
                                         <label class="manager-wide"><span>我的商铺</span><select id="flowPricingMyShopId"></select></label>
-                                        <label><span>参考商品关键词</span><input id="flowPricingReferenceKeyword" type="text" /></label>
-                                        <label class="manager-wide"><span>目标商品名称</span><input id="flowPricingTargetProductName" type="text" /></label>
+                                        <label style="display:none"><span>参考商品关键词</span><input id="flowPricingReferenceKeyword" type="text" /></label>
+                                        <label style="display:none" class="manager-wide"><span>目标商品名称</span><input id="flowPricingTargetProductName" type="text" /></label>
                                         <label class="manager-wide"><span>参考店铺列表</span><textarea id="flowPricingReferenceShops" rows="3" placeholder="每行一个店铺名"></textarea></label>
-                                        <label><span>参考商品选择</span><select id="flowPricingReferenceProductSelection"><option value="first">第一项</option><option value="lowest">最低价</option><option value="highest">最高价</option><option value="average">平均价</option></select></label>
-                                        <label><span>调价策略</span><select id="flowPricingStrategy"><option value="average">平均价</option><option value="max">最高价</option><option value="min">最低价</option><option value="fixed">固定价</option></select></label>
+                                        <label><span>参考基准</span><select id="flowPricingReferenceBenchmark"><option value="lowest">最低价</option><option value="highest">最高价</option><option value="average">平均价</option><option value="fixed">固定价</option></select></label>
                                         <label><span>价格偏移</span><input id="flowPricingPriceOffset" type="number" step="any" /></label>
                                         <label><span>固定价格</span><input id="flowPricingFixedPrice" type="number" step="any" /></label>
-                                        <label><span>SKU 策略</span><select id="flowPricingSkuStrategy"><option value="allActive">全部生效规格</option><option value="first">仅第一项规格</option><option value="mainOnly">仅主价格</option></select></label>
+                                        <label><span>商品规格</span><select id="flowPricingSkuStrategy"><option value="allActive">全部生效规格</option><option value="first">仅第一项规格</option><option value="mainOnly">仅主价格</option></select></label>
                                         <label><span>最低限价</span><input id="flowPricingLimitMin" type="number" step="any" /></label>
                                         <label><span>最高限价</span><input id="flowPricingLimitMax" type="number" step="any" /></label>
                                     </div>
@@ -1634,16 +1633,16 @@
                                 <div id="flowAutoReplyFields" class="flow-field flow-field-full manager-fieldset" style="display:none">
                                     <div class="manager-fieldset-title">自动回复配置</div>
                                     <div class="manager-inline-grid">
-                                        <label><span>运行模式</span><select id="flowAutoMode"><option value="once">单次执行</option><option value="resident">常驻监控</option></select></label>
+                                        <label style="display:none"><span>运行模式</span><select id="flowAutoMode"><option value="once">单次执行</option><option value="resident">常驻监控</option></select></label>
                                         <label><span>固定回复文本</span><input id="flowAutoReplyText" type="text" placeholder="您好" /></label>
                                         <label><span>轮询间隔（秒）</span><input id="flowAutoPollInterval" type="number" min="1" step="1" /></label>
                                         <label><span>最大重试次数</span><input id="flowAutoMaxRetries" type="number" min="1" step="1" /></label>
-                                        <label><span>CDP 地址</span><input id="flowAutoCdpUrl" type="text" placeholder="http://127.0.0.1:9222" /></label>
-                                        <label><span>本地状态文件</span><input id="flowAutoStatePath" type="text" /></label>
-                                        <label class="manager-wide"><span>优先打开地址</span><input id="flowAutoPreferredUrl" type="text" /></label>
-                                        <label class="manager-wide"><span>备用打开地址</span><input id="flowAutoFallbackUrl" type="text" /></label>
+                                        <label style="display:none"><span>CDP 地址</span><input id="flowAutoCdpUrl" type="text" placeholder="http://127.0.0.1:9222" /></label>
+                                        <label style="display:none"><span>本地状态文件</span><input id="flowAutoStatePath" type="text" /></label>
+                                        <label style="display:none" class="manager-wide"><span>优先打开地址</span><input id="flowAutoPreferredUrl" type="text" /></label>
+                                        <label style="display:none" class="manager-wide"><span>备用打开地址</span><input id="flowAutoFallbackUrl" type="text" /></label>
                                     </div>
-                                    <div class="manager-checks">
+                                    <div class="manager-checks" style="display:none">
                                         <label><input id="flowAutoEnabled" type="checkbox" /> 启用监控</label>
                                         <label><input id="flowAutoMonitorRecent" type="checkbox" /> 监听最近联系人待回复</label>
                                         <label><input id="flowAutoRequirePendingClear" type="checkbox" /> 待回复状态清空后进入下一轮</label>
@@ -3511,7 +3510,7 @@
             r.sort(function (a, b) { return String(a.name || '').localeCompare(String(b.name || '')); });
             return r;
         }
-        function managerDefaultProjectRoot(deviceOs) { return (deviceOs === 'windows') ? 'C:\\Users\\<user>\\Documents\\ai-bot' : '/Users/<user>/Documents/ai-bot'; }
+        function managerDefaultProjectRoot(deviceOs) { return (deviceOs === 'windows') ? 'D:\\winsclaw-work\\aibot' : '/Users/<user>/Documents/ai-bot'; }
         function managerDefaultCollectScriptPath(collectType, deviceOs) {
             var base = managerDefaultProjectRoot(deviceOs);
             if (deviceOs === 'windows') return base + '\\scripts\\' + (collectType === 'collect_price' ? 'run-collect-price.ps1' : 'run-collect-shop.ps1');
@@ -3689,7 +3688,7 @@
                 x += '<div class="flow-card-meta"><span>系统</span><strong>' + EscapeHtml(deviceOs || '未知') + '</strong></div>';
                 x += '<div class="flow-card-meta"><span>我的店铺</span><strong>' + EscapeHtml(managerGetMyShopLabel(flow.my_shop_id || flow.myShopId || '', flow.my_shop_name || flow.myShopName || '未选择')) + '</strong></div>';
                 if ((flowType === 'publish') || (flowType === 'pricing')) {
-                    x += '<div class="flow-card-meta"><span>商品名称</span><strong>' + EscapeHtml(flow.product_name || flow.productName || '未设置') + '</strong></div>';
+                    x += '<div class="flow-card-meta"><span>' + (flowType === 'pricing' ? '参考商品关键词' : '商品名称') + '</span><strong>' + EscapeHtml(flow.product_name || flow.productName || '未设置') + '</strong></div>';
                     x += '<div class="flow-card-meta"><span>我的商品名称</span><strong>' + EscapeHtml(flow.my_product_name || flow.myProductName || '未设置') + '</strong></div>';
                 }
                 x += '<div class="flow-card-meta"><span>脚本路径</span><strong>' + EscapeHtml(managerCurrentScriptPath(flow.script_path || flow.scriptPath)) + '</strong></div>';
@@ -3718,6 +3717,8 @@
         function flowSetSubmitBusy(busy) { QE('flowSubmitButton', !busy); Q('flowSubmitButton').value = Q('flowSubmitButton').innerText = busy ? '保存中...' : '保存'; }
         function flowSetSectionVisibility(flowType) {
             QV('flowProductFields', (flowType === 'publish') || (flowType === 'pricing'));
+            QH("flowFormProductNameLabel", (flowType === "pricing" ? "参考商品关键词" : "商品名称") + " <b>*</b>");
+            Q("flowFormProductName").placeholder = (flowType === "pricing" ? "" : "必须存在于商品页面");
             QV('flowShopField', flowType !== 'pricing');
             QV('flowPricingFields', flowType === 'pricing');
             QV('flowAutoReplyFields', flowType === 'auto_reply');
@@ -3734,8 +3735,9 @@
             Q('flowPricingReferenceKeyword').value = task.referenceKeyword || '';
             Q('flowPricingTargetProductName').value = task.targetProductName || '';
             Q('flowPricingReferenceShops').value = managerArrayToLines(task.referenceShops || []);
-            Q('flowPricingReferenceProductSelection').value = task.referenceProductSelection || 'average';
-            Q('flowPricingStrategy').value = task.strategy || 'average';
+            var benchmark = task.strategy === "fixed" ? "fixed" : (task.referenceProductSelection || "average");
+            if (benchmark === "lowest" && task.strategy === "max") benchmark = "highest"; // Heuristic for mapping back
+            Q("flowPricingReferenceBenchmark").value = benchmark;
             Q('flowPricingPriceOffset').value = task.priceOffset == null ? 0 : task.priceOffset;
             Q('flowPricingFixedPrice').value = task.fixedPrice == null ? '' : task.fixedPrice;
             Q('flowPricingSkuStrategy').value = task.skuStrategy || 'allActive';
@@ -3748,11 +3750,11 @@
             var task = {
                 taskId: 'task_1',
                 enabled: true,
-                targetProductName: Q('flowPricingTargetProductName').value.trim(),
-                referenceKeyword: Q('flowPricingReferenceKeyword').value.trim(),
+                targetProductName: Q('flowFormMyProductName').value.trim(),
+                referenceKeyword: Q('flowFormProductName').value.trim(),
                 referenceShops: managerLinesToArray(Q('flowPricingReferenceShops').value),
-                referenceProductSelection: Q('flowPricingReferenceProductSelection').value,
-                strategy: Q('flowPricingStrategy').value,
+                referenceProductSelection: Q("flowPricingReferenceBenchmark").value === "fixed" ? "average" : Q("flowPricingReferenceBenchmark").value,
+                strategy: Q("flowPricingReferenceBenchmark").value === "fixed" ? "fixed" : (Q("flowPricingReferenceBenchmark").value === "highest" ? "max" : (Q("flowPricingReferenceBenchmark").value === "lowest" ? "min" : "average")),
                 priceOffset: managerToNumberOrNull(Q('flowPricingPriceOffset').value) || 0,
                 fixedPrice: managerToNumberOrNull(Q('flowPricingFixedPrice').value),
                 duplicateTargetPolicy: 'fail',
@@ -3829,7 +3831,7 @@
             Q('flowFormMyShopId').value = flow ? (flow.my_shop_id || flow.myShopId || '') : '';
             Q('flowFormProductName').value = flow ? (flow.product_name || flow.productName || '') : '';
             Q('flowFormMyProductName').value = flow ? (flow.my_product_name || flow.myProductName || '') : '';
-            Q('flowFormDeviceOs').value = flow ? (flow.device_os || flow.deviceOs || 'macos') : 'macos';
+            Q('flowFormDeviceOs').value = flow ? (flow.device_os || flow.deviceOs || 'windows') : 'windows';
             Q('flowFormScriptPath').value = flow ? (flow.script_path || flow.scriptPath || '') : managerDefaultFlowScriptPath(Q('flowFormType').value, Q('flowFormDeviceOs').value);
             Q('flowFormConfig').value = managerPrettyJson(managerParseJson(typeof (flow ? flow.config : null) === 'string' ? flow.config : JSON.stringify((flow ? flow.config : managerDefaultFlowConfig(Q('flowFormType').value))), managerDefaultFlowConfig(Q('flowFormType').value)));
             Q('flowFormRemark').value = flow ? (flow.remark || '') : '';
@@ -3848,7 +3850,7 @@
             if (payload.name === '') { flowShowToast('流程名称不能为空。', true); return; }
             if (payload.deviceId === '') { flowShowToast('目标设备不能为空。', true); return; }
             if (payload.scriptPath === '') { flowShowToast('脚本路径不能为空。', true); return; }
-            if (((flowType === 'publish') || (flowType === 'pricing')) && (payload.productName === '')) { flowShowToast('商品名称不能为空。', true); return; }
+            if (((flowType === 'publish') || (flowType === 'pricing')) && (payload.productName === '')) { flowShowToast(((flowType === 'pricing') ? '参考商品关键词' : '商品名称') + '不能为空。', true); return; }
             flowSetSubmitBusy(true); flowState.pendingAction = payload.id !== '' ? 'flowupdate' : 'flowcreate'; meshserver.send({ action: flowState.pendingAction, id: payload.id, name: payload.name, flowType: payload.flowType, myShopId: payload.myShopId, productName: payload.productName, myProductName: payload.myProductName, deviceId: payload.deviceId, deviceOs: payload.deviceOs, scriptPath: payload.scriptPath, config: payload.config, remark: payload.remark });
         }
         function flowConfirmDelete(id) { setDialogMode(2, '删除流程', 3, function (button, tag) { if (button === 1) meshserver.send({ action: 'flowdelete', id: tag }); }, '确认删除该流程吗？删除后将立即刷新列表。', id); }
@@ -4062,7 +4064,7 @@
             Q('collectFormId').value = task ? task.id : '';
             Q('collectFormName').value = task ? (task.name || '') : '';
             Q('collectFormType').value = task ? (task.collect_type || task.collectType || 'collect_shop') : 'collect_shop';
-            Q('collectFormDeviceOs').value = task ? (task.device_os || task.deviceOs || 'macos') : 'macos';
+            Q('collectFormDeviceOs').value = task ? (task.device_os || task.deviceOs || 'windows') : 'windows';
             Q('collectFormScriptPath').value = task ? (task.script_path || task.scriptPath || '') : managerDefaultCollectScriptPath(Q('collectFormType').value, Q('collectFormDeviceOs').value);
             Q('collectFormConfig').value = managerPrettyJson(managerParseJson(typeof (task ? task.config : null) === 'string' ? task.config : JSON.stringify((task ? task.config : managerDefaultCollectConfig(Q('collectFormType').value))), managerDefaultCollectConfig(Q('collectFormType').value)));
             Q('collectFormRemark').value = task ? (task.remark || '') : '';
