@@ -3534,8 +3534,8 @@
             return base + '/scripts-mac/run-publish-product.sh';
         }
         function managerDefaultCollectConfig(collectType) {
-            if (collectType === 'collect_price') return { city: '', myLocationAddress: '', priceTasks: [] };
-            return { city: '', myLocationAddress: '', targetShops: [] };
+            if (collectType === 'collect_price') return { city: '苏州市', myLocationAddress: '合景·峰汇国际三期', priceTasks: [] };
+            return { city: '苏州市', myLocationAddress: '合景·峰汇国际三期', targetShops: [] };
         }
         function managerDefaultFlowConfig(flowType) {
             if (flowType === 'pricing') return { globalEnabled: true, myShopId: '', tasks: [{ taskId: 'task_1', enabled: true, referenceProductSelection: 'average', strategy: 'average', priceOffset: 0, duplicateTargetPolicy: 'fail', skuStrategy: 'allActive' }] };
