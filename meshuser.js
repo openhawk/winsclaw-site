@@ -7653,6 +7653,37 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         return JSON.parse(JSON.stringify(value == null ? {} : value));
     }
 
+    function managerNormalizeCollectText(value, maxLen) {
+        if (value == null) return '';
+        value = String(value).trim();
+        if (value.length > maxLen) value = value.substring(0, maxLen);
+        return value;
+    }
+
+    function managerNormalizeCollectConfig(collectType, config) {
+        if (config == null || typeof config !== 'object' || Array.isArray(config)) return null;
+        var normalized = {
+            city: managerNormalizeCollectText(config.city, 128),
+            myLocationAddress: managerNormalizeCollectText(config.myLocationAddress, 256)
+        };
+        if (collectType === 'collect_shop') {
+            var targetShops = Array.isArray(config.targetShops) ? config.targetShops : [];
+            normalized.targetShops = [];
+            for (var i = 0; i < targetShops.length; i++) {
+                var shop = targetShops[i];
+                if (shop == null || typeof shop !== 'object') continue;
+                var item = {
+                    shopName: managerNormalizeCollectText(shop.shopName || shop.name, 256),
+                    keyword: managerNormalizeCollectText(shop.keyword, 256)
+                };
+                if ((item.shopName !== '') || (item.keyword !== '')) normalized.targetShops.push(item);
+            }
+        } else if (collectType === 'collect_price') {
+            normalized.priceTasks = Array.isArray(config.priceTasks) ? managerCloneJson(config.priceTasks) : [];
+        }
+        return normalized;
+    }
+
     function getCollectTaskPayload(command) {
         var collectType = managerGetTextField(command.collectType || '', 32, false);
         var name = managerGetTextField(command.name || '', 256, false);
@@ -7667,6 +7698,8 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         if (deviceOs == null) return { error: '目标设备系统无效。' };
         if (scriptPath == null || scriptPath === '') return { error: '脚本路径不能为空。' };
         if (config == null || typeof config !== 'object') return { error: '采集配置 JSON 无效。' };
+        config = managerNormalizeCollectConfig(collectType, config);
+        if (config == null) return { error: '采集配置 JSON 无效。' };
         return { name: name, collectType: collectType, deviceId: deviceId, deviceOs: deviceOs, scriptPath: scriptPath, config: config, remark: remark };
     }
 
