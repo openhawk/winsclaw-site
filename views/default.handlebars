@@ -3586,6 +3586,9 @@
         function managerTryParseCollectData(output) {
             var trimmed = String(output || '').trim(), parsed = null, match = null;
             if (trimmed === '') return [];
+            match = trimmed.match(/__COLLECT_DATA_JSON_START__\s*([\s\S]*?)\s*__COLLECT_DATA_JSON_END__/);
+            if (match) { try { parsed = JSON.parse(match[1]); } catch (ex0) { } }
+            if (parsed != null) return Array.isArray(parsed) ? parsed : (Array.isArray(parsed.data) ? parsed.data : []);
             try { parsed = JSON.parse(trimmed); } catch (ex) { }
             if (parsed != null) return Array.isArray(parsed) ? parsed : (Array.isArray(parsed.data) ? parsed.data : []);
             match = trimmed.match(/```json\s*([\s\S]*?)```/i);

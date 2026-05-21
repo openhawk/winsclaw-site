@@ -80,6 +80,23 @@ module.exports.CreateDB = function (parent, func) {
         return 0;
     }
 
+    function managerCollectText(value, maxLen) {
+        if (value == null) return '';
+        value = String(value).trim();
+        if ((typeof maxLen == 'number') && (value.length > maxLen)) value = value.substring(0, maxLen);
+        return value;
+    }
+
+    function managerCollectNumber(value, fallback) {
+        if (value == null || value === '') return fallback;
+        const number = Number(value);
+        return Number.isFinite(number) ? number : fallback;
+    }
+
+    function managerCollectArray(value) {
+        return Array.isArray(value) ? value : [];
+    }
+
     function pgQueryAsync(sql, args) {
         return new Promise(function (resolve, reject) {
             Datastore.query(sql, args || [], function (err, results) {
@@ -3689,6 +3706,53 @@ module.exports.CreateDB = function (parent, func) {
             });
         };
 
+        async function syncCollectShopProducts(runRow, data, now) {
+            if ((runRow.collect_type || runRow.collectType) !== 'collect_shop') return { status: null, error: null };
+            const rows = Array.isArray(data) ? data : [];
+            await pgQueryAsync('UPDATE meituan_h5_products SET is_deleted = TRUE, deleted_at = $3, updated_at = $3 WHERE collect_task_id = $1 AND source_type = $2 AND is_deleted = FALSE', [runRow.task_id, 'collect_shop', now]);
+            if (rows.length === 0) return { status: 'success', error: null };
+            const idResult = await pgQueryAsync('SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM meituan_h5_products', []);
+            let nextId = Number(idResult.rows[0].next_id || 1);
+            for (let i = 0; i < rows.length; i++) {
+                const item = rows[i];
+                if (item == null || typeof item !== 'object') continue;
+                const name = managerCollectText(item.productName || item.name, 512);
+                const price = managerCollectNumber(item.price || item.activityPrice, null);
+                if ((name === '') || (price == null)) continue;
+                const sourceKey = managerCollectText(item.sourceKey || (managerCollectText(item.shopName, 128) + '|' + name), 256);
+                const imageUrls = managerCollectArray(item.imageUrls);
+                if (item.mainImageUrl && imageUrls.indexOf(item.mainImageUrl) < 0) imageUrls.unshift(item.mainImageUrl);
+                const requiredAttributes = (item.requiredAttributes && typeof item.requiredAttributes === 'object') ? item.requiredAttributes : [];
+                const values = [
+                    nextId++,
+                    name,
+                    price,
+                    managerCollectNumber(item.originalPrice, null),
+                    managerCollectText(item.description, 4096),
+                    Math.max(0, Math.floor(managerCollectNumber(item.inventory, 1) || 1)),
+                    JSON.stringify(managerCollectArray(item.imagePaths)),
+                    JSON.stringify(imageUrls),
+                    JSON.stringify(managerCollectArray(item.sku)),
+                    JSON.stringify(managerCollectArray(item.skuList)),
+                    JSON.stringify(managerCollectArray(item.categoryPath)),
+                    JSON.stringify(managerCollectArray(item.storeCategoryPath)),
+                    JSON.stringify(requiredAttributes),
+                    managerCollectText(item.entryUrl || item.sourceProductUrl, 2048),
+                    true,
+                    JSON.stringify([]),
+                    managerCollectText(item.sourceUrl || item.sourceProductUrl, 2048),
+                    runRow.task_id,
+                    runRow.id,
+                    sourceKey,
+                    'collect_shop',
+                    now,
+                    now
+                ];
+                await pgQueryAsync('INSERT INTO meituan_h5_products (id, name, price, original_price, description, inventory, image_paths_json, image_urls_json, sku_json, sku_list_json, category_path_json, store_category_path_json, required_attributes_json, entry_url, use_existing_options_only, publish_history_json, source_url, collect_task_id, collect_result_id, collect_source_key, source_type, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9::jsonb, $10::jsonb, $11::jsonb, $12::jsonb, $13::jsonb, $14, $15, $16::jsonb, $17, $18, $19, $20, $21, $22, $23)', values);
+            }
+            return { status: 'success', error: null };
+        }
+
         obj.StartCollectRun = function (task, commandText, func) {
             if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Collect manager requires PostgreSQL.')); return; }
             const resultId = task.preparedResultId || managerMakeId('collectresult');
@@ -3711,7 +3775,15 @@ module.exports.CreateDB = function (parent, func) {
                 const dataCount = managerCountData(data);
                 const finalStatus = updates.status || runRow.status || 'failed';
                 const now = new Date();
-                await pgQueryAsync('UPDATE collect_results SET data = $2::jsonb, data_count = $3, collected_at = $4, status = $5, exit_code = $6, stdout = $7, stderr = $8, result_meta = $9::jsonb WHERE id = $1', [resultId, JSON.stringify(data), dataCount, now, finalStatus, updates.exitCode == null ? null : updates.exitCode, updates.stdout || '', updates.stderr || '', JSON.stringify(updates.resultMeta || {})]);
+                let syncResult = { status: null, error: null };
+                if (finalStatus === 'success') {
+                    try {
+                        syncResult = await syncCollectShopProducts(runRow, data, now);
+                    } catch (syncErr) {
+                        syncResult = { status: 'failed', error: syncErr.message ? syncErr.message : String(syncErr) };
+                    }
+                }
+                await pgQueryAsync('UPDATE collect_results SET data = $2::jsonb, data_count = $3, collected_at = $4, status = $5, exit_code = $6, stdout = $7, stderr = $8, result_meta = $9::jsonb, sync_status = $10, synced_at = $11, sync_error = $12 WHERE id = $1', [resultId, JSON.stringify(data), dataCount, now, finalStatus, updates.exitCode == null ? null : updates.exitCode, updates.stdout || '', updates.stderr || '', JSON.stringify(updates.resultMeta || {}), syncResult.status, syncResult.status === 'success' ? now : null, syncResult.error]);
                 await pgQueryAsync('UPDATE collect_tasks SET last_run_at = $2, last_run_status = $3, last_data_count = $4, updated_at = $2 WHERE id = $1', [runRow.task_id, now, finalStatus, dataCount]);
                 const finalRun = await pgQueryAsync('SELECT * FROM collect_results WHERE id = $1', [resultId]);
                 return finalRun.rows[0];

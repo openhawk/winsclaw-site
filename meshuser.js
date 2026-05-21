@@ -7545,19 +7545,39 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         return normalized.substring(0, index);
     }
 
+    function managerGetScriptProjectRoot(scriptPath, deviceOs) {
+        var scriptDir = managerGetScriptDirectory(scriptPath, deviceOs);
+        var normalized = String(scriptDir || '');
+        if (deviceOs === 'windows') {
+            normalized = normalized.replace(/\//g, '\\');
+            if (/\\scripts(?:-mac)?$/i.test(normalized)) return normalized.replace(/\\scripts(?:-mac)?$/i, '');
+        } else {
+            normalized = normalized.replace(/\\/g, '/');
+            if (/\/scripts(?:-mac)?$/.test(normalized)) return normalized.replace(/\/scripts(?:-mac)?$/, '');
+        }
+        return scriptDir;
+    }
+
+    function managerGetCollectRuntimeDir(projectRoot, deviceOs) {
+        if (deviceOs === 'windows') return String(projectRoot || '').replace(/[\\\/]+$/, '') + '\\runtime\\collect-configs';
+        return String(projectRoot || '').replace(/\/+$/, '') + '/runtime/collect-configs';
+    }
+
     function managerGetScriptArgsTemplate(scriptPath, flowOrCollectType, isPublish) {
         if (isPublish === true) return '';
         return (/\.ps1$/i.test(String(scriptPath || ''))) ? '-ConfigPath "{configPath}"' : '{configPath}';
     }
 
     function managerBuildShellCommand(projectRoot, scriptPath, argsText, configText, recordId, prefix, background) {
-        var configPath = '/tmp/' + prefix + '-' + recordId + '.json';
-        var outputPath = '/tmp/' + prefix + '-' + recordId + '.log';
+        var runtimeDir = managerGetCollectRuntimeDir(projectRoot, 'linux');
+        var configPath = runtimeDir + '/' + prefix + '-' + recordId + '.json';
+        var outputPath = runtimeDir + '/' + prefix + '-' + recordId + '.log';
         var configB64 = Buffer.from(configText, 'utf8').toString('base64');
         var invocation = ((scriptPath.toLowerCase().endsWith('.sh')) ? ('sh "' + managerShellEscape(scriptPath) + '"') : ('"' + managerShellEscape(scriptPath) + '"')) + (argsText ? (' ' + argsText) : '');
         var lines = [];
         lines.push('MC_CONFIG_PATH="' + managerShellEscape(configPath) + '"');
         lines.push('MC_OUTPUT_PATH="' + managerShellEscape(outputPath) + '"');
+        lines.push('mkdir -p "' + managerShellEscape(runtimeDir) + '"');
         lines.push("python3 - <<'PY'\nimport base64\nopen(r'''" + configPath + "''','wb').write(base64.b64decode('" + configB64 + "'))\nPY");
         lines.push('cd "' + managerShellEscape(projectRoot) + '"');
         if (background === true) {
@@ -7572,14 +7592,15 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
             lines.push('printf "__MC_OUTPUT_START__\\n"');
             lines.push('if [ -f "$MC_OUTPUT_PATH" ]; then cat "$MC_OUTPUT_PATH"; fi');
             lines.push('printf "\\n__MC_OUTPUT_END__\\n"');
-            lines.push('rm -f "$MC_OUTPUT_PATH" "$MC_CONFIG_PATH"');
+            lines.push('rm -f "$MC_OUTPUT_PATH"');
         }
         return { commandType: 3, cmds: lines.join('\n'), configPath: configPath, outputPath: outputPath, scriptPath: scriptPath, arguments: argsText ? [configPath] : [] };
     }
 
     function managerBuildPowerShellCommand(projectRoot, scriptPath, argsText, configText, recordId, prefix, background) {
-        var configPath = 'C:\\Windows\\Temp\\' + prefix + '-' + recordId + '.json';
-        var outputPath = 'C:\\Windows\\Temp\\' + prefix + '-' + recordId + '.log';
+        var runtimeDir = managerGetCollectRuntimeDir(projectRoot, 'windows');
+        var configPath = runtimeDir + '\\' + prefix + '-' + recordId + '.json';
+        var outputPath = runtimeDir + '\\' + prefix + '-' + recordId + '.log';
         var configB64 = Buffer.from(configText, 'utf8').toString('base64');
         var psProjectRoot = projectRoot.replace(/\//g, '\\');
         var psScriptPath = scriptPath.replace(/\//g, '\\');
@@ -7594,6 +7615,7 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         lines.push("$OutputPath = '" + managerPowerShellEscape(outputPath) + "'");
         lines.push("$ProjectRoot = '" + managerPowerShellEscape(psProjectRoot) + "'");
         lines.push("$ScriptPath = '" + managerPowerShellEscape(psScriptPath) + "'");
+        lines.push("New-Item -ItemType Directory -Force -Path (Split-Path -Parent $ConfigPath) | Out-Null");
         lines.push("[System.IO.File]::WriteAllText($ConfigPath, [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('" + configB64 + "')))");
         lines.push("Set-Location -Path $ProjectRoot");
         if (background === true) {
@@ -7607,7 +7629,7 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
             lines.push('Write-Output "__MC_OUTPUT_B64_START__"');
             lines.push('if (Test-Path $OutputPath) { [Convert]::ToBase64String([System.IO.File]::ReadAllBytes($OutputPath)) }');
             lines.push('Write-Output "__MC_OUTPUT_B64_END__"');
-            lines.push('Remove-Item -Force -ErrorAction SilentlyContinue $OutputPath, $ConfigPath');
+            lines.push('Remove-Item -Force -ErrorAction SilentlyContinue $OutputPath');
         }
         var encodedCommand = Buffer.from(lines.join("\r\n"), 'utf16le').toString('base64');
         return { commandType: 1, cmds: 'powershell.exe -NoProfile -ExecutionPolicy Bypass -EncodedCommand ' + encodedCommand, configPath: configPath, outputPath: outputPath, scriptPath: psScriptPath, arguments: argsText ? [configPath] : [] };
@@ -7619,9 +7641,10 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         if ((deviceOs === 'windows') && /(^|[\\\/])run-publish-product\.sh$/i.test(scriptPath)) {
             scriptPath = scriptPath.replace(/run-publish-product\.sh$/i, 'run-publish-product.ps1');
         }
-        var projectRoot = managerGetScriptDirectory(scriptPath, deviceOs);
+        var projectRoot = managerGetScriptProjectRoot(scriptPath, deviceOs);
         var configText = JSON.stringify(configObject || {}, null, 2);
-        var configPathToken = (deviceOs === 'windows') ? ('C:\\Windows\\Temp\\' + prefix + '-' + recordId + '.json') : ('/tmp/' + prefix + '-' + recordId + '.json');
+        var runtimeDir = managerGetCollectRuntimeDir(projectRoot, deviceOs);
+        var configPathToken = runtimeDir + (deviceOs === 'windows' ? '\\' : '/') + prefix + '-' + recordId + '.json';
         var argsTemplate = managerGetScriptArgsTemplate(scriptPath, options && options.taskType, options && options.useScriptDefaults === true);
         var replacedArgs = managerReplaceArgsTemplate(argsTemplate, { configPath: configPathToken, projectRoot: projectRoot || '' });
         if (deviceOs === 'windows') { return managerBuildPowerShellCommand(projectRoot, scriptPath, replacedArgs, configText, recordId, prefix, options && options.background === true); }
@@ -7771,7 +7794,12 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
 
     async function managerPreparePricingFlowConfig(flowConfig, flow) {
         var cloned = managerCloneJson(flowConfig || {});
-        var resolvedResult = await managerResolveCollectResultReference({ collectTaskId: cloned.collectTaskId, collectResultId: cloned.collectResultId }, 'collect_price', { maxAgeDays: 7, requireSyncSuccess: false, notFoundMessage: '调价流程缺少可用的价格采集结果。' });
+        var resolvedResult = null;
+        try {
+            resolvedResult = await managerResolveCollectResultReference({ collectTaskId: cloned.collectTaskId, collectResultId: cloned.collectResultId }, 'collect_price', { maxAgeDays: 7, requireSyncSuccess: false, notFoundMessage: '调价流程缺少可用的价格采集结果。' });
+        } catch (ex) {
+            resolvedResult = await managerResolveCollectResultReference({ collectTaskId: cloned.collectTaskId, collectResultId: cloned.collectResultId }, 'collect_shop', { maxAgeDays: 7, requireSyncSuccess: false, notFoundMessage: '调价流程缺少可用的店铺采集价格结果。' });
+        }
         cloned.referenceCollectResultId = resolvedResult.id;
         cloned.referenceCollectTaskId = resolvedResult.task_id;
         cloned.referenceCollectData = managerGetJsonField(resolvedResult.data, []);
