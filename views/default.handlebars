@@ -3329,13 +3329,10 @@
             var x = '';
             for (var i = 0; i < list.length; i++) {
                 var product = list[i];
-                var imagePaths = productSafeJsonParse(product.image_paths_json || product.imagePaths, []);
                 var storeCategoryPath = productSafeJsonParse(product.store_category_path_json || product.storeCategoryPath, []);
                 var attrs = productSafeJsonParse(product.required_attributes_json || product.requiredAttributes, {});
                 var skuList = productSafeJsonParse(product.sku_list_json || product.skuList, []);
-                var cover = productResolveImageSrc((Array.isArray(imagePaths) && imagePaths.length > 0) ? imagePaths[0] : '');
                 x += '<article class="product-card" onclick="productOpenEditorById(\'' + EscapeHtml(String(product.id)) + '\')">';
-                x += '<div class="product-card-cover"><img src="' + EscapeHtml(cover) + '" alt="' + EscapeHtml(product.name || '') + '"></div>';
                 x += '<div class="product-card-body">';
                 x += '<div class="product-card-head"><div><h3>' + EscapeHtml(product.name || '') + '</h3><div class="product-card-category">' + EscapeHtml((attrs.storeName || '未设置店铺') + ' · ' + ((Array.isArray(storeCategoryPath) && storeCategoryPath.length > 0) ? storeCategoryPath.join(' / ') : '未设置分类')) + '</div></div><div class="product-card-prices"><span class="product-price-now">¥' + EscapeHtml(String(product.price == null ? 0 : product.price)) + '</span><span class="product-price-old">' + (product.original_price != null ? ('¥' + EscapeHtml(String(product.original_price))) : '无划线价') + '</span></div></div>';
                 x += '<div class="product-card-meta"><span>库存</span><strong>' + EscapeHtml(String(product.inventory == null ? 1 : product.inventory)) + '</strong></div>';
