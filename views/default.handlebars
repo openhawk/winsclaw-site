@@ -3977,22 +3977,18 @@
             x += '<div class="manager-inline-grid">';
             x += '<label><span>店铺名称</span><input data-field="shopName" type="text" value="' + EscapeHtml(shop.shopName || shop.name || '') + '" /></label>';
             x += '<label><span>搜索关键词</span><input data-field="keyword" type="text" value="' + EscapeHtml(shop.keyword || '') + '" /></label>';
-            x += '<label class="manager-wide"><span>店铺地址/备注</span><input data-field="address" type="text" value="' + EscapeHtml(shop.address || shop.remark || '') + '" /></label>';
-            x += '</div><div class="manager-checks"><label><input data-field="enabled" type="checkbox" /> 启用</label></div></div>';
+            x += '</div></div>';
             Q('collectTargetShopRows').insertAdjacentHTML('beforeend', x);
-            Q(id).querySelector('[data-field="enabled"]').checked = shop.enabled !== false;
         }
         function collectReadTargetShopRows() {
             var rows = Q('collectTargetShopRows').querySelectorAll('.collect-shop-row'), r = [];
             for (var i = 0; i < rows.length; i++) {
                 r.push({
                     shopName: rows[i].querySelector('[data-field="shopName"]').value.trim(),
-                    keyword: rows[i].querySelector('[data-field="keyword"]').value.trim(),
-                    address: rows[i].querySelector('[data-field="address"]').value.trim(),
-                    enabled: rows[i].querySelector('[data-field="enabled"]').checked
+                    keyword: rows[i].querySelector('[data-field="keyword"]').value.trim()
                 });
             }
-            return r.filter(function (x) { return x.shopName !== '' || x.keyword !== '' || x.address !== ''; });
+            return r.filter(function (x) { return x.shopName !== '' || x.keyword !== ''; });
         }
         function collectAddPriceTaskRow(task) {
             task = task || {};
@@ -4036,7 +4032,7 @@
             } else {
                 var shops = Array.isArray(config.targetShops) ? config.targetShops : [];
                 for (var j = 0; j < shops.length; j++) collectAddTargetShopRow(shops[j]);
-                if (shops.length === 0) collectAddTargetShopRow({ enabled: true });
+                if (shops.length === 0) collectAddTargetShopRow({});
             }
         }
         function collectBuildConfigFromFields(collectType) {
