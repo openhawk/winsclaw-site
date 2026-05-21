@@ -1715,7 +1715,7 @@
                             <input id="collectFormId" type="hidden" />
                             <div class="collect-form-grid">
                                 <label class="collect-field"><span>任务名称 <b>*</b></span><input id="collectFormName" type="text" maxlength="256" /></label>
-                                <label class="collect-field"><span>采集类型 <b>*</b></span><select id="collectFormType" onchange="collectHandleTypeChange()"><option value="collect_shop">collect_shop</option><option value="collect_price">collect_price</option></select></label>
+                                <label class="collect-field"><span>采集类型 <b>*</b></span><select id="collectFormType" onchange="collectHandleTypeChange()"><option value="collect_shop">collect_shop</option></select></label>
                                 <label class="collect-field"><span>目标设备 <b>*</b></span><select id="collectFormDeviceId" onchange="collectHandleDeviceChange()"></select></label>
                                 <label class="collect-field"><span>目标系统 <b>*</b></span><select id="collectFormDeviceOs"><option value="macos">macOS</option><option value="windows">Windows</option></select></label>
                                 <label class="collect-field collect-field-full"><span>脚本路径 <b>*</b></span><input id="collectFormScriptPath" type="text" maxlength="2048" placeholder="例如：D:\winsclaw-work\aibot\scripts\run-collect-shop.ps1" /></label>
@@ -4063,7 +4063,7 @@
             managerPopulateDeviceSelect('collectFormDeviceId', task ? (task.device_id || task.deviceId) : '');
             Q('collectFormId').value = task ? task.id : '';
             Q('collectFormName').value = task ? (task.name || '') : '';
-            Q('collectFormType').value = task ? (task.collect_type || task.collectType || 'collect_shop') : 'collect_shop';
+            Q('collectFormType').value = 'collect_shop';
             Q('collectFormDeviceOs').value = task ? (task.device_os || task.deviceOs || 'windows') : 'windows';
             Q('collectFormScriptPath').value = task ? (task.script_path || task.scriptPath || '') : managerDefaultCollectScriptPath(Q('collectFormType').value, Q('collectFormDeviceOs').value);
             Q('collectFormConfig').value = managerPrettyJson(managerParseJson(typeof (task ? task.config : null) === 'string' ? task.config : JSON.stringify((task ? task.config : managerDefaultCollectConfig(Q('collectFormType').value))), managerDefaultCollectConfig(Q('collectFormType').value)));
