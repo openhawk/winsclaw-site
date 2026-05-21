@@ -1544,6 +1544,8 @@
                                 <label class="product-field"><span>主花材 <b>*</b></span><input id="productFormMainFlower" type="text" maxlength="128" /></label>
                                 <label class="product-field"><span>色系 <b>*</b></span><input id="productFormColor" type="text" maxlength="128" /></label>
                                 <label class="product-field"><span>适用人群 <b>*</b></span><input id="productFormAudience" type="text" maxlength="128" /></label>
+                                <label class="product-field"><span>款式 <b>*</b></span><input id="productFormStyle" type="text" maxlength="128" value="花束" /></label>
+                                <label class="product-field"><span>枝数/朵数 <b>*</b></span><input id="productFormQuantity" type="text" maxlength="128" value="1" /></label>
                                 <label class="product-field"><span>默认规格</span><input id="productFormSkuDefault" type="text" maxlength="128" value="默认规格" /></label>
                                 <label class="product-field product-field-full"><span>主图路径</span><textarea id="productFormImagePaths" rows="2" maxlength="1024">./images/mainwelcome.jpg</textarea></label>
                                 <label class="product-field product-field-checkbox"><input id="productFormUseExistingOptionsOnly" type="checkbox" checked="checked" /><span>仅使用已有选项</span></label>
@@ -1723,8 +1725,8 @@
                                     <div class="manager-inline-grid">
                                         <label><span>城市</span><input id="collectConfigCity" type="text" placeholder="例如：苏州市" /></label>
                                         <label><span>定位地址</span><input id="collectConfigLocation" type="text" placeholder="例如：相城区黄埭实验小学" /></label>
-                                        <label><span>输出目录</span><input id="collectConfigOutputPath" type="text" /></label>
-                                        <label class="manager-check-row"><input id="collectConfigSaveToDb" type="checkbox" checked="checked" /> 保存到数据库</label>
+
+
                                     </div>
                                 </div>
                                 <div id="collectShopFields" class="collect-field collect-field-full manager-fieldset">
@@ -3397,6 +3399,8 @@
             Q('productFormMainFlower').value = attrs.mainFlower || '';
             Q('productFormColor').value = attrs.color || '';
             Q('productFormAudience').value = attrs.audience || '';
+            Q('productFormStyle').value = attrs.style || '花束';
+            Q('productFormQuantity').value = attrs.quantity || '1';
             Q('productFormSkuDefault').value = (Array.isArray(sku) && sku.length > 0 && sku[0].value) ? sku[0].value : '默认规格';
             Q('productFormImagePaths').value = Array.isArray(imagePaths) ? imagePaths.join('\n') : defaultProduct.imagePaths.join('\n');
             Q('productFormUseExistingOptionsOnly').checked = product ? ((product.use_existing_options_only !== false) && (product.useExistingOptionsOnly !== false)) : defaultProduct.useExistingOptionsOnly;
@@ -3439,6 +3443,8 @@
                 mainFlower: Q('productFormMainFlower').value.trim(),
                 color: Q('productFormColor').value.trim(),
                 audience: Q('productFormAudience').value.trim(),
+                style: Q('productFormStyle').value.trim(),
+                quantity: Q('productFormQuantity').value.trim(),
                 sku: JSON.stringify([{ name: '规格', value: Q('productFormSkuDefault').value.trim() || '默认规格' }]),
                 skuList: JSON.stringify(productCollectSkuList()),
                 imagePaths: JSON.stringify(productReadLines('productFormImagePaths')),
@@ -3452,10 +3458,10 @@
             if (payload.storeName === '') { productShowToast('所属店铺不能为空。', true); return; }
             if (payload.price === '') { productShowToast('活动价不能为空。', true); return; }
             if (storeCategoryPath.length === 0) { productShowToast('店内分类不能为空。', true); return; }
-            if ((payload.mainFlower === '') || (payload.color === '') || (payload.audience === '')) { productShowToast('主花材、色系、适用人群不能为空。', true); return; }
+            if ((payload.mainFlower === '') || (payload.color === '') || (payload.audience === '') || (payload.style === '') || (payload.quantity === '')) { productShowToast('主花材、色系、适用人群、款式、枝数/朵数不能为空。', true); return; }
             productSetSubmitBusy(true);
             productState.pendingAction = (payload.id !== '') ? 'productupdate' : 'productcreate';
-            meshserver.send({ action: productState.pendingAction, id: payload.id, name: payload.name, storeName: payload.storeName, description: payload.description, price: payload.price, originalPrice: payload.originalPrice, inventory: payload.inventory, categoryPath: payload.categoryPath, storeCategoryPath: payload.storeCategoryPath, mainFlower: payload.mainFlower, color: payload.color, audience: payload.audience, sku: payload.sku, skuList: payload.skuList, imagePaths: payload.imagePaths, imageUrls: payload.imageUrls, entryUrl: payload.entryUrl, sourceUrl: payload.sourceUrl, publishHistory: payload.publishHistory, useExistingOptionsOnly: payload.useExistingOptionsOnly });
+            meshserver.send({ action: productState.pendingAction, id: payload.id, name: payload.name, storeName: payload.storeName, description: payload.description, price: payload.price, originalPrice: payload.originalPrice, inventory: payload.inventory, categoryPath: payload.categoryPath, storeCategoryPath: payload.storeCategoryPath, mainFlower: payload.mainFlower, color: payload.color, audience: payload.audience, style: payload.style, quantity: payload.quantity, sku: payload.sku, skuList: payload.skuList, imagePaths: payload.imagePaths, imageUrls: payload.imageUrls, entryUrl: payload.entryUrl, sourceUrl: payload.sourceUrl, publishHistory: payload.publishHistory, useExistingOptionsOnly: payload.useExistingOptionsOnly });
         }
 
         function productConfirmDelete(id) {
@@ -3528,8 +3534,8 @@
             return base + '/scripts-mac/run-publish-product.sh';
         }
         function managerDefaultCollectConfig(collectType) {
-            if (collectType === 'collect_price') return { city: '', myLocationAddress: '', priceTasks: [], outputPath: './collect-results/price/', saveToDb: true };
-            return { city: '', myLocationAddress: '', targetShops: [], outputPath: './collect-results/shop/', saveToDb: true };
+            if (collectType === 'collect_price') return { city: '', myLocationAddress: '', priceTasks: [] };
+            return { city: '', myLocationAddress: '', targetShops: [] };
         }
         function managerDefaultFlowConfig(flowType) {
             if (flowType === 'pricing') return { globalEnabled: true, myShopId: '', tasks: [{ taskId: 'task_1', enabled: true, referenceProductSelection: 'average', strategy: 'average', priceOffset: 0, duplicateTargetPolicy: 'fail', skuStrategy: 'allActive' }] };
@@ -4019,8 +4025,8 @@
             config = config || managerDefaultCollectConfig(collectType);
             Q('collectConfigCity').value = config.city || '';
             Q('collectConfigLocation').value = config.myLocationAddress || '';
-            Q('collectConfigOutputPath').value = config.outputPath || (collectType === 'collect_price' ? './collect-results/price/' : './collect-results/shop/');
-            managerSetChecked('collectConfigSaveToDb', config.saveToDb !== false);
+
+
             QH('collectTargetShopRows', '');
             QH('collectPriceTaskRows', '');
             if (collectType === 'collect_price') {
@@ -4036,9 +4042,7 @@
         function collectBuildConfigFromFields(collectType) {
             var config = {
                 city: Q('collectConfigCity').value.trim(),
-                myLocationAddress: Q('collectConfigLocation').value.trim(),
-                outputPath: Q('collectConfigOutputPath').value.trim() || (collectType === 'collect_price' ? './collect-results/price/' : './collect-results/shop/'),
-                saveToDb: Q('collectConfigSaveToDb').checked
+                myLocationAddress: Q('collectConfigLocation').value.trim()
             };
             if (collectType === 'collect_price') {
                 config.priceTasks = collectReadPriceTaskRows();

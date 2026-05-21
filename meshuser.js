@@ -7418,6 +7418,8 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         var mainFlower = getShopTextField(command.mainFlower || '', 128);
         var color = getShopTextField(command.color || '', 128);
         var audience = getShopTextField(command.audience || '', 128);
+        var style = getShopTextField(command.style || '', 128);
+        var quantity = getShopTextField(command.quantity || '', 128);
         var price = getProductNumberField(command.price, 0, 999999, false);
         var originalPrice = getProductNumberField(command.originalPrice, 0, 999999, true);
         var inventory = getProductNumberField(command.inventory, 0, 999999, true);
@@ -7431,13 +7433,13 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         if ((name == null) || (name.length === 0)) return { error: '商品名称不能为空。' };
         if ((storeName == null) || (storeName.length === 0)) return { error: '所属店铺不能为空。' };
         if (price == null) return { error: '活动价不能为空。' };
-        if ((mainFlower == null) || (mainFlower.length === 0) || (color == null) || (color.length === 0) || (audience == null) || (audience.length === 0)) return { error: '主花材、色系、适用人群不能为空。' };
+        if ((mainFlower == null) || (mainFlower.length === 0) || (color == null) || (color.length === 0) || (audience == null) || (audience.length === 0) || (style == null) || (style.length === 0) || (quantity == null) || (quantity.length === 0)) return { error: '主花材、色系、适用人群、款式、枝数/朵数不能为空。' };
         if ((description == null) || (imagePaths == null) || (imageUrls == null) || (categoryPath == null) || (storeCategoryPath == null) || (sku == null) || (skuList == null) || (publishHistory == null)) return { error: '表单内容无效。' };
         if (imagePaths.length === 0) { imagePaths = ['./images/mainwelcome.jpg']; }
         if (categoryPath.length === 0) { categoryPath = ['花草园艺', '礼品花', '礼品鲜花']; }
         if (storeCategoryPath.length === 0) return { error: '店内分类不能为空。' };
         if (sku.length === 0) { sku = [{ name: '规格', value: '默认规格' }]; }
-        return { name: name, price: price, originalPrice: originalPrice, description: description, inventory: (inventory == null) ? 1 : inventory, imagePaths: imagePaths, imageUrls: imageUrls, sku: sku, skuList: skuList, categoryPath: categoryPath, storeCategoryPath: storeCategoryPath, requiredAttributes: { mainFlower: mainFlower, color: color, audience: audience, storeName: storeName }, entryUrl: entryUrl || '', useExistingOptionsOnly: getProductBoolField(command.useExistingOptionsOnly, true), publishHistory: publishHistory, sourceUrl: sourceUrl || '' };
+        return { name: name, price: price, originalPrice: originalPrice, description: description, inventory: (inventory == null) ? 1 : inventory, imagePaths: imagePaths, imageUrls: imageUrls, sku: sku, skuList: skuList, categoryPath: categoryPath, storeCategoryPath: storeCategoryPath, requiredAttributes: { mainFlower: mainFlower, color: color, audience: audience, style: style, quantity: quantity, storeName: storeName }, entryUrl: entryUrl || '', useExistingOptionsOnly: getProductBoolField(command.useExistingOptionsOnly, true), publishHistory: publishHistory, sourceUrl: sourceUrl || '' };
     }
 
     function serverCommandProductList(command) {
