@@ -3520,10 +3520,10 @@ module.exports.CreateDB = function (parent, func) {
             if (typeof search != 'string') { search = ''; }
             if (typeof page != 'number' || page < 1) { page = 1; }
             if (typeof limit != 'number' || limit < 1) { limit = 10; }
-            const args = [], where = [];
+            const args = [], where = ['is_deleted = FALSE'];
             search = search.trim();
             if (search != '') { args.push('%' + search + '%'); where.push('name ILIKE $' + args.length); }
-            const whereSql = (where.length > 0) ? (' WHERE ' + where.join(' AND ')) : '';
+            const whereSql = ' WHERE ' + where.join(' AND ');
             Datastore.query('SELECT COUNT(*) AS count FROM meituan_h5_products' + whereSql, args, function (err, countResults) {
                 if (err != null) { func(err); return; }
                 const total = parseInt(countResults.rows[0].count);

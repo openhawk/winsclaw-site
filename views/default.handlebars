@@ -2815,7 +2815,7 @@
 
         var shopState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null };
         var myShopState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null };
-        var productState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null };
+        var productState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, loadTimer: null, loadRetry: 0, pendingAction: null };
         var flowState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, pendingMyShopId: '', currentRunsFlowId: null, runsPage: 1, runsLimit: 10 };
         var collectState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, currentResultsTaskId: null, resultsPage: 1, resultsLimit: 10 };
         var managerExecutionMap = {};
@@ -3266,18 +3266,33 @@
             }, 260);
         }
 
-        function productRefreshList(page) {
+        function productRefreshList(page, isRetry) {
             if (typeof page == 'number') { productState.page = page; }
+            if (isRetry !== true) { productState.loadRetry = 0; }
+            if (productState.loadTimer != null) { clearTimeout(productState.loadTimer); productState.loadTimer = null; }
             productState.loaded = true;
             productState.loading = true;
             QV('productLoadingState', true);
             QV('productEmptyState', false);
             QH('productCardList', '');
             meshserver.send({ action: 'productlist', search: productState.search, page: productState.page, limit: productState.limit });
+            productState.loadTimer = setTimeout(function () {
+                if (productState.loading !== true) return;
+                if (productState.loadRetry < 1) {
+                    productState.loadRetry++;
+                    productRefreshList(productState.page, true);
+                    return;
+                }
+                productState.loading = false;
+                QV('productLoadingState', false);
+                productRender();
+                productShowToast('商品数据加载超时，请稍后重试。', true);
+            }, 12000);
         }
 
         function productHandleListResponse(message) {
             productState.loading = false;
+            if (productState.loadTimer != null) { clearTimeout(productState.loadTimer); productState.loadTimer = null; }
             QV('productLoadingState', false);
             if (message.result != null) {
                 productState.items = [];
