@@ -1455,7 +1455,7 @@ module.exports.CreateDB = function (parent, func) {
             'CREATE TABLE IF NOT EXISTS collect_results (id VARCHAR(64) PRIMARY KEY, task_id VARCHAR(64) NOT NULL REFERENCES collect_tasks(id) ON DELETE RESTRICT, collect_type VARCHAR(32) NOT NULL, data JSONB NOT NULL DEFAULT \'[]\'::jsonb, data_count INT NOT NULL DEFAULT 0, collected_at TIMESTAMP NOT NULL, device_id VARCHAR(256) NOT NULL, status VARCHAR(32) NOT NULL, exit_code INT NULL, stdout TEXT NULL, stderr TEXT NULL, sync_status VARCHAR(32) NULL, synced_at TIMESTAMP NULL, sync_error TEXT NULL, command_text TEXT NULL, result_meta JSONB NOT NULL DEFAULT \'{}\'::jsonb)',
             'CREATE TABLE IF NOT EXISTS flows (id VARCHAR(64) PRIMARY KEY, name VARCHAR(256) NOT NULL, flow_type VARCHAR(32) NOT NULL, device_os VARCHAR(16) NOT NULL, device_id VARCHAR(256) NOT NULL, my_shop_id VARCHAR(64) NULL, product_name TEXT NOT NULL DEFAULT \'\', my_product_name TEXT NOT NULL DEFAULT \'\', script_path TEXT NOT NULL, config JSONB NOT NULL DEFAULT \'{}\'::jsonb, remark TEXT NULL, last_run_at TIMESTAMP NULL, last_run_status VARCHAR(32) NOT NULL DEFAULT \'idle\', last_run_result JSONB NOT NULL DEFAULT \'{}\'::jsonb, active_run_id VARCHAR(64) NULL, is_deleted BOOLEAN NOT NULL DEFAULT FALSE, deleted_at TIMESTAMP NULL, created_at TIMESTAMP NOT NULL, updated_at TIMESTAMP NOT NULL)',
             'CREATE TABLE IF NOT EXISTS flow_runs (id VARCHAR(64) PRIMARY KEY, flow_id VARCHAR(64) NOT NULL REFERENCES flows(id) ON DELETE RESTRICT, flow_type VARCHAR(32) NOT NULL, collect_bindings JSONB NULL, script_path TEXT NULL, arguments JSONB NOT NULL DEFAULT \'[]\'::jsonb, device_id VARCHAR(256) NOT NULL, device_os VARCHAR(16) NOT NULL, status VARCHAR(32) NOT NULL, stdout TEXT NULL, stderr TEXT NULL, exit_code INT NULL, result_summary TEXT NULL, result_json JSONB NULL, session_id VARCHAR(128) NULL, process_id VARCHAR(128) NULL, last_heartbeat_at TIMESTAMP NULL, started_at TIMESTAMP NOT NULL, finished_at TIMESTAMP NULL, stop_reason TEXT NULL)',
-            'CREATE TABLE IF NOT EXISTS meituan_h5_shops (id BIGINT PRIMARY KEY, name TEXT NOT NULL, scheme TEXT NOT NULL, poi_id_str TEXT, source_page_url TEXT NOT NULL DEFAULT \'\', category TEXT NOT NULL DEFAULT \'\', distance_text TEXT NOT NULL DEFAULT \'\', distance_km DOUBLE PRECISION NOT NULL DEFAULT 0, rating_text TEXT NOT NULL DEFAULT \'\', monthly_sales_text TEXT NOT NULL DEFAULT \'\', min_price_tip TEXT NOT NULL DEFAULT \'\', delivery_fee_tip TEXT NOT NULL DEFAULT \'\', delivery_time_tip TEXT NOT NULL DEFAULT \'\', review_highlight TEXT NOT NULL DEFAULT \'\', promo_tags_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, platform_tags_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, phone TEXT NOT NULL DEFAULT \'\', address TEXT NOT NULL DEFAULT \'\', detail_fetched BOOLEAN NOT NULL DEFAULT FALSE, detail_fetched_at TIMESTAMP WITH TIME ZONE, created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(), updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(), detail_status TEXT NOT NULL DEFAULT \'pending\', detail_started_at TIMESTAMP WITH TIME ZONE, detail_last_attempt_at TIMESTAMP WITH TIME ZONE, detail_attempt_count INTEGER NOT NULL DEFAULT 0, detail_error_message TEXT NOT NULL DEFAULT \'\')',
+            'CREATE TABLE IF NOT EXISTS meituan_h5_shops (id BIGINT PRIMARY KEY, name TEXT NOT NULL, scheme TEXT NOT NULL, poi_id_str TEXT, source_page_url TEXT NOT NULL DEFAULT \'\', category TEXT NOT NULL DEFAULT \'\', distance_text TEXT NOT NULL DEFAULT \'\', distance_km DOUBLE PRECISION NOT NULL DEFAULT 0, rating_text TEXT NOT NULL DEFAULT \'\', monthly_sales_text TEXT NOT NULL DEFAULT \'\', min_price_tip TEXT NOT NULL DEFAULT \'\', delivery_fee_tip TEXT NOT NULL DEFAULT \'\', delivery_time_tip TEXT NOT NULL DEFAULT \'\', review_highlight TEXT NOT NULL DEFAULT \'\', promo_tags_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, platform_tags_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, phone TEXT NOT NULL DEFAULT \'\', address TEXT NOT NULL DEFAULT \'\', detail_fetched BOOLEAN NOT NULL DEFAULT FALSE, detail_fetched_at TIMESTAMP WITH TIME ZONE, created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(), updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(), detail_status TEXT NOT NULL DEFAULT \'pending\', detail_started_at TIMESTAMP WITH TIME ZONE, detail_last_attempt_at TIMESTAMP WITH TIME ZONE, detail_attempt_count INTEGER NOT NULL DEFAULT 0, detail_error_message TEXT NOT NULL DEFAULT \'\', is_deleted BOOLEAN NOT NULL DEFAULT FALSE, deleted_at TIMESTAMP WITH TIME ZONE)',
             'CREATE TABLE IF NOT EXISTS my_shops (id VARCHAR(64) PRIMARY KEY, name TEXT NOT NULL, scheme TEXT NOT NULL DEFAULT \'\', poi_id_str TEXT, source_page_url TEXT NOT NULL DEFAULT \'\', category TEXT NOT NULL DEFAULT \'\', distance_text TEXT NOT NULL DEFAULT \'\', distance_km DOUBLE PRECISION NOT NULL DEFAULT 0, rating_text TEXT NOT NULL DEFAULT \'\', monthly_sales_text TEXT NOT NULL DEFAULT \'\', min_price_tip TEXT NOT NULL DEFAULT \'\', delivery_fee_tip TEXT NOT NULL DEFAULT \'\', delivery_time_tip TEXT NOT NULL DEFAULT \'\', review_highlight TEXT NOT NULL DEFAULT \'\', promo_tags_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, platform_tags_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, phone TEXT NOT NULL DEFAULT \'\', address TEXT NOT NULL DEFAULT \'\', detail_fetched BOOLEAN NOT NULL DEFAULT FALSE, detail_fetched_at TIMESTAMP WITH TIME ZONE, created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(), updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(), detail_status TEXT NOT NULL DEFAULT \'manual\', detail_started_at TIMESTAMP WITH TIME ZONE, detail_last_attempt_at TIMESTAMP WITH TIME ZONE, detail_attempt_count INTEGER NOT NULL DEFAULT 0, detail_error_message TEXT NOT NULL DEFAULT \'\', is_deleted BOOLEAN NOT NULL DEFAULT FALSE, deleted_at TIMESTAMP WITH TIME ZONE)',
             'CREATE TABLE IF NOT EXISTS meituan_h5_products (id BIGINT PRIMARY KEY, name TEXT NOT NULL, price NUMERIC(10,2), original_price NUMERIC(10,2), description TEXT, inventory INTEGER, image_paths_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, image_urls_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, sku_json JSONB NOT NULL DEFAULT \'{}\'::jsonb, sku_list_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, category_path_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, store_category_path_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, required_attributes_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, entry_url TEXT, use_existing_options_only BOOLEAN DEFAULT FALSE, publish_history_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, source_url TEXT, collect_task_id VARCHAR(64), collect_result_id VARCHAR(64), collect_source_key VARCHAR(256), source_type VARCHAR(32), created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(), updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(), is_deleted BOOLEAN NOT NULL DEFAULT FALSE, deleted_at TIMESTAMP WITH TIME ZONE)',
             'ALTER TABLE IF EXISTS collect_tasks ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN NOT NULL DEFAULT FALSE',
@@ -1469,6 +1469,8 @@ module.exports.CreateDB = function (parent, func) {
             'ALTER TABLE IF EXISTS collect_tasks DROP COLUMN IF EXISTS script_entries',
             'ALTER TABLE IF EXISTS flows ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN NOT NULL DEFAULT FALSE',
             'ALTER TABLE IF EXISTS flows ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP NULL',
+            'ALTER TABLE IF EXISTS meituan_h5_shops ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN NOT NULL DEFAULT FALSE',
+            'ALTER TABLE IF EXISTS meituan_h5_shops ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE',
             'ALTER TABLE IF EXISTS flows ADD COLUMN IF NOT EXISTS script_path TEXT',
             'ALTER TABLE IF EXISTS flows ADD COLUMN IF NOT EXISTS my_shop_id VARCHAR(64) NULL',
             'ALTER TABLE IF EXISTS flows ADD COLUMN IF NOT EXISTS product_name TEXT NOT NULL DEFAULT \'\'',
@@ -3709,6 +3711,54 @@ module.exports.CreateDB = function (parent, func) {
         async function syncCollectShopProducts(runRow, data, now) {
             if ((runRow.collect_type || runRow.collectType) !== 'collect_shop') return { status: null, error: null };
             const rows = Array.isArray(data) ? data : [];
+            const shopMap = new Map();
+            for (let i = 0; i < rows.length; i++) {
+                const item = rows[i];
+                if (item == null || typeof item !== 'object') continue;
+                const shop = (item.shop && typeof item.shop === 'object') ? item.shop : {};
+                const shopName = managerCollectText(shop.name || item.matchedShopName || item.shopName, 256);
+                if (shopName === '') continue;
+                const poiId = managerCollectText(shop.poiId || shop.poi_id_str || shop.poiIdStr, 128);
+                const shopKey = poiId !== '' ? ('poi:' + poiId) : ('name:' + shopName.toLowerCase());
+                if (!shopMap.has(shopKey)) {
+                    shopMap.set(shopKey, {
+                        name: shopName,
+                        scheme: managerCollectText(shop.scheme, 2048),
+                        poiId: poiId,
+                        sourcePageUrl: managerCollectText(shop.sourcePageUrl || item.sourceUrl || item.sourceProductUrl, 2048),
+                        category: managerCollectText(shop.category, 256),
+                        distanceText: managerCollectText(shop.distanceText, 64),
+                        distanceKm: managerCollectNumber(shop.distanceKm, 0) || 0,
+                        ratingText: managerCollectText(shop.ratingText, 64),
+                        monthlySalesText: managerCollectText(shop.monthlySalesText, 128),
+                        minPriceTip: managerCollectText(shop.minPriceTip, 128),
+                        deliveryFeeTip: managerCollectText(shop.deliveryFeeTip, 128),
+                        deliveryTimeTip: managerCollectText(shop.deliveryTimeTip, 128),
+                        reviewHighlight: managerCollectText(shop.reviewHighlight, 1024),
+                        promoTags: managerCollectArray(shop.promoTags),
+                        platformTags: managerCollectArray(shop.platformTags),
+                        phone: managerCollectText(shop.phone, 128),
+                        address: managerCollectText(shop.address, 512)
+                    });
+                }
+            }
+            if (shopMap.size > 0) {
+                const idResult = await pgQueryAsync('SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM meituan_h5_shops', []);
+                let nextShopId = Number(idResult.rows[0].next_id || 1);
+                for (const shop of shopMap.values()) {
+                    const findArgs = [];
+                    const findWhere = [];
+                    if (shop.poiId !== '') { findArgs.push(shop.poiId); findWhere.push('poi_id_str = $' + findArgs.length); }
+                    findArgs.push(shop.name); findWhere.push('name = $' + findArgs.length);
+                    const existing = await pgQueryAsync('SELECT id FROM meituan_h5_shops WHERE (' + findWhere.join(' OR ') + ') ORDER BY updated_at DESC NULLS LAST, id DESC LIMIT 1', findArgs);
+                    const shopValues = [shop.name, shop.scheme, shop.poiId, shop.sourcePageUrl, shop.category, shop.distanceText, shop.distanceKm, shop.ratingText, shop.monthlySalesText, shop.minPriceTip, shop.deliveryFeeTip, shop.deliveryTimeTip, shop.reviewHighlight, JSON.stringify(shop.promoTags), JSON.stringify(shop.platformTags), shop.phone, shop.address, true, now, now, 'success', now, now, 1, ''];
+                    if (existing.rows && existing.rows.length > 0) {
+                        await pgQueryAsync('UPDATE meituan_h5_shops SET name = $1, scheme = $2, poi_id_str = $3, source_page_url = $4, category = $5, distance_text = $6, distance_km = $7, rating_text = $8, monthly_sales_text = $9, min_price_tip = $10, delivery_fee_tip = $11, delivery_time_tip = $12, review_highlight = $13, promo_tags_json = $14::jsonb, platform_tags_json = $15::jsonb, phone = $16, address = $17, detail_fetched = $18, detail_fetched_at = $19, updated_at = $20, detail_status = $21, detail_started_at = $22, detail_last_attempt_at = $23, detail_attempt_count = $24, detail_error_message = $25, is_deleted = FALSE, deleted_at = NULL WHERE id = $26', shopValues.concat([existing.rows[0].id]));
+                    } else {
+                        await pgQueryAsync('INSERT INTO meituan_h5_shops (id, name, scheme, poi_id_str, source_page_url, category, distance_text, distance_km, rating_text, monthly_sales_text, min_price_tip, delivery_fee_tip, delivery_time_tip, review_highlight, promo_tags_json, platform_tags_json, phone, address, detail_fetched, detail_fetched_at, created_at, updated_at, detail_status, detail_started_at, detail_last_attempt_at, detail_attempt_count, detail_error_message, is_deleted, deleted_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb, $16::jsonb, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, FALSE, NULL)', [nextShopId++].concat(shopValues.slice(0, 19), [now], shopValues.slice(19)));
+                    }
+                }
+            }
             await pgQueryAsync('UPDATE meituan_h5_products SET is_deleted = TRUE, deleted_at = $3, updated_at = $3 WHERE collect_task_id = $1 AND source_type = $2 AND is_deleted = FALSE', [runRow.task_id, 'collect_shop', now]);
             if (rows.length === 0) return { status: 'success', error: null };
             const idResult = await pgQueryAsync('SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM meituan_h5_products', []);
