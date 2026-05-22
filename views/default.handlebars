@@ -4526,6 +4526,9 @@
                     mainUpdate(4);
                 }
                 case 'msg': {
+                    if ((message.type === 'runcommands') && (message.responseid != null) && (managerExecutionMap[message.responseid] != null)) {
+                        if (managerHandleRuncommandsOutput(message) === true) { break; }
+                    }
                     // Check if this is a message from a node
                     if (message.nodeid != null) {
                         var index = -1;
