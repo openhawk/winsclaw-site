@@ -1604,7 +1604,7 @@
                             <input id="flowFormId" type="hidden" />
                             <div class="flow-form-grid">
                                 <label class="flow-field"><span>流程名称 <b>*</b></span><input id="flowFormName" type="text" maxlength="256" /></label>
-                                <label class="flow-field"><span>流程类型 <b>*</b></span><select id="flowFormType" onchange="flowHandleTypeChange()"><option value="publish">publish</option><option value="pricing">pricing</option><option value="auto_reply">auto_reply</option></select></label>
+                                <label class="flow-field"><span>流程类型 <b>*</b></span><select id="flowFormType" onchange="flowHandleTypeChange()"><option value="publish">发布</option><option value="pricing">改价</option><option value="auto_reply">智能客服</option></select></label>
                                 <label id="flowShopField" class="flow-field flow-field-full"><span>我的店铺</span><select id="flowFormMyShopId"></select></label>
                                 <div id="flowProductFields" class="flow-field flow-field-full manager-fieldset">
                                     <div class="manager-fieldset-title">商品绑定</div>
@@ -3554,6 +3554,12 @@
             if (flowType === 'auto_reply') return { mode: 'once', autoReply: { enabled: true, replyText: '您好', pollIntervalSeconds: 3, maxRetries: 3, cdpUrl: 'http://127.0.0.1:9222', preferredUrl: '', fallbackOpenUrl: '', monitorRecentContacts: true, requirePendingClearForNextRound: false, startChromeDebugIfNeeded: true, statePath: './runtime/resident-auto-reply-state.json' } };
             return {};
         }
+        function managerFlowTypeLabel(flowType) {
+            if (flowType === 'publish') return '发布';
+            if (flowType === 'pricing') return '改价';
+            if (flowType === 'auto_reply') return '智能客服';
+            return flowType || '';
+        }
         function managerGetNodeLabel(deviceId) {
             var device = getNodeFromId(deviceId);
             if (device == null) return deviceId || '未选择设备';
@@ -3725,7 +3731,7 @@
                 var flow = list[i], flowType = flow.flow_type || flow.flowType, deviceOs = flow.device_os || flow.deviceOs, lastResult = managerParseJson(typeof flow.last_run_result === 'string' ? flow.last_run_result : JSON.stringify(flow.last_run_result || {}), {});
                 x += '<article class="flow-card">';
                 x += '<div class="flow-card-body">';
-                x += '<div class="flow-card-head"><div><h3>' + EscapeHtml(flow.name || '') + '</h3><div class="flow-card-category">' + EscapeHtml(flowType || '') + ' · ' + EscapeHtml(managerGetNodeLabel(flow.device_id || flow.deviceId)) + '</div></div><div class="flow-card-badges">' + managerRenderStatusBadge('flow', flow.last_run_status || flow.lastRunStatus || 'idle') + '</div></div>';
+                x += '<div class="flow-card-head"><div><h3>' + EscapeHtml(flow.name || '') + '</h3><div class="flow-card-category">' + EscapeHtml(managerFlowTypeLabel(flowType)) + ' · ' + EscapeHtml(managerGetNodeLabel(flow.device_id || flow.deviceId)) + '</div></div><div class="flow-card-badges">' + managerRenderStatusBadge('flow', flow.last_run_status || flow.lastRunStatus || 'idle') + '</div></div>';
                 x += '<div class="flow-card-meta"><span>系统</span><strong>' + EscapeHtml(deviceOs || '未知') + '</strong></div>';
                 x += '<div class="flow-card-meta"><span>我的店铺</span><strong>' + EscapeHtml(managerGetMyShopLabel(flow.my_shop_id || flow.myShopId || '', flow.my_shop_name || flow.myShopName || '未选择')) + '</strong></div>';
                 if ((flowType === 'publish') || (flowType === 'pricing')) {
@@ -3735,7 +3741,7 @@
                 x += '<div class="flow-card-meta"><span>脚本路径</span><strong>' + EscapeHtml(managerCurrentScriptPath(flow.script_path || flow.scriptPath)) + '</strong></div>';
                 x += '<div class="flow-card-meta"><span>上次执行</span><strong>' + EscapeHtml(flow.last_run_at ? new Date(flow.last_run_at).toLocaleString() : '从未执行') + '</strong></div>';
                 x += '<div class="flow-card-meta"><span>摘要</span><strong>' + EscapeHtml(lastResult.resultSummary || '暂无') + '</strong></div>';
-                x += '<div class="flow-card-footer"><div class="flow-card-hints"><span>' + EscapeHtml(flow.flow_type || flow.flowType || '') + '</span></div><div class="flow-card-actions">';
+                x += '<div class="flow-card-footer"><div class="flow-card-hints"><span>' + EscapeHtml(managerFlowTypeLabel(flow.flow_type || flow.flowType)) + '</span></div><div class="flow-card-actions">';
                 x += '<button type="button" class="flow-btn" onclick="flowOpenEditorById(\'' + EscapeHtml(String(flow.id)) + '\')">编辑</button>';
                 x += '<button type="button" class="flow-btn flow-btn-danger" onclick="flowConfirmDelete(\'' + EscapeHtml(String(flow.id)) + '\')">删除</button>';
                 x += '<button type="button" class="flow-btn flow-btn-primary" onclick="flowExecute(\'' + EscapeHtml(String(flow.id)) + '\')">执行</button>';
