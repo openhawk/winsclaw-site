@@ -8042,11 +8042,36 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         });
     }
 
+    function managerValidateExecutableNode(nodeId) {
+        return new Promise(function (resolve, reject) {
+            nodeId = String(nodeId || '').trim();
+            if (nodeId === '') { reject(new Error('流程目标设备为空，请编辑流程重新选择目标设备。')); return; }
+            if (nodeId.indexOf('/') === -1) nodeId = 'node/' + domain.id + '/' + nodeId;
+            if ((nodeId.split('/').length !== 3) || (nodeId.split('/')[1] !== domain.id)) {
+                reject(new Error('流程目标设备不属于当前域，请编辑流程重新选择目标设备。'));
+                return;
+            }
+            parent.GetNodeWithRights(domain, user, nodeId, function (node, rights) {
+                if (node == null) {
+                    reject(new Error('流程目标设备无效或当前账号不可见，请编辑流程重新选择目标设备。'));
+                    return;
+                }
+                if ((rights & MESHRIGHT_REMOTECOMMAND) === 0) {
+                    reject(new Error('当前账号没有该设备的远程命令权限，请授权后再执行流程。'));
+                    return;
+                }
+                resolve(node._id);
+            });
+        });
+    }
+
     function serverCommandFlowPrepareExecute(command) {
         var flowId = managerGetTextField(command.id || '', 128, false);
         if (flowId == null) { obj.send({ action: 'flowprepareexecute', result: '无效的流程编号。' }); return; }
         (async function () {
             var flow = await managerDbPromise('GetFlow', flowId);
+            var nodeId = await managerValidateExecutableNode(flow.device_id || flow.deviceId);
+            flow.device_id = nodeId;
             var runId = managerMakeId('flowrun');
             var prepared = await managerPrepareFlowExecution(flow);
             var remote = managerBuildRemoteCommand(flow.device_os || flow.deviceOs, flow.script_path || flow.scriptPath, prepared.config, runId, 'flow', { background: prepared.background === true, useScriptDefaults: false, taskType: flow.flow_type || flow.flowType });
