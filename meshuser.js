@@ -7558,18 +7558,18 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         return scriptDir;
     }
 
-    function managerGetCollectRuntimeDir(projectRoot, deviceOs) {
-        if (deviceOs === 'windows') return String(projectRoot || '').replace(/[\\\/]+$/, '') + '\\runtime\\collect-configs';
-        return String(projectRoot || '').replace(/\/+$/, '') + '/runtime/collect-configs';
+    function managerGetRuntimeDir(projectRoot, deviceOs, prefix) {
+        var folder = prefix === 'flow' ? 'flow-configs' : 'collect-configs';
+        if (deviceOs === 'windows') return String(projectRoot || '').replace(/[\\\/]+$/, '') + '\\runtime\\' + folder;
+        return String(projectRoot || '').replace(/\/+$/, '') + '/runtime/' + folder;
     }
 
     function managerGetScriptArgsTemplate(scriptPath, flowOrCollectType, isPublish) {
-        if (isPublish === true) return '';
         return (/\.ps1$/i.test(String(scriptPath || ''))) ? '-ConfigPath "{configPath}"' : '{configPath}';
     }
 
     function managerBuildShellCommand(projectRoot, scriptPath, argsText, configText, recordId, prefix, background) {
-        var runtimeDir = managerGetCollectRuntimeDir(projectRoot, 'linux');
+        var runtimeDir = managerGetRuntimeDir(projectRoot, 'linux', prefix);
         var configPath = runtimeDir + '/' + prefix + '-' + recordId + '.json';
         var outputPath = runtimeDir + '/' + prefix + '-' + recordId + '.log';
         var configB64 = Buffer.from(configText, 'utf8').toString('base64');
@@ -7598,7 +7598,7 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
     }
 
     function managerBuildPowerShellCommand(projectRoot, scriptPath, argsText, configText, recordId, prefix, background) {
-        var runtimeDir = managerGetCollectRuntimeDir(projectRoot, 'windows');
+        var runtimeDir = managerGetRuntimeDir(projectRoot, 'windows', prefix);
         var configPath = runtimeDir + '\\' + prefix + '-' + recordId + '.json';
         var outputPath = runtimeDir + '\\' + prefix + '-' + recordId + '.log';
         var configB64 = Buffer.from(configText, 'utf8').toString('base64');
@@ -7643,7 +7643,7 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         }
         var projectRoot = managerGetScriptProjectRoot(scriptPath, deviceOs);
         var configText = JSON.stringify(configObject || {}, null, 2);
-        var runtimeDir = managerGetCollectRuntimeDir(projectRoot, deviceOs);
+        var runtimeDir = managerGetRuntimeDir(projectRoot, deviceOs, prefix);
         var configPathToken = runtimeDir + (deviceOs === 'windows' ? '\\' : '/') + prefix + '-' + recordId + '.json';
         var argsTemplate = managerGetScriptArgsTemplate(scriptPath, options && options.taskType, options && options.useScriptDefaults === true);
         var replacedArgs = managerReplaceArgsTemplate(argsTemplate, { configPath: configPathToken, projectRoot: projectRoot || '' });
@@ -7786,8 +7786,78 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         return config;
     }
 
+    function managerFlowJsonArray(value) {
+        if (Array.isArray(value)) return value;
+        if (typeof value === 'string') {
+            try {
+                var parsed = JSON.parse(value);
+                return Array.isArray(parsed) ? parsed : [];
+            } catch (ex) {
+                return [];
+            }
+        }
+        return [];
+    }
+
+    function managerFlowJsonObject(value) {
+        if ((value != null) && (typeof value === 'object') && (Array.isArray(value) === false)) return value;
+        if (typeof value === 'string') {
+            try {
+                var parsed = JSON.parse(value);
+                return ((parsed != null) && (typeof parsed === 'object') && (Array.isArray(parsed) === false)) ? parsed : {};
+            } catch (ex) {
+                return {};
+            }
+        }
+        return {};
+    }
+
+    function managerPublishRequiredAttributes(value) {
+        if (Array.isArray(value)) return value;
+        var objectValue = managerFlowJsonObject(value);
+        var labels = [
+            ['mainFlower', '主花材'],
+            ['main_flower', '主花材'],
+            ['color', '色系'],
+            ['audience', '适用人群'],
+            ['style', '款式'],
+            ['quantity', '枝数/朵数']
+        ];
+        var result = [], seen = {};
+        for (var i = 0; i < labels.length; i++) {
+            var key = labels[i][0], label = labels[i][1], attrValue = managerNormalizeCollectText(objectValue[key], 128);
+            if ((attrValue !== '') && (seen[label] !== true)) {
+                result.push({ label: label, value: attrValue });
+                seen[label] = true;
+            }
+        }
+        return result;
+    }
+
     async function managerPreparePublishFlowConfig(flowConfig, flow) {
-        var cloned = {};
+        var cloned = managerCloneJson(flowConfig || {});
+        var product = await managerDbPromise('GetProductByExactName', flow.product_name || flow.productName || '');
+        var myShop = null;
+        if (flow.my_shop_id || flow.myShopId) myShop = await managerDbPromise('GetMyShop', flow.my_shop_id || flow.myShopId);
+        cloned.merchant = cloned.merchant || {};
+        if (myShop != null) cloned.merchant.storeName = myShop.name || cloned.merchant.storeName || '';
+        cloned.publishProduct = {
+            name: managerNormalizeCollectText(flow.my_product_name || flow.myProductName || product.name, 512),
+            entryUrl: managerNormalizeCollectText(product.entry_url, 2048) || null,
+            categoryPath: managerFlowJsonArray(product.category_path_json),
+            storeCategoryPath: managerFlowJsonArray(product.store_category_path_json),
+            requiredAttributes: managerPublishRequiredAttributes(product.required_attributes_json),
+            requiredAttributeMappings: managerFlowJsonArray(cloned.requiredAttributeMappings || (cloned.publishProduct && cloned.publishProduct.requiredAttributeMappings)),
+            useExistingOptionsOnly: product.use_existing_options_only !== false,
+            price: Number(product.price || 0),
+            originalPrice: product.original_price == null ? null : Number(product.original_price),
+            inventory: Number(product.inventory || 0),
+            description: product.description || '',
+            sku: managerFlowJsonArray(product.sku_json),
+            skuList: managerFlowJsonArray(product.sku_list_json),
+            imagePaths: managerFlowJsonArray(product.image_paths_json),
+            imageUrls: managerFlowJsonArray(product.image_urls_json)
+        };
         cloned._meshFlow = { flowType: 'publish', requestedAt: new Date().toISOString() };
         return { config: managerApplyFlowContext(cloned, flow), bindings: null };
     }
@@ -7979,7 +8049,7 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
             var flow = await managerDbPromise('GetFlow', flowId);
             var runId = managerMakeId('flowrun');
             var prepared = await managerPrepareFlowExecution(flow);
-            var remote = managerBuildRemoteCommand(flow.device_os || flow.deviceOs, flow.script_path || flow.scriptPath, prepared.config, runId, 'flow', { background: prepared.background === true, useScriptDefaults: (flow.flow_type === 'publish'), taskType: flow.flow_type || flow.flowType });
+            var remote = managerBuildRemoteCommand(flow.device_os || flow.deviceOs, flow.script_path || flow.scriptPath, prepared.config, runId, 'flow', { background: prepared.background === true, useScriptDefaults: false, taskType: flow.flow_type || flow.flowType });
             var runRow = await managerDbPromise('StartFlowRun', flow, { id: runId, collectBindings: prepared.bindings, scriptPath: remote.scriptPath, arguments: remote.arguments, resultSummary: prepared.background === true ? '常驻流程启动中。' : '流程执行中。' });
             return { flow: flow, runRow: runRow, remote: remote, prepared: prepared };
         })().then(function (prepared) {
