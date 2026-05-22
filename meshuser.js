@@ -7631,8 +7631,7 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
             lines.push('Write-Output "__MC_OUTPUT_B64_END__"');
             lines.push('Remove-Item -Force -ErrorAction SilentlyContinue $OutputPath');
         }
-        var encodedCommand = Buffer.from(lines.join("\r\n"), 'utf16le').toString('base64');
-        return { commandType: 1, cmds: 'powershell.exe -NoProfile -ExecutionPolicy Bypass -EncodedCommand ' + encodedCommand, configPath: configPath, outputPath: outputPath, scriptPath: psScriptPath, arguments: argsText ? [configPath] : [] };
+        return { commandType: 2, cmds: lines.join("\r\n"), configPath: configPath, outputPath: outputPath, scriptPath: psScriptPath, arguments: argsText ? [configPath] : [] };
     }
 
     function managerBuildRemoteCommand(deviceOs, scriptPath, configObject, recordId, prefix, options) {
