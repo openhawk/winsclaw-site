@@ -3772,7 +3772,13 @@ module.exports.CreateDB = function (parent, func) {
                 const sourceKey = managerCollectText(item.sourceKey || (managerCollectText(item.shopName, 128) + '|' + name), 256);
                 const imageUrls = managerCollectArray(item.imageUrls);
                 if (item.mainImageUrl && imageUrls.indexOf(item.mainImageUrl) < 0) imageUrls.unshift(item.mainImageUrl);
-                const requiredAttributes = (item.requiredAttributes && typeof item.requiredAttributes === 'object') ? item.requiredAttributes : [];
+                const requiredAttributes = (item.requiredAttributes && typeof item.requiredAttributes === 'object' && Array.isArray(item.requiredAttributes) === false) ? Object.assign({}, item.requiredAttributes) : {};
+                const shop = (item.shop && typeof item.shop === 'object') ? item.shop : {};
+                const productShopName = managerCollectText(requiredAttributes.storeName || shop.name || item.matchedShopName || item.shopName, 256);
+                if (productShopName !== '') requiredAttributes.storeName = productShopName;
+                if (!requiredAttributes.mainFlower) requiredAttributes.mainFlower = '待补充';
+                if (!requiredAttributes.color) requiredAttributes.color = '未设色系';
+                if (!requiredAttributes.audience) requiredAttributes.audience = '待补充';
                 const values = [
                     nextId++,
                     name,
