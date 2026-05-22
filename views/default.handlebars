@@ -2816,7 +2816,7 @@
         var shopState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null };
         var myShopState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null };
         var productState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, loadTimer: null, loadRetry: 0, pendingAction: null };
-        var flowState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, pendingMyShopId: '', currentRunsFlowId: null, runsPage: 1, runsLimit: 10 };
+        var flowState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, loadTimer: null, loadRetry: 0, pendingAction: null, pendingMyShopId: '', currentRunsFlowId: null, runsPage: 1, runsLimit: 10 };
         var collectState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, currentResultsTaskId: null, resultsPage: 1, resultsLimit: 10 };
         var managerExecutionMap = {};
 
@@ -3682,9 +3682,29 @@
             if (flowState.loaded !== true) flowRefreshList(1); else flowRender();
         }
         function flowHandleSearchInput() { if (flowState.searchTimer != null) clearTimeout(flowState.searchTimer); flowState.searchTimer = setTimeout(function () { flowState.search = Q('flowSearchInput').value.trim(); flowRefreshList(1); }, 260); }
-        function flowRefreshList(page) { if (typeof page === 'number') flowState.page = page; flowState.loaded = true; flowState.loading = true; QV('flowLoadingState', true); QV('flowEmptyState', false); QH('flowCardList', ''); meshserver.send({ action: 'flowlist', search: flowState.search, page: flowState.page, limit: flowState.limit }); }
+        function flowRefreshList(page, isRetry) {
+            if (typeof page === 'number') flowState.page = page;
+            if (isRetry !== true) flowState.loadRetry = 0;
+            if (flowState.loadTimer != null) { clearTimeout(flowState.loadTimer); flowState.loadTimer = null; }
+            flowState.loaded = true; flowState.loading = true; QV('flowLoadingState', true); QV('flowEmptyState', false); QH('flowCardList', '');
+            meshserver.send({ action: 'flowlist', search: flowState.search, page: flowState.page, limit: flowState.limit });
+            flowState.loadTimer = setTimeout(function () {
+                if (flowState.loading !== true) return;
+                if (flowState.loadRetry < 1) {
+                    flowState.loadRetry++;
+                    flowRefreshList(flowState.page, true);
+                    return;
+                }
+                flowState.loading = false;
+                QV('flowLoadingState', false);
+                flowRender();
+                flowShowToast('流程数据加载超时，请稍后重试。', true);
+            }, 12000);
+        }
         function flowHandleListResponse(message) {
-            flowState.loading = false; QV('flowLoadingState', false);
+            flowState.loading = false;
+            if (flowState.loadTimer != null) { clearTimeout(flowState.loadTimer); flowState.loadTimer = null; }
+            QV('flowLoadingState', false);
             if (message.result != null) { flowState.items = []; flowState.total = 0; flowShowToast(message.result, true); } else { flowState.items = Array.isArray(message.flows) ? message.flows : []; flowState.total = typeof message.total === 'number' ? message.total : 0; if (typeof message.page === 'number') flowState.page = message.page; }
             flowRender();
         }
