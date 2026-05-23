@@ -7805,6 +7805,20 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         return [];
     }
 
+    function managerPublishImagePaths(value) {
+        var paths = managerFlowJsonArray(value), result = [];
+        for (var i = 0; i < paths.length; i++) {
+            var item = managerNormalizeCollectText(paths[i], 512);
+            if (item === '') continue;
+            if ((item.indexOf('/') >= 0) || (item.indexOf('\\') >= 0) || (/^[A-Za-z]:[\\/]/.test(item))) {
+                result.push(item.replace(/\\/g, '/'));
+            } else {
+                result.push('runtime/images/' + item);
+            }
+        }
+        return result;
+    }
+
     function managerFlowJsonObject(value) {
         if ((value != null) && (typeof value === 'object') && (Array.isArray(value) === false)) return value;
         if (typeof value === 'string') {
@@ -7861,7 +7875,7 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
             description: product.description || '',
             sku: managerFlowJsonArray(product.sku_json),
             skuList: managerFlowJsonArray(product.sku_list_json),
-            imagePaths: managerFlowJsonArray(product.image_paths_json),
+            imagePaths: managerPublishImagePaths(product.image_paths_json),
             imageUrls: managerFlowJsonArray(product.image_urls_json)
         };
         cloned._meshFlow = { flowType: 'publish', requestedAt: new Date().toISOString() };
