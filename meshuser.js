@@ -7615,21 +7615,28 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         lines.push("$OutputPath = '" + managerPowerShellEscape(outputPath) + "'");
         lines.push("$ProjectRoot = '" + managerPowerShellEscape(psProjectRoot) + "'");
         lines.push("$ScriptPath = '" + managerPowerShellEscape(psScriptPath) + "'");
+        lines.push("$ScriptArgs = @('-ConfigPath', $ConfigPath)");
         lines.push("New-Item -ItemType Directory -Force -Path (Split-Path -Parent $ConfigPath) | Out-Null");
         lines.push("[System.IO.File]::WriteAllText($ConfigPath, [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('" + configB64 + "')))");
         lines.push("Set-Location -Path $ProjectRoot");
         if (background === true) {
-            lines.push("$proc = Start-Process -FilePath 'powershell.exe' -WorkingDirectory $ProjectRoot -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',$ScriptPath" + (argsText ? (',' + argsText.split(' ').filter(function (s) { return s !== ''; }).map(function (s) { return "'" + managerPowerShellEscape(s.replace(/^"|"$/g, '')) + "'"; }).join(',')) : '') + ") -PassThru -WindowStyle Hidden");
+            lines.push("$proc = Start-Process -FilePath 'powershell.exe' -WorkingDirectory $ProjectRoot -ArgumentList (@('-NoProfile','-ExecutionPolicy','Bypass','-File',$ScriptPath) + $ScriptArgs) -PassThru -WindowStyle Hidden");
             lines.push('Write-Output ("__MC_PROCESS_ID__:" + $proc.Id)');
             lines.push('Write-Output "__MC_EXIT_CODE__:0"');
         } else {
-            lines.push('& $ScriptPath ' + argsText + ' *>&1 | Out-File -FilePath $OutputPath -Encoding UTF8');
-            lines.push('$MCExitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }');
+            lines.push("$StdoutPath = $OutputPath + '.stdout'");
+            lines.push("$StderrPath = $OutputPath + '.stderr'");
+            lines.push("$proc = Start-Process -FilePath 'powershell.exe' -WorkingDirectory $ProjectRoot -ArgumentList (@('-NoProfile','-ExecutionPolicy','Bypass','-File',$ScriptPath) + $ScriptArgs) -RedirectStandardOutput $StdoutPath -RedirectStandardError $StderrPath -Wait -PassThru -WindowStyle Hidden");
+            lines.push("$MCExitCode = if ($null -ne $proc.ExitCode) { [int]$proc.ExitCode } else { -1 }");
+            lines.push("$stdoutText = if (Test-Path $StdoutPath) { Get-Content -LiteralPath $StdoutPath -Raw -Encoding UTF8 } else { '' }");
+            lines.push("$stderrText = if (Test-Path $StderrPath) { Get-Content -LiteralPath $StderrPath -Raw -Encoding UTF8 } else { '' }");
+            lines.push("$combinedText = $stdoutText + $(if ($stderrText.Trim()) { \"`r`n[stderr]`r`n\" + $stderrText } else { '' })");
+            lines.push("[System.IO.File]::WriteAllText($OutputPath, $combinedText, [System.Text.UTF8Encoding]::new($false))");
             lines.push('Write-Output ("__MC_EXIT_CODE__:" + $MCExitCode)');
             lines.push('Write-Output "__MC_OUTPUT_B64_START__"');
             lines.push('if (Test-Path $OutputPath) { [Convert]::ToBase64String([System.IO.File]::ReadAllBytes($OutputPath)) }');
             lines.push('Write-Output "__MC_OUTPUT_B64_END__"');
-            lines.push('Remove-Item -Force -ErrorAction SilentlyContinue $OutputPath');
+            lines.push('Remove-Item -Force -ErrorAction SilentlyContinue $OutputPath, $StdoutPath, $StderrPath');
         }
         return { commandType: 2, cmds: lines.join("\r\n"), configPath: configPath, outputPath: outputPath, scriptPath: psScriptPath, arguments: argsText ? [configPath] : [] };
     }
