@@ -174,7 +174,7 @@
             <div id="LeftMenuShopManager" tabindex="0" class="lbbutton" title="店铺管理" onmouseup="go(100,event)" onkeypress="if (event.key=='Enter') { go(100); }">
                 <div class="lbtg lb7 lb-shop"></div>
             </div>
-            <div id="LeftMenuMyShopManager" tabindex="0" class="lbbutton" title="我的店铺" onmouseup="go(104,event)" onkeypress="if (event.key=='Enter') { go(104); }">
+            <div id="LeftMenuMyShopManager" tabindex="0" class="lbbutton" title="大明的店铺" onmouseup="go(104,event)" onkeypress="if (event.key=='Enter') { go(104); }">
                 <div class="lbtg lb-myshop"></div>
             </div>
             <div id="LeftMenuProductManager" tabindex="0" class="lbbutton" title="商品管理" onmouseup="go(101,event)" onkeypress="if (event.key=='Enter') { go(101); }">
@@ -239,7 +239,7 @@
                             <td tabindex="0" id="MainMenuMyUsers" class="topbar_td style3x" onmouseup="go(4,event)" onkeypress="if (event.key == 'Enter') go(4)">我的用户</td>
                             <td tabindex="0" id="MainMenuMyServer" class="topbar_td style3x" onmouseup="go(6,event)" onkeypress="if (event.key == 'Enter') go(6)">我的服务器</td>
                             <td tabindex="0" id="MainMenuShopManager" class="topbar_td style3x" onmouseup="go(100,event)" onkeypress="if (event.key == 'Enter') go(100)">店铺管理</td>
-                            <td tabindex="0" id="MainMenuMyShopManager" class="topbar_td style3x" onmouseup="go(104,event)" onkeypress="if (event.key == 'Enter') go(104)">我的店铺</td>
+                            <td tabindex="0" id="MainMenuMyShopManager" class="topbar_td style3x" onmouseup="go(104,event)" onkeypress="if (event.key == 'Enter') go(104)">大明的店铺</td>
                             <td tabindex="0" id="MainMenuProductManager" class="topbar_td style3x" onmouseup="go(101,event)" onkeypress="if (event.key == 'Enter') go(101)">商品管理</td>
                             <td tabindex="0" id="MainMenuFlowManager" class="topbar_td style3x" onmouseup="go(102,event)" onkeypress="if (event.key == 'Enter') go(102)">流程管理</td>
                             <td tabindex="0" id="MainMenuCollectManager" class="topbar_td style3x" onmouseup="go(103,event)" onkeypress="if (event.key == 'Enter') go(103)">采集管理</td>
@@ -1428,7 +1428,7 @@
                 <div class="shop-page-shell">
                     <div class="shop-page-top">
                         <div>
-                            <h1 class="shop-page-title">我的店铺</h1>
+                            <h1 class="shop-page-title">大明的店铺</h1>
                             <div class="shop-page-subtitle">独立维护本地使用的店铺资料，不影响店铺管理采集数据。</div>
                         </div>
                         <div class="shop-toolbar-actions">
@@ -1437,13 +1437,13 @@
                     </div>
                     <div class="shop-toolbar">
                         <div class="shop-search">
-                            <input id="myShopSearchInput" type="search" placeholder="搜索我的店铺" autocomplete="off" oninput="myShopHandleSearchInput()" />
+                            <input id="myShopSearchInput" type="search" placeholder="搜索大明的店铺" autocomplete="off" oninput="myShopHandleSearchInput()" />
                         </div>
                         <div class="shop-toolbar-meta" id="myShopToolbarMeta">共 0 家店铺</div>
                     </div>
-                    <div id="myShopLoadingState" class="shop-state shop-state-loading" style="display:none">正在加载我的店铺...</div>
+                    <div id="myShopLoadingState" class="shop-state shop-state-loading" style="display:none">正在加载大明的店铺...</div>
                     <div id="myShopEmptyState" class="shop-state shop-empty" style="display:none">
-                        <div class="shop-empty-title">暂无我的店铺</div>
+                        <div class="shop-empty-title">暂无大明的店铺</div>
                         <div class="shop-empty-text">点击右上角“新增店铺”，维护本地脚本使用的店铺资料。</div>
                     </div>
                     <div id="myShopCardList" class="shop-card-grid"></div>
@@ -1455,7 +1455,7 @@
                         <div class="shop-modal-header">
                             <div>
                                 <div id="myShopModalTitle" class="shop-modal-title">新增店铺</div>
-                                <div class="shop-modal-subtitle">保存到独立“我的店铺”表，编号自动生成字符串。</div>
+                                <div class="shop-modal-subtitle">保存到独立“大明的店铺”表，编号自动生成字符串。</div>
                             </div>
                             <button type="button" class="shop-modal-close" onclick="myShopCloseEditor()">×</button>
                         </div>
@@ -1605,7 +1605,7 @@
                             <div class="flow-form-grid">
                                 <label class="flow-field"><span>流程名称 <b>*</b></span><input id="flowFormName" type="text" maxlength="256" /></label>
                                 <label class="flow-field"><span>流程类型 <b>*</b></span><select id="flowFormType" onchange="flowHandleTypeChange()"><option value="publish">发布</option><option value="pricing">改价</option><option value="auto_reply">智能客服</option></select></label>
-                                <label id="flowShopField" class="flow-field flow-field-full"><span>我的店铺</span><select id="flowFormMyShopId"></select></label>
+                                <label id="flowShopField" class="flow-field flow-field-full"><span>大明的店铺</span><select id="flowFormMyShopId"></select></label>
                                 <div id="flowProductFields" class="flow-field flow-field-full manager-fieldset">
                                     <div class="manager-fieldset-title">商品绑定</div>
                                     <div class="manager-inline-grid">
@@ -3089,7 +3089,7 @@
             }
             if (kind !== 'delete') { myShopCloseEditor(); }
             if (kind === 'create') { myShopState.page = 1; }
-            myShopShowToast(kind === 'create' ? '我的店铺新增成功。' : (kind === 'update' ? '我的店铺保存成功。' : '我的店铺删除成功。'), false);
+            myShopShowToast(kind === 'create' ? '大明的店铺新增成功。' : (kind === 'update' ? '大明的店铺保存成功。' : '大明的店铺删除成功。'), false);
             myShopRefreshList(myShopState.page);
         }
 
@@ -3110,7 +3110,7 @@
                 var businessHours = shopGetBusinessHours(shop);
                 var phone = (shop.phone && shop.phone !== '') ? EscapeHtml(shop.phone) : '暂未填写';
                 var rating = (shop.rating_text && shop.rating_text !== '') ? EscapeHtml(shop.rating_text) : '暂无评分';
-                var sales = (shop.monthly_sales_text && shop.monthly_sales_text !== '') ? EscapeHtml(shop.monthly_sales_text) : '我的店铺';
+                var sales = (shop.monthly_sales_text && shop.monthly_sales_text !== '') ? EscapeHtml(shop.monthly_sales_text) : '大明的店铺';
                 x += '<article class="shop-card" onclick="myShopOpenEditorById(\'' + EscapeHtml(String(shop.id)) + '\')">';
                 x += '<div class="shop-card-body">';
                 x += '<div class="shop-card-head"><div><h3>' + EscapeHtml(shop.name) + '</h3><div class="shop-card-category">' + EscapeHtml(shop.category || '浪漫鲜花') + '</div></div>';
@@ -3160,7 +3160,7 @@
             Q('myShopFormAddress').value = parts.address || '';
             Q('myShopFormCategory').value = shop ? (shop.category || '') : '';
             Q('myShopFormBusinessHours').value = shop ? (shop.review_highlight || '') : '';
-            QH('myShopModalTitle', shop ? '编辑我的店铺' : '新增我的店铺');
+            QH('myShopModalTitle', shop ? '编辑大明的店铺' : '新增大明的店铺');
             myShopSetSubmitBusy(false);
             QV('myShopModalMask', true);
         }
@@ -3197,10 +3197,10 @@
             for (var i = 0; i < myShopState.items.length; i++) {
                 if (String(myShopState.items[i].id) === String(id)) { shopName = myShopState.items[i].name; break; }
             }
-            setDialogMode(2, '删除我的店铺', 3, function (button, tag) {
+            setDialogMode(2, '删除大明的店铺', 3, function (button, tag) {
                 if (button !== 1) return;
                 meshserver.send({ action: 'myshopdelete', id: tag });
-            }, '确认删除我的店铺“' + EscapeHtml(shopName) + '”吗？删除后将立即刷新列表。', id);
+            }, '确认删除大明的店铺“' + EscapeHtml(shopName) + '”吗？删除后将立即刷新列表。', id);
         }
 
         function myShopShowToast(text, isError) {
@@ -3587,7 +3587,7 @@
             return fallback || shopId || '未选择';
         }
         function managerPopulateMyShopSelect(selectId, selectedId) {
-            var options = '<option value="">请选择我的店铺</option>', list = myShopState.items || [];
+            var options = '<option value="">请选择大明的店铺</option>', list = myShopState.items || [];
             for (var i = 0; i < list.length; i++) {
                 options += '<option value="' + EscapeHtml(String(list[i].id)) + '"' + ((selectedId && String(list[i].id) === String(selectedId)) ? ' selected="selected"' : '') + '>' + EscapeHtml(list[i].name || list[i].id) + '</option>';
             }
@@ -3733,7 +3733,7 @@
                 x += '<div class="flow-card-body">';
                 x += '<div class="flow-card-head"><div><h3>' + EscapeHtml(flow.name || '') + '</h3><div class="flow-card-category">' + EscapeHtml(managerFlowTypeLabel(flowType)) + ' · ' + EscapeHtml(managerGetNodeLabel(flow.device_id || flow.deviceId)) + '</div></div><div class="flow-card-badges">' + managerRenderStatusBadge('flow', flow.last_run_status || flow.lastRunStatus || 'idle') + '</div></div>';
                 x += '<div class="flow-card-meta"><span>系统</span><strong>' + EscapeHtml(deviceOs || '未知') + '</strong></div>';
-                x += '<div class="flow-card-meta"><span>我的店铺</span><strong>' + EscapeHtml(managerGetMyShopLabel(flow.my_shop_id || flow.myShopId || '', flow.my_shop_name || flow.myShopName || '未选择')) + '</strong></div>';
+                x += '<div class="flow-card-meta"><span>大明的店铺</span><strong>' + EscapeHtml(managerGetMyShopLabel(flow.my_shop_id || flow.myShopId || '', flow.my_shop_name || flow.myShopName || '未选择')) + '</strong></div>';
                 if ((flowType === 'publish') || (flowType === 'pricing')) {
                     x += '<div class="flow-card-meta"><span>' + (flowType === 'pricing' ? '参考商品关键词' : '商品名称') + '</span><strong>' + EscapeHtml(flow.product_name || flow.productName || '未设置') + '</strong></div>';
                     x += '<div class="flow-card-meta"><span>我的商品名称</span><strong>' + EscapeHtml(flow.my_product_name || flow.myProductName || '未设置') + '</strong></div>';

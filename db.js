@@ -3512,7 +3512,7 @@ module.exports.CreateDB = function (parent, func) {
             if (obj.databaseType != DB_POSTGRESQL) { func(new Error('My shop manager requires PostgreSQL.')); return; }
             Datastore.query('SELECT * FROM my_shops WHERE id = $1 AND is_deleted = FALSE', [shopId], function (err, results) {
                 if (err != null) { func(err); return; }
-                if ((results.rows == null) || (results.rows.length === 0)) { func(new Error('我的店铺不存在。')); return; }
+                if ((results.rows == null) || (results.rows.length === 0)) { func(new Error('大明的店铺不存在。')); return; }
                 func(null, results.rows[0]);
             });
         };
