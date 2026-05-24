@@ -7436,7 +7436,7 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         if ((mainFlower == null) || (mainFlower.length === 0) || (color == null) || (color.length === 0) || (audience == null) || (audience.length === 0) || (style == null) || (style.length === 0) || (quantity == null) || (quantity.length === 0)) return { error: '主花材、色系、适用人群、款式、枝数/朵数不能为空。' };
         if ((description == null) || (imagePaths == null) || (imageUrls == null) || (categoryPath == null) || (storeCategoryPath == null) || (sku == null) || (skuList == null) || (publishHistory == null)) return { error: '表单内容无效。' };
         if (imagePaths.length === 0) { imagePaths = ['./images/mainwelcome.jpg']; }
-        if (categoryPath.length === 0) { categoryPath = ['花草园艺', '礼品花', '礼品鲜花']; }
+        if (categoryPath.length === 0) { categoryPath = ['花卉园艺', '礼品花', '礼品鲜花']; }
         if (storeCategoryPath.length === 0) return { error: '店内分类不能为空。' };
         if (sku.length === 0) { sku = [{ name: '规格', value: '默认规格' }]; }
         return { name: name, price: price, originalPrice: originalPrice, description: description, inventory: (inventory == null) ? 1 : inventory, imagePaths: imagePaths, imageUrls: imageUrls, sku: sku, skuList: skuList, categoryPath: categoryPath, storeCategoryPath: storeCategoryPath, requiredAttributes: { mainFlower: mainFlower, color: color, audience: audience, style: style, quantity: quantity, storeName: storeName }, entryUrl: entryUrl || '', useExistingOptionsOnly: getProductBoolField(command.useExistingOptionsOnly, true), publishHistory: publishHistory, sourceUrl: sourceUrl || '' };
@@ -7819,6 +7819,12 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         return result;
     }
 
+    function managerNormalizePublishCategoryPath(value) {
+        var path = managerFlowJsonArray(value);
+        if (path.length === 0) return ['花卉园艺', '礼品花', '礼品鲜花'];
+        return path;
+    }
+
     function managerFlowJsonObject(value) {
         if ((value != null) && (typeof value === 'object') && (Array.isArray(value) === false)) return value;
         if (typeof value === 'string') {
@@ -7864,7 +7870,7 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         cloned.publishProduct = {
             name: managerNormalizeCollectText(flow.my_product_name || flow.myProductName || product.name, 512),
             entryUrl: managerNormalizeCollectText(product.entry_url, 2048) || null,
-            categoryPath: managerFlowJsonArray(product.category_path_json),
+            categoryPath: managerNormalizePublishCategoryPath(product.category_path_json),
             storeCategoryPath: managerFlowJsonArray(product.store_category_path_json),
             requiredAttributes: managerPublishRequiredAttributes(product.required_attributes_json),
             requiredAttributeMappings: managerFlowJsonArray(cloned.requiredAttributeMappings || (cloned.publishProduct && cloned.publishProduct.requiredAttributeMappings)),
