@@ -7713,7 +7713,7 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
                     searchMode = keyword !== '' ? 'keyword' : (categoryKeyword !== '' ? 'category' : 'keyword');
                 }
                 if (searchValue === '') searchValue = searchMode === 'category' ? categoryKeyword : keyword;
-                keyword = searchMode === 'keyword' ? searchValue : '';
+                keyword = searchValue;
                 categoryKeyword = searchMode === 'category' ? searchValue : '';
                 var item = {
                     shopName: managerNormalizeCollectText(shop.shopName || shop.name, 256),
