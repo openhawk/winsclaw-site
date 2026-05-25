@@ -3425,7 +3425,7 @@ module.exports.CreateDB = function (parent, func) {
             if (obj.databaseType != DB_POSTGRESQL) { func(new Error('My shop manager requires PostgreSQL.')); return; }
             if (typeof search != 'string') { search = ''; }
             if (typeof page != 'number' || page < 1) { page = 1; }
-            if (typeof limit != 'number' || limit < 1) { limit = 10; }
+            if (typeof limit != 'number' || limit < 1) { limit = 12; }
             const args = [], where = ['is_deleted = FALSE'];
             search = search.trim();
             if (search != '') { args.push('%' + search + '%'); where.push('name ILIKE $' + args.length); }

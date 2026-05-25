@@ -7260,7 +7260,7 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
     function serverCommandShopList(command) {
         var search = '';
         var page = 1;
-        var limit = 10;
+        var limit = 12;
         if (typeof command.search == 'string') {
             search = command.search.trim();
             if (search.length > 128) { obj.send({ action: 'shoplist', result: 'Invalid search.' }); return; }
