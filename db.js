@@ -97,6 +97,31 @@ module.exports.CreateDB = function (parent, func) {
         return Array.isArray(value) ? value : [];
     }
 
+    function managerIsPublishPlaceholder(value) {
+        const text = managerCollectText(value, 128);
+        if (text === '') return true;
+        return ['待补充', '未设色系', '未设置', '未知', '无', '暂无', 'null', 'undefined'].indexOf(text.toLowerCase()) >= 0;
+    }
+
+    function managerDefaultPublishAttribute(key) {
+        const defaults = {
+            mainFlower: '其他主花材',
+            color: '其他',
+            audience: '朋友/同事',
+            style: '花束',
+            quantity: '1朵'
+        };
+        return defaults[key] || '';
+    }
+
+    function managerNormalizePublishRequiredAttributes(requiredAttributes) {
+        const attrs = (requiredAttributes && typeof requiredAttributes === 'object' && Array.isArray(requiredAttributes) === false) ? Object.assign({}, requiredAttributes) : {};
+        ['mainFlower', 'color', 'audience', 'style', 'quantity'].forEach(function (key) {
+            if (managerIsPublishPlaceholder(attrs[key])) attrs[key] = managerDefaultPublishAttribute(key);
+        });
+        return attrs;
+    }
+
     function pgQueryAsync(sql, args) {
         return new Promise(function (resolve, reject) {
             Datastore.query(sql, args || [], function (err, results) {
@@ -3776,13 +3801,10 @@ module.exports.CreateDB = function (parent, func) {
                 const sourceKey = managerCollectText(item.sourceKey || (managerCollectText(item.shopName, 128) + '|' + name), 256);
                 const imageUrls = managerCollectArray(item.imageUrls);
                 if (item.mainImageUrl && imageUrls.indexOf(item.mainImageUrl) < 0) imageUrls.unshift(item.mainImageUrl);
-                const requiredAttributes = (item.requiredAttributes && typeof item.requiredAttributes === 'object' && Array.isArray(item.requiredAttributes) === false) ? Object.assign({}, item.requiredAttributes) : {};
+                const requiredAttributes = managerNormalizePublishRequiredAttributes(item.requiredAttributes);
                 const shop = (item.shop && typeof item.shop === 'object') ? item.shop : {};
                 const productShopName = managerCollectText(requiredAttributes.storeName || shop.name || item.matchedShopName || item.shopName, 256);
                 if (productShopName !== '') requiredAttributes.storeName = productShopName;
-                if (!requiredAttributes.mainFlower) requiredAttributes.mainFlower = '待补充';
-                if (!requiredAttributes.color) requiredAttributes.color = '未设色系';
-                if (!requiredAttributes.audience) requiredAttributes.audience = '待补充';
                 const values = [
                     nextId++,
                     name,
