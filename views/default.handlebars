@@ -4043,24 +4043,45 @@
         function collectGetScriptPathValue() { return Q('collectFormScriptPath').value.trim(); }
         function collectAddTargetShopRow(shop) {
             shop = (typeof shop === 'string') ? { shopName: shop } : (shop || {});
+            var searchMode = 'keyword';
+            var searchValue = '';
+            if (shop.searchMode === 'category') {
+                searchMode = 'category';
+                searchValue = shop.searchValue || shop.categoryKeyword || shop.searchCategory || shop.category || '';
+            } else if (shop.searchMode === 'keyword') {
+                searchMode = 'keyword';
+                searchValue = shop.searchValue || shop.keyword || '';
+            } else if (shop.keyword) {
+                searchMode = 'keyword';
+                searchValue = shop.keyword || '';
+            } else if (shop.categoryKeyword || shop.searchCategory || shop.category) {
+                searchMode = 'category';
+                searchValue = shop.categoryKeyword || shop.searchCategory || shop.category || '';
+            }
             var id = 'collectShopRow_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
             var x = '<div id="' + id + '" class="manager-repeat-card collect-shop-row">';
             x += '<div class="manager-repeat-head"><strong>目标店铺</strong><button type="button" class="collect-btn collect-btn-danger" onclick="Q(\'' + id + '\').remove()">删除</button></div>';
-            x += '<div class="manager-inline-grid">';
+            x += '<div class="manager-inline-grid collect-shop-inline-grid">';
             x += '<label><span>店铺名称</span><input data-field="shopName" type="text" value="' + EscapeHtml(shop.shopName || shop.name || '') + '" /></label>';
-            x += '<label><span>搜索关键词</span><input data-field="keyword" type="text" value="' + EscapeHtml(shop.keyword || '') + '" /></label>';
+            x += '<label><span>搜索方式</span><select data-field="searchMode"><option value="keyword"' + (searchMode === 'keyword' ? ' selected="selected"' : '') + '>搜索关键词</option><option value="category"' + (searchMode === 'category' ? ' selected="selected"' : '') + '>搜索类目</option></select></label>';
+            x += '<label><span>搜索内容</span><input data-field="searchValue" type="text" value="' + EscapeHtml(searchValue) + '" /></label>';
             x += '</div></div>';
             Q('collectTargetShopRows').insertAdjacentHTML('beforeend', x);
         }
         function collectReadTargetShopRows() {
             var rows = Q('collectTargetShopRows').querySelectorAll('.collect-shop-row'), r = [];
             for (var i = 0; i < rows.length; i++) {
+                var searchMode = rows[i].querySelector('[data-field="searchMode"]').value;
+                var searchValue = rows[i].querySelector('[data-field="searchValue"]').value.trim();
                 r.push({
                     shopName: rows[i].querySelector('[data-field="shopName"]').value.trim(),
-                    keyword: rows[i].querySelector('[data-field="keyword"]').value.trim()
+                    searchMode: searchMode,
+                    searchValue: searchValue,
+                    keyword: searchMode === 'keyword' ? searchValue : '',
+                    categoryKeyword: searchMode === 'category' ? searchValue : ''
                 });
             }
-            return r.filter(function (x) { return x.shopName !== '' || x.keyword !== ''; });
+            return r.filter(function (x) { return x.shopName !== '' || x.searchValue !== ''; });
         }
         function collectAddPriceTaskRow(task) {
             task = task || {};

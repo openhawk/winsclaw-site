@@ -7705,11 +7705,24 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
             for (var i = 0; i < targetShops.length; i++) {
                 var shop = targetShops[i];
                 if (shop == null || typeof shop !== 'object') continue;
+                var searchMode = managerNormalizeCollectText(shop.searchMode, 32);
+                var keyword = managerNormalizeCollectText(shop.keyword, 256);
+                var categoryKeyword = managerNormalizeCollectText(shop.categoryKeyword || shop.searchCategory || shop.category, 256);
+                var searchValue = managerNormalizeCollectText(shop.searchValue, 256);
+                if ((searchMode !== 'keyword') && (searchMode !== 'category')) {
+                    searchMode = keyword !== '' ? 'keyword' : (categoryKeyword !== '' ? 'category' : 'keyword');
+                }
+                if (searchValue === '') searchValue = searchMode === 'category' ? categoryKeyword : keyword;
+                keyword = searchMode === 'keyword' ? searchValue : '';
+                categoryKeyword = searchMode === 'category' ? searchValue : '';
                 var item = {
                     shopName: managerNormalizeCollectText(shop.shopName || shop.name, 256),
-                    keyword: managerNormalizeCollectText(shop.keyword, 256)
+                    searchMode: searchMode,
+                    searchValue: searchValue,
+                    keyword: keyword,
+                    categoryKeyword: categoryKeyword
                 };
-                if ((item.shopName !== '') || (item.keyword !== '')) normalized.targetShops.push(item);
+                if ((item.shopName !== '') || (item.searchValue !== '') || (item.keyword !== '') || (item.categoryKeyword !== '')) normalized.targetShops.push(item);
             }
         } else if (collectType === 'collect_price') {
             normalized.priceTasks = Array.isArray(config.priceTasks) ? managerCloneJson(config.priceTasks) : [];

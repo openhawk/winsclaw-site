@@ -4398,6 +4398,7 @@ a {
 .manager-fieldset-title { font-size: 16px; font-weight: 800; color: #18324f; }
 .manager-section-header, .manager-repeat-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .manager-inline-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 12px; }
+.collect-shop-inline-grid { grid-template-columns: minmax(0, 1.1fr) minmax(180px, 0.7fr) minmax(0, 1.1fr); align-items: end; }
 .manager-inline-grid label { display: flex; flex-direction: column; gap: 8px; color: #2f4b69; font-weight: 600; }
 .manager-inline-grid .manager-check-row { flex-direction: row; align-items: center; margin-top: 28px; }
 .manager-inline-grid .manager-wide { grid-column: 1 / -1; }
@@ -4442,6 +4443,10 @@ a {
     }
 
     .manager-inline-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .collect-shop-inline-grid {
         grid-template-columns: 1fr;
     }
 }
