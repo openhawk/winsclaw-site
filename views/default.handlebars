@@ -1610,7 +1610,12 @@
                             <div class="flow-form-grid">
                                 <label class="flow-field"><span>流程名称 <b>*</b></span><input id="flowFormName" type="text" maxlength="256" /></label>
                                 <label class="flow-field"><span>流程类型 <b>*</b></span><select id="flowFormType" onchange="flowHandleTypeChange()"><option value="publish">上架新品</option><option value="pricing">商圈调价</option><option value="auto_reply">智能客服</option></select></label>
-                                <label id="flowShopField" class="flow-field flow-field-full"><span>大明的店铺</span><select id="flowFormMyShopId"></select></label>
+                                <div id="flowShopField" class="flow-field flow-field-full">
+                                    <div class="manager-inline-grid">
+                                        <label><span>大明的店铺</span><select id="flowFormMyShopId" onchange="flowHandleMyShopChange()"></select></label>
+                                        <label><span>花店类目</span><input id="flowFormShopCategory" type="text" maxlength="256" placeholder="例如：浪漫鲜花" /></label>
+                                    </div>
+                                </div>
                                 <div id="flowProductFields" class="flow-field flow-field-full manager-fieldset">
                                     <div class="manager-fieldset-title">商品绑定</div>
                                     <div class="manager-inline-grid">
@@ -3593,6 +3598,12 @@
             }
             return fallback || shopId || '未选择';
         }
+        function managerGetMyShopCategory(shopId, fallback) {
+            for (var i = 0; i < myShopState.items.length; i++) {
+                if (String(myShopState.items[i].id) === String(shopId)) return myShopState.items[i].category || fallback || '';
+            }
+            return fallback || '';
+        }
         function managerPopulateMyShopSelect(selectId, selectedId) {
             var options = '<option value="">请选择大明的店铺</option>', list = myShopState.items || [];
             for (var i = 0; i < list.length; i++) {
@@ -3741,6 +3752,7 @@
                 x += '<div class="flow-card-head"><div><h3>' + EscapeHtml(flow.name || '') + '</h3><div class="flow-card-category">' + EscapeHtml(managerFlowTypeLabel(flowType)) + ' · ' + EscapeHtml(managerGetNodeLabel(flow.device_id || flow.deviceId)) + '</div></div><div class="flow-card-badges">' + managerRenderStatusBadge('flow', flow.last_run_status || flow.lastRunStatus || 'idle') + '</div></div>';
                 x += '<div class="flow-card-meta"><span>系统</span><strong>' + EscapeHtml(deviceOs || '未知') + '</strong></div>';
                 x += '<div class="flow-card-meta"><span>大明的店铺</span><strong>' + EscapeHtml(managerGetMyShopLabel(flow.my_shop_id || flow.myShopId || '', flow.my_shop_name || flow.myShopName || '未选择')) + '</strong></div>';
+                x += '<div class="flow-card-meta"><span>花店类目</span><strong>' + EscapeHtml(flow.shop_category || flow.shopCategory || '未设置') + '</strong></div>';
                 if ((flowType === 'publish') || (flowType === 'pricing')) {
                     x += '<div class="flow-card-meta"><span>' + (flowType === 'pricing' ? '参考商品关键词' : '商品名称') + '</span><strong>' + EscapeHtml(flow.product_name || flow.productName || '未设置') + '</strong></div>';
                     x += '<div class="flow-card-meta"><span>我的商品名称</span><strong>' + EscapeHtml(flow.my_product_name || flow.myProductName || '未设置') + '</strong></div>';
@@ -3863,6 +3875,16 @@
             };
             return {};
         }
+        function flowSyncShopCategoryFromShop(force) {
+            if (Q('flowFormShopCategory') == null || Q('flowFormMyShopId') == null) return;
+            var currentValue = Q('flowFormShopCategory').value.trim();
+            var selectedShopId = Q('flowFormMyShopId').value;
+            var shopCategory = selectedShopId ? managerGetMyShopCategory(selectedShopId, '') : '';
+            if (force === true || currentValue === '') Q('flowFormShopCategory').value = shopCategory || '';
+        }
+        function flowHandleMyShopChange() {
+            flowSyncShopCategoryFromShop(false);
+        }
         function flowHandleTypeChange() {
             var flowType = Q('flowFormType').value;
             flowSetSectionVisibility(flowType);
@@ -3883,6 +3905,7 @@
             Q('flowFormName').value = flow ? (flow.name || '') : '';
             Q('flowFormType').value = flow ? (flow.flow_type || flow.flowType || 'publish') : 'publish';
             Q('flowFormMyShopId').value = flow ? (flow.my_shop_id || flow.myShopId || '') : '';
+            Q('flowFormShopCategory').value = flow ? (flow.shop_category || flow.shopCategory || '') : '';
             Q('flowFormProductName').value = flow ? (flow.product_name || flow.productName || '') : '';
             Q('flowFormMyProductName').value = flow ? (flow.my_product_name || flow.myProductName || '') : '';
             Q('flowFormDeviceOs').value = flow ? (flow.device_os || flow.deviceOs || 'windows') : 'windows';
@@ -3891,6 +3914,7 @@
             Q('flowFormRemark').value = flow ? (flow.remark || '') : '';
             QH('flowModalTitle', flow ? '编辑流程' : '新增流程');
             flowHandleTypeChange();
+            flowSyncShopCategoryFromShop(!flow || !(flow.shop_category || flow.shopCategory));
             if (Q('flowPricingMyShopId') != null) Q('flowPricingMyShopId').value = flow ? (flow.my_shop_id || flow.myShopId || '') : '';
             flowSetSubmitBusy(false); QV('flowModalMask', true);
         }
@@ -3900,12 +3924,12 @@
             var config = flowBuildConfigFromFields(flowType);
             Q('flowFormConfig').value = managerPrettyJson(config);
             var selectedMyShopId = (flowType === 'pricing') ? Q('flowPricingMyShopId').value : Q('flowFormMyShopId').value;
-            var payload = { id: Q('flowFormId').value, name: Q('flowFormName').value.trim(), flowType: flowType, myShopId: selectedMyShopId, productName: Q('flowFormProductName').value.trim(), myProductName: Q('flowFormMyProductName').value.trim(), deviceId: Q('flowFormDeviceId').value, deviceOs: Q('flowFormDeviceOs').value, scriptPath: flowGetScriptPathValue(), config: Q('flowFormConfig').value.trim(), remark: Q('flowFormRemark').value.trim() };
+            var payload = { id: Q('flowFormId').value, name: Q('flowFormName').value.trim(), flowType: flowType, myShopId: selectedMyShopId, shopCategory: Q('flowFormShopCategory').value.trim(), productName: Q('flowFormProductName').value.trim(), myProductName: Q('flowFormMyProductName').value.trim(), deviceId: Q('flowFormDeviceId').value, deviceOs: Q('flowFormDeviceOs').value, scriptPath: flowGetScriptPathValue(), config: Q('flowFormConfig').value.trim(), remark: Q('flowFormRemark').value.trim() };
             if (payload.name === '') { flowShowToast('流程名称不能为空。', true); return; }
             if (payload.deviceId === '') { flowShowToast('目标设备不能为空。', true); return; }
             if (payload.scriptPath === '') { flowShowToast('脚本路径不能为空。', true); return; }
             if (((flowType === 'publish') || (flowType === 'pricing')) && (payload.productName === '')) { flowShowToast(((flowType === 'pricing') ? '参考商品关键词' : '商品名称') + '不能为空。', true); return; }
-            flowSetSubmitBusy(true); flowState.pendingAction = payload.id !== '' ? 'flowupdate' : 'flowcreate'; meshserver.send({ action: flowState.pendingAction, id: payload.id, name: payload.name, flowType: payload.flowType, myShopId: payload.myShopId, productName: payload.productName, myProductName: payload.myProductName, deviceId: payload.deviceId, deviceOs: payload.deviceOs, scriptPath: payload.scriptPath, config: payload.config, remark: payload.remark });
+            flowSetSubmitBusy(true); flowState.pendingAction = payload.id !== '' ? 'flowupdate' : 'flowcreate'; meshserver.send({ action: flowState.pendingAction, id: payload.id, name: payload.name, flowType: payload.flowType, myShopId: payload.myShopId, shopCategory: payload.shopCategory, productName: payload.productName, myProductName: payload.myProductName, deviceId: payload.deviceId, deviceOs: payload.deviceOs, scriptPath: payload.scriptPath, config: payload.config, remark: payload.remark });
         }
         function flowConfirmDelete(id) { setDialogMode(2, '删除流程', 3, function (button, tag) { if (button === 1) meshserver.send({ action: 'flowdelete', id: tag }); }, '确认删除该流程吗？删除后将立即刷新列表。', id); }
         function flowShowToast(text, isError) { if (flowState.toastTimer != null) clearTimeout(flowState.toastTimer); QH('flowToast', EscapeHtml(text)); Q('flowToast').className = 'flow-toast' + (isError ? ' flow-toast-error' : ' flow-toast-success'); QV('flowToast', true); flowState.toastTimer = setTimeout(function () { QV('flowToast', false); }, 2800); }
@@ -5034,6 +5058,7 @@
                     myShopHandleListResponse(message);
                     if (Q('flowModalMask') != null && Q('flowModalMask').style.display !== 'none' && Q('flowFormMyShopId') != null) managerPopulateMyShopSelect('flowFormMyShopId', Q('flowFormMyShopId').value || flowState.pendingMyShopId);
                     if (Q('flowModalMask') != null && Q('flowModalMask').style.display !== 'none' && Q('flowPricingMyShopId') != null) managerPopulateMyShopSelect('flowPricingMyShopId', Q('flowPricingMyShopId').value || flowState.pendingMyShopId);
+                    if (Q('flowModalMask') != null && Q('flowModalMask').style.display !== 'none') flowSyncShopCategoryFromShop(false);
                     break;
                 }
                 case 'myshopcreate': {

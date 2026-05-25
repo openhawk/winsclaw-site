@@ -7742,6 +7742,7 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         var deviceId = managerGetTextField(command.deviceId || '', 256, false);
         var deviceOs = managerNormalizeDeviceOs(command.deviceOs);
         var myShopId = managerGetTextField(command.myShopId || '', 64, true) || '';
+        var shopCategory = managerGetTextField(command.shopCategory || '', 256, true) || '';
         var productName = managerGetTextField(command.productName || '', 512, true) || '';
         var myProductName = managerGetTextField(command.myProductName || '', 512, true) || '';
         var scriptPath = managerGetTextField(command.scriptPath || '', 2048, false);
@@ -7754,7 +7755,7 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         if (scriptPath == null || scriptPath === '') return { error: '脚本路径不能为空。' };
         if (config == null || typeof config !== 'object') return { error: '流程配置 JSON 无效。' };
         if (((flowType === 'publish') || (flowType === 'pricing')) && (productName === '')) return { error: '商品名称不能为空。' };
-        return { name: name, flowType: flowType, deviceId: deviceId, deviceOs: deviceOs, myShopId: myShopId, productName: productName, myProductName: myProductName, scriptPath: scriptPath, config: config, remark: remark };
+        return { name: name, flowType: flowType, deviceId: deviceId, deviceOs: deviceOs, myShopId: myShopId, shopCategory: shopCategory, productName: productName, myProductName: myProductName, scriptPath: scriptPath, config: config, remark: remark };
     }
 
     async function validateFlowPayloadReferences(payload) {
@@ -7787,10 +7788,12 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         config._meshFlow.flowType = flow.flow_type || flow.flowType;
         config._meshFlow.myShopId = flow.my_shop_id || flow.myShopId || '';
         config._meshFlow.myShopName = flow.my_shop_name || flow.myShopName || '';
+        config._meshFlow.shopCategory = flow.shop_category || flow.shopCategory || '';
         config._meshFlow.productName = flow.product_name || flow.productName || '';
         config._meshFlow.myProductName = flow.my_product_name || flow.myProductName || '';
         config.myShopId = flow.my_shop_id || flow.myShopId || '';
         config.myShopName = flow.my_shop_name || flow.myShopName || '';
+        config.shopCategory = flow.shop_category || flow.shopCategory || '';
         config.productName = flow.product_name || flow.productName || '';
         config.myProductName = flow.my_product_name || flow.myProductName || '';
         return config;
