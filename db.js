@@ -97,6 +97,39 @@ module.exports.CreateDB = function (parent, func) {
         return Array.isArray(value) ? value : [];
     }
 
+    function managerIsPublishPlaceholder(value) {
+        const text = managerCollectText(value, 128);
+        if (text === '') return true;
+        return ['待补充', '未设色系', '未设置', '未知', '无', '暂无', 'null', 'undefined'].indexOf(text.toLowerCase()) >= 0;
+    }
+
+    function managerDefaultPublishAttribute(key) {
+        const defaults = {
+            mainFlower: '其他主花材',
+            color: '其他',
+            audience: '朋友/同事',
+            style: '花束',
+            quantity: '1朵'
+        };
+        return defaults[key] || '';
+    }
+
+    function managerNormalizePublishRequiredAttributes(requiredAttributes) {
+        const attrs = (requiredAttributes && typeof requiredAttributes === 'object' && Array.isArray(requiredAttributes) === false) ? Object.assign({}, requiredAttributes) : {};
+        ['mainFlower', 'color', 'audience', 'style', 'quantity'].forEach(function (key) {
+            if (managerIsPublishPlaceholder(attrs[key])) attrs[key] = managerDefaultPublishAttribute(key);
+        });
+        return attrs;
+    }
+
+    function managerNormalizePublishStoreCategoryPath(value, productName, description) {
+        const path = managerCollectArray(value).map(function (item) { return managerCollectText(item, 128); }).filter(function (item) { return item !== ''; });
+        if (path.length > 0) return path;
+        const text = (managerCollectText(productName, 512) + ' ' + managerCollectText(description, 1024)).toLowerCase();
+        if (/(水果|零食|旺仔|奶茶|草莓|巧克力|糖果|可乐|饮料)/.test(text)) return ['水果零食花束'];
+        return ['甄选推荐｜热销款'];
+    }
+
     function pgQueryAsync(sql, args) {
         return new Promise(function (resolve, reject) {
             Datastore.query(sql, args || [], function (err, results) {
@@ -3773,29 +3806,27 @@ module.exports.CreateDB = function (parent, func) {
                 const name = managerCollectText(item.productName || item.name, 512);
                 const price = managerCollectNumber(item.price || item.activityPrice, null);
                 if ((name === '') || (price == null)) continue;
+                const description = managerCollectText(item.description, 4096);
                 const sourceKey = managerCollectText(item.sourceKey || (managerCollectText(item.shopName, 128) + '|' + name), 256);
                 const imageUrls = managerCollectArray(item.imageUrls);
                 if (item.mainImageUrl && imageUrls.indexOf(item.mainImageUrl) < 0) imageUrls.unshift(item.mainImageUrl);
-                const requiredAttributes = (item.requiredAttributes && typeof item.requiredAttributes === 'object' && Array.isArray(item.requiredAttributes) === false) ? Object.assign({}, item.requiredAttributes) : {};
+                const requiredAttributes = managerNormalizePublishRequiredAttributes(item.requiredAttributes);
                 const shop = (item.shop && typeof item.shop === 'object') ? item.shop : {};
                 const productShopName = managerCollectText(requiredAttributes.storeName || shop.name || item.matchedShopName || item.shopName, 256);
                 if (productShopName !== '') requiredAttributes.storeName = productShopName;
-                if (!requiredAttributes.mainFlower) requiredAttributes.mainFlower = '待补充';
-                if (!requiredAttributes.color) requiredAttributes.color = '未设色系';
-                if (!requiredAttributes.audience) requiredAttributes.audience = '待补充';
                 const values = [
                     nextId++,
                     name,
                     price,
                     managerCollectNumber(item.originalPrice, null),
-                    managerCollectText(item.description, 4096),
+                    description,
                     Math.max(0, Math.floor(managerCollectNumber(item.inventory, 1) || 1)),
                     JSON.stringify(managerCollectArray(item.imagePaths)),
                     JSON.stringify(imageUrls),
                     JSON.stringify(managerCollectArray(item.sku)),
                     JSON.stringify(managerCollectArray(item.skuList)),
                     JSON.stringify(managerCollectArray(item.categoryPath)),
-                    JSON.stringify(managerCollectArray(item.storeCategoryPath)),
+                    JSON.stringify(managerNormalizePublishStoreCategoryPath(item.storeCategoryPath, name, description)),
                     JSON.stringify(requiredAttributes),
                     managerCollectText(item.entryUrl || item.sourceProductUrl, 2048),
                     true,
