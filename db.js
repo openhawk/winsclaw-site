@@ -3517,22 +3517,25 @@ module.exports.CreateDB = function (parent, func) {
             });
         };
 
-        obj.GetProductList = function (search, page, limit, func) {
+        obj.GetProductList = function (search, storeSearch, page, limit, func) {
             if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Product manager requires PostgreSQL.')); return; }
             if (typeof search != 'string') { search = ''; }
+            if (typeof storeSearch != 'string') { storeSearch = ''; }
             if (typeof page != 'number' || page < 1) { page = 1; }
-            if (typeof limit != 'number' || limit < 1) { limit = 10; }
-            const args = [], where = ['is_deleted = FALSE'];
+            if (typeof limit != 'number' || limit < 1) { limit = 12; }
+            const args = [], where = ['p.is_deleted = FALSE'];
             search = search.trim();
-            if (search != '') { args.push('%' + search + '%'); where.push('name ILIKE $' + args.length); }
+            storeSearch = storeSearch.trim();
+            if (search != '') { args.push('%' + search + '%'); where.push('p.name ILIKE $' + args.length); }
+            if (storeSearch != '') { args.push('%' + storeSearch + '%'); where.push('COALESCE(p.required_attributes_json->>\'storeName\', \'\') ILIKE $' + args.length); }
             const whereSql = ' WHERE ' + where.join(' AND ');
-            Datastore.query('SELECT COUNT(*) AS count FROM meituan_h5_products' + whereSql, args, function (err, countResults) {
+            Datastore.query('SELECT COUNT(*) AS count FROM meituan_h5_products p' + whereSql, args, function (err, countResults) {
                 if (err != null) { func(err); return; }
                 const total = parseInt(countResults.rows[0].count);
                 const listArgs = args.slice(0);
                 listArgs.push(limit);
                 listArgs.push((page - 1) * limit);
-                Datastore.query('SELECT * FROM meituan_h5_products' + whereSql + ' ORDER BY updated_at DESC NULLS LAST, id DESC LIMIT $' + (args.length + 1) + ' OFFSET $' + (args.length + 2), listArgs, function (listErr, listResults) {
+                Datastore.query('SELECT p.*, cr.collected_at AS collect_result_collected_at FROM meituan_h5_products p LEFT JOIN collect_results cr ON cr.id = p.collect_result_id' + whereSql + ' ORDER BY cr.collected_at DESC NULLS LAST, p.updated_at DESC NULLS LAST, p.id DESC LIMIT $' + (args.length + 1) + ' OFFSET $' + (args.length + 2), listArgs, function (listErr, listResults) {
                     if (listErr != null) { func(listErr); return; }
                     func(null, { total: total, products: listResults.rows });
                 });

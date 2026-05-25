@@ -7443,16 +7443,20 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
     }
 
     function serverCommandProductList(command) {
-        var search = '', page = 1, limit = 10;
+        var search = '', storeSearch = '', page = 1, limit = 12;
         if (typeof command.search == 'string') {
             search = command.search.trim();
             if (search.length > 128) { obj.send({ action: 'productlist', result: 'Invalid search.' }); return; }
         }
+        if (typeof command.storeSearch == 'string') {
+            storeSearch = command.storeSearch.trim();
+            if (storeSearch.length > 128) { obj.send({ action: 'productlist', result: 'Invalid store search.' }); return; }
+        }
         if (common.validateInt(command.page, 1, 100000) == true) { page = command.page; }
         if (common.validateInt(command.limit, 1, 50) == true) { limit = command.limit; }
-        db.GetProductList(search, page, limit, function (err, result) {
+        db.GetProductList(search, storeSearch, page, limit, function (err, result) {
             if (err != null) { obj.send({ action: 'productlist', result: err.message ? err.message : 'Unable to load products.' }); return; }
-            obj.send({ action: 'productlist', search: search, page: page, limit: limit, total: result.total, products: result.products });
+            obj.send({ action: 'productlist', search: search, storeSearch: storeSearch, page: page, limit: limit, total: result.total, products: result.products });
         });
     }
 

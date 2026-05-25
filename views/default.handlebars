@@ -1507,8 +1507,13 @@
                         </div>
                     </div>
                     <div class="product-toolbar">
-                        <div class="product-search">
-                            <input id="productSearchInput" type="search" placeholder="搜索商品名称" autocomplete="off" oninput="productHandleSearchInput()" />
+                        <div class="product-search-fields">
+                            <div class="product-search">
+                                <input id="productSearchInput" type="search" placeholder="搜索商品名称" autocomplete="off" oninput="productHandleSearchInput()" />
+                            </div>
+                            <div class="product-search">
+                                <input id="productStoreSearchInput" type="search" placeholder="搜索所属店铺" autocomplete="off" oninput="productHandleSearchInput()" />
+                            </div>
                         </div>
                         <div class="product-toolbar-meta" id="productToolbarMeta">共 0 个商品</div>
                     </div>
@@ -1604,7 +1609,7 @@
                             <input id="flowFormId" type="hidden" />
                             <div class="flow-form-grid">
                                 <label class="flow-field"><span>流程名称 <b>*</b></span><input id="flowFormName" type="text" maxlength="256" /></label>
-                                <label class="flow-field"><span>流程类型 <b>*</b></span><select id="flowFormType" onchange="flowHandleTypeChange()"><option value="publish">发布</option><option value="pricing">改价</option><option value="auto_reply">智能客服</option></select></label>
+                                <label class="flow-field"><span>流程类型 <b>*</b></span><select id="flowFormType" onchange="flowHandleTypeChange()"><option value="publish">上架新品</option><option value="pricing">商圈调价</option><option value="auto_reply">智能客服</option></select></label>
                                 <label id="flowShopField" class="flow-field flow-field-full"><span>大明的店铺</span><select id="flowFormMyShopId"></select></label>
                                 <div id="flowProductFields" class="flow-field flow-field-full manager-fieldset">
                                     <div class="manager-fieldset-title">商品绑定</div>
@@ -2815,7 +2820,7 @@
 
         var shopState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null };
         var myShopState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null };
-        var productState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, loadTimer: null, loadRetry: 0, pendingAction: null };
+        var productState = { items: [], total: 0, page: 1, limit: 12, search: '', storeSearch: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, loadTimer: null, loadRetry: 0, pendingAction: null };
         var flowState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, loadTimer: null, loadRetry: 0, pendingAction: null, pendingMyShopId: '', currentRunsFlowId: null, runsPage: 1, runsLimit: 10 };
         var collectState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, currentResultsTaskId: null, resultsPage: 1, resultsLimit: 10 };
         var managerExecutionMap = {};
@@ -3255,6 +3260,7 @@
             void Q('p101').offsetWidth;
             QC('p101').add('product-page-active');
             if (Q('productSearchInput') != null) { Q('productSearchInput').value = productState.search; }
+            if (Q('productStoreSearchInput') != null) { Q('productStoreSearchInput').value = productState.storeSearch; }
             if (productState.loaded !== true) { productRefreshList(1); } else { productRender(); }
         }
 
@@ -3262,6 +3268,7 @@
             if (productState.searchTimer != null) { clearTimeout(productState.searchTimer); }
             productState.searchTimer = setTimeout(function () {
                 productState.search = Q('productSearchInput').value.trim();
+                productState.storeSearch = Q('productStoreSearchInput').value.trim();
                 productRefreshList(1);
             }, 260);
         }
@@ -3275,7 +3282,7 @@
             QV('productLoadingState', true);
             QV('productEmptyState', false);
             QH('productCardList', '');
-            meshserver.send({ action: 'productlist', search: productState.search, page: productState.page, limit: productState.limit });
+            meshserver.send({ action: 'productlist', search: productState.search, storeSearch: productState.storeSearch, page: productState.page, limit: productState.limit });
             productState.loadTimer = setTimeout(function () {
                 if (productState.loading !== true) return;
                 if (productState.loadRetry < 1) {
@@ -3555,8 +3562,8 @@
             return {};
         }
         function managerFlowTypeLabel(flowType) {
-            if (flowType === 'publish') return '发布';
-            if (flowType === 'pricing') return '改价';
+            if (flowType === 'publish') return '上架新品';
+            if (flowType === 'pricing') return '商圈调价';
             if (flowType === 'auto_reply') return '智能客服';
             return flowType || '';
         }
