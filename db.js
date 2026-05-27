@@ -3902,7 +3902,7 @@ module.exports.CreateDB = function (parent, func) {
                 const listArgs = args.slice(0);
                 listArgs.push(limit);
                 listArgs.push((page - 1) * limit);
-                Datastore.query('SELECT flows.*, my_shops.name AS my_shop_name FROM flows LEFT JOIN my_shops ON flows.my_shop_id = my_shops.id' + whereSql + ' ORDER BY flows.updated_at DESC NULLS LAST, flows.created_at DESC LIMIT $' + (args.length + 1) + ' OFFSET $' + (args.length + 2), listArgs, function (listErr, results) {
+                Datastore.query('SELECT flows.*, my_shops.name AS my_shop_name, COALESCE(flows.active_run_id, latest_running.id) AS running_run_id FROM flows LEFT JOIN my_shops ON flows.my_shop_id = my_shops.id LEFT JOIN LATERAL (SELECT id FROM flow_runs WHERE flow_id = flows.id AND status = \'running\' ORDER BY started_at DESC LIMIT 1) latest_running ON TRUE' + whereSql + ' ORDER BY flows.updated_at DESC NULLS LAST, flows.created_at DESC LIMIT $' + (args.length + 1) + ' OFFSET $' + (args.length + 2), listArgs, function (listErr, results) {
                     if (listErr != null) { func(listErr); return; }
                     func(null, { total: total, flows: results.rows });
                 });
@@ -3911,7 +3911,7 @@ module.exports.CreateDB = function (parent, func) {
 
         obj.GetFlow = function (flowId, func) {
             if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Flow manager requires PostgreSQL.')); return; }
-            Datastore.query('SELECT flows.*, my_shops.name AS my_shop_name FROM flows LEFT JOIN my_shops ON flows.my_shop_id = my_shops.id WHERE flows.id = $1 AND flows.is_deleted = FALSE', [flowId], function (err, results) {
+            Datastore.query('SELECT flows.*, my_shops.name AS my_shop_name, COALESCE(flows.active_run_id, latest_running.id) AS running_run_id FROM flows LEFT JOIN my_shops ON flows.my_shop_id = my_shops.id LEFT JOIN LATERAL (SELECT id FROM flow_runs WHERE flow_id = flows.id AND status = \'running\' ORDER BY started_at DESC LIMIT 1) latest_running ON TRUE WHERE flows.id = $1 AND flows.is_deleted = FALSE', [flowId], function (err, results) {
                 if (err != null) { func(err); return; }
                 if (!results.rows || results.rows.length === 0) { func(new Error('Flow not found.')); return; }
                 func(null, results.rows[0]);
@@ -3981,7 +3981,7 @@ module.exports.CreateDB = function (parent, func) {
             Datastore.query('INSERT INTO flow_runs (id, flow_id, flow_type, collect_bindings, script_path, arguments, device_id, device_os, status, stdout, stderr, result_summary, result_json, session_id, process_id, last_heartbeat_at, started_at, finished_at, stop_reason) VALUES ($1, $2, $3, $4::jsonb, $5, $6::jsonb, $7, $8, $9, $10, $11, $12, $13::jsonb, $14, $15, $16, $17, $18, $19) RETURNING *', [runId, flow.id, flow.flow_type || flow.flowType, JSON.stringify(runMeta.collectBindings || null), runMeta.scriptPath || '', JSON.stringify(runMeta.arguments || []), flow.device_id || flow.deviceId, flow.device_os || flow.deviceOs, 'running', '', '', runMeta.resultSummary || '', JSON.stringify(runMeta.resultJson || null), runMeta.sessionId || null, runMeta.processId || null, runMeta.lastHeartbeatAt || null, now, null, null], function (err, results) {
                 if (err != null) { func(err); return; }
                 const runningResult = { stdout: '', stderr: '', exitCode: null, resultSummary: runMeta.resultSummary || '流程执行中。', resultJson: runMeta.resultJson || null, processId: runMeta.processId || null };
-                Datastore.query('UPDATE flows SET last_run_at = $2, last_run_status = $3, active_run_id = $4, last_run_result = $5::jsonb, updated_at = $6 WHERE id = $1', [flow.id, now, 'running', runMeta.processId ? runId : null, JSON.stringify(runningResult), now], function () {
+                Datastore.query('UPDATE flows SET last_run_at = $2, last_run_status = $3, active_run_id = $4, last_run_result = $5::jsonb, updated_at = $6 WHERE id = $1', [flow.id, now, 'running', runId, JSON.stringify(runningResult), now], function () {
                     func(null, results.rows[0]);
                 });
             });

@@ -8128,6 +8128,9 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         if (flowId == null) { obj.send({ action: 'flowprepareexecute', result: '无效的流程编号。' }); return; }
         (async function () {
             var flow = await managerDbPromise('GetFlow', flowId);
+            if ((flow.last_run_status || flow.lastRunStatus) === 'running' || flow.active_run_id || flow.running_run_id) {
+                throw new Error('流程正在执行中，请先停止后再执行。');
+            }
             var nodeId = await managerValidateExecutableNode(flow.device_id || flow.deviceId);
             flow.device_id = nodeId;
             var runId = managerMakeId('flowrun');
@@ -8144,12 +8147,16 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
 
     function serverCommandFlowPrepareStop(command) {
         var flowId = managerGetTextField(command.id || '', 128, false);
+        var commandRunId = managerGetTextField(command.runId || '', 128, true) || '';
         if (flowId == null) { obj.send({ action: 'flowpreparestop', result: '无效的流程编号。' }); return; }
         (async function () {
             var flow = await managerDbPromise('GetFlow', flowId);
-            if (!flow.active_run_id) throw new Error('当前没有运行中的常驻流程。');
-            var run = await managerDbPromise('GetFlowRun', flow.active_run_id);
-            if (!run.process_id) throw new Error('运行记录缺少进程标识，无法停止。');
+            var runId = commandRunId || flow.active_run_id || flow.running_run_id || '';
+            if (!runId) throw new Error('当前没有运行中的流程。');
+            var run = await managerDbPromise('GetFlowRun', runId);
+            if (!run.process_id) {
+                return { flow: flow, run: run, finalizeOnly: true };
+            }
             var deviceOs = flow.device_os || flow.deviceOs;
             var cmds = '';
             if (deviceOs === 'windows') {
@@ -8159,6 +8166,13 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
             }
             return { flow: flow, run: run, cmds: cmds, commandType: (deviceOs === 'windows') ? 2 : 3 };
         })().then(function (prepared) {
+            if (prepared.finalizeOnly === true) {
+                db.FinalizeFlowRun(prepared.run.id, { status: 'stopped', stdout: prepared.run.stdout || '', stderr: prepared.run.stderr || '', exitCode: null, resultSummary: '流程未拿到进程标识，已手动停止。', resultJson: prepared.run.result_json || null, processId: null, sessionId: prepared.run.session_id || null, stopReason: 'manual-stop-no-process' }, function (err, runRow) {
+                    if (err != null) { obj.send({ action: 'flowpreparestop', result: err.message ? err.message : '无法停止流程。' }); return; }
+                    obj.send({ action: 'flowfinalizeexecute', success: true, runId: prepared.run.id, row: runRow });
+                });
+                return;
+            }
             obj.send({ action: 'flowpreparestop', success: true, flowId: prepared.flow.id, runId: prepared.run.id, nodeId: prepared.flow.device_id || prepared.flow.deviceId, commandType: prepared.commandType, cmds: prepared.cmds, responseid: 'flowstop_' + prepared.run.id });
         }).catch(function (err) {
             obj.send({ action: 'flowpreparestop', result: err.message ? err.message : '无法准备停止流程。' });

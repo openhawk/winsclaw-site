@@ -3746,10 +3746,10 @@
             QV('flowEmptyState', false);
             var x = '';
             for (var i = 0; i < list.length; i++) {
-                var flow = list[i], flowType = flow.flow_type || flow.flowType, deviceOs = flow.device_os || flow.deviceOs, lastResult = managerParseJson(typeof flow.last_run_result === 'string' ? flow.last_run_result : JSON.stringify(flow.last_run_result || {}), {});
+                var flow = list[i], flowType = flow.flow_type || flow.flowType, deviceOs = flow.device_os || flow.deviceOs, flowStatus = flow.last_run_status || flow.lastRunStatus || 'idle', runningRunId = flow.running_run_id || flow.runningRunId || flow.active_run_id || flow.activeRunId || '', lastResult = managerParseJson(typeof flow.last_run_result === 'string' ? flow.last_run_result : JSON.stringify(flow.last_run_result || {}), {});
                 x += '<article class="flow-card">';
                 x += '<div class="flow-card-body">';
-                x += '<div class="flow-card-head"><div><h3>' + EscapeHtml(flow.name || '') + '</h3><div class="flow-card-category">' + EscapeHtml(managerFlowTypeLabel(flowType)) + ' · ' + EscapeHtml(managerGetNodeLabel(flow.device_id || flow.deviceId)) + '</div></div><div class="flow-card-badges">' + managerRenderStatusBadge('flow', flow.last_run_status || flow.lastRunStatus || 'idle') + '</div></div>';
+                x += '<div class="flow-card-head"><div><h3>' + EscapeHtml(flow.name || '') + '</h3><div class="flow-card-category">' + EscapeHtml(managerFlowTypeLabel(flowType)) + ' · ' + EscapeHtml(managerGetNodeLabel(flow.device_id || flow.deviceId)) + '</div></div><div class="flow-card-badges">' + managerRenderStatusBadge('flow', flowStatus) + '</div></div>';
                 x += '<div class="flow-card-meta"><span>系统</span><strong>' + EscapeHtml(deviceOs || '未知') + '</strong></div>';
                 x += '<div class="flow-card-meta"><span>大明的店铺</span><strong>' + EscapeHtml(managerGetMyShopLabel(flow.my_shop_id || flow.myShopId || '', flow.my_shop_name || flow.myShopName || '未选择')) + '</strong></div>';
                 x += '<div class="flow-card-meta"><span>花店类目</span><strong>' + EscapeHtml(flow.shop_category || flow.shopCategory || '未设置') + '</strong></div>';
@@ -3763,8 +3763,11 @@
                 x += '<div class="flow-card-footer"><div class="flow-card-hints"><span>' + EscapeHtml(managerFlowTypeLabel(flow.flow_type || flow.flowType)) + '</span></div><div class="flow-card-actions">';
                 x += '<button type="button" class="flow-btn" onclick="flowOpenEditorById(\'' + EscapeHtml(String(flow.id)) + '\')">编辑</button>';
                 x += '<button type="button" class="flow-btn flow-btn-danger" onclick="flowConfirmDelete(\'' + EscapeHtml(String(flow.id)) + '\')">删除</button>';
-                x += '<button type="button" class="flow-btn flow-btn-primary" onclick="flowExecute(\'' + EscapeHtml(String(flow.id)) + '\')">执行</button>';
-                if (flow.active_run_id) x += '<button type="button" class="flow-btn flow-btn-warn" onclick="flowStop(\'' + EscapeHtml(String(flow.id)) + '\', \'' + EscapeHtml(String(flow.active_run_id)) + '\')">停止</button>';
+                if (flowStatus === 'running') {
+                    x += '<button type="button" class="flow-btn flow-btn-warn" onclick="flowStop(\'' + EscapeHtml(String(flow.id)) + '\', \'' + EscapeHtml(String(runningRunId)) + '\')">停止</button>';
+                } else {
+                    x += '<button type="button" class="flow-btn flow-btn-primary" onclick="flowExecute(\'' + EscapeHtml(String(flow.id)) + '\')">执行</button>';
+                }
                 x += '<button type="button" class="flow-btn" onclick="flowOpenRuns(\'' + EscapeHtml(String(flow.id)) + '\')">查看记录</button>';
                 x += '</div></div></div></article>';
             }
@@ -3954,7 +3957,12 @@
             var totalPages = Math.max(1, Math.ceil((message.total || 0) / flowState.runsLimit)), current = Math.min(Math.max(1, message.page || 1), totalPages);
             if (message.total > flowState.runsLimit) { QH('flowRunsPagination', '<button type="button" class="flow-page-btn" ' + (current <= 1 ? 'disabled="disabled"' : 'onclick="flowOpenRuns(\'' + EscapeHtml(flowState.currentRunsFlowId) + '\',' + (current - 1) + ')"') + '>上一页</button><span class="flow-page-indicator">第 ' + current + ' / ' + totalPages + ' 页</span><button type="button" class="flow-page-btn" ' + (current >= totalPages ? 'disabled="disabled"' : 'onclick="flowOpenRuns(\'' + EscapeHtml(flowState.currentRunsFlowId) + '\',' + (current + 1) + ')"') + '>下一页</button>'); QV('flowRunsPagination', true); } else { QV('flowRunsPagination', false); }
         }
-        function flowExecute(id) { meshserver.send({ action: 'flowprepareexecute', id: id }); }
+        function flowFindById(id) { for (var i = 0; i < flowState.items.length; i++) { if (String(flowState.items[i].id) === String(id)) return flowState.items[i]; } return null; }
+        function flowExecute(id) {
+            var flow = flowFindById(id), status = flow ? (flow.last_run_status || flow.lastRunStatus || 'idle') : 'idle';
+            if (status === 'running') { flowShowToast('流程正在执行中，请先停止后再执行。', true); return; }
+            meshserver.send({ action: 'flowprepareexecute', id: id });
+        }
         function flowStop(id, runId) { meshserver.send({ action: 'flowpreparestop', id: id, runId: runId }); }
         function flowHandlePrepareExecute(message) {
             if (message.success !== true) { flowShowToast(message.result || '无法准备流程执行。', true); return; }
