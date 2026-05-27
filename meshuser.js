@@ -7845,6 +7845,18 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         return path;
     }
 
+    function managerPublishStoreCategoryPathForFlow(flow, product) {
+        var shopCategory = managerNormalizeCollectText(flow.shop_category || flow.shopCategory, 256);
+        if (shopCategory !== '') {
+            return shopCategory.split('>').map(function (item) {
+                return managerNormalizeCollectText(item, 128);
+            }).filter(function (item) {
+                return item !== '';
+            });
+        }
+        return managerFlowJsonArray(product.store_category_path_json);
+    }
+
     function managerFlowJsonObject(value) {
         if ((value != null) && (typeof value === 'object') && (Array.isArray(value) === false)) return value;
         if (typeof value === 'string') {
@@ -7891,7 +7903,7 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
             name: managerNormalizeCollectText(flow.my_product_name || flow.myProductName || product.name, 512),
             entryUrl: managerNormalizeCollectText(product.entry_url, 2048) || null,
             categoryPath: managerNormalizePublishCategoryPath(product.category_path_json),
-            storeCategoryPath: managerFlowJsonArray(product.store_category_path_json),
+            storeCategoryPath: managerPublishStoreCategoryPathForFlow(flow, product),
             requiredAttributes: managerPublishRequiredAttributes(product.required_attributes_json),
             requiredAttributeMappings: managerFlowJsonArray(cloned.requiredAttributeMappings || (cloned.publishProduct && cloned.publishProduct.requiredAttributeMappings)),
             useExistingOptionsOnly: product.use_existing_options_only !== false,
