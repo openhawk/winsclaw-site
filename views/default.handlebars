@@ -3702,13 +3702,17 @@
             var pending = managerExecutionMap[responseid];
             if (!pending) return;
             managerClearRuncommandsTimeout(pending);
-            pending.timeoutId = setTimeout(function () { managerFinalizeRuncommandsTimeout(responseid, false); }, 45000);
+            managerStartRuncommandsOutputTimeout(responseid);
         }
         function managerStartRuncommandsOutputTimeout(responseid) {
             var pending = managerExecutionMap[responseid];
             if (!pending) return;
             if (pending.outputTimeoutId != null) clearTimeout(pending.outputTimeoutId);
-            pending.outputTimeoutId = setTimeout(function () { managerFinalizeRuncommandsTimeout(responseid, true); }, 30 * 60 * 1000);
+            var timeoutMs = 30 * 60 * 1000;
+            if (pending.kind === 'flow' && pending.operation === 'stop') timeoutMs = 2 * 60 * 1000;
+            else if (pending.kind === 'flow' && pending.runMode !== 'background') timeoutMs = 15 * 60 * 1000;
+            else if (pending.kind === 'flow') timeoutMs = 2 * 60 * 1000;
+            pending.outputTimeoutId = setTimeout(function () { managerFinalizeRuncommandsTimeout(responseid, true); }, timeoutMs);
         }
         function managerHandleRuncommandsAck(message) {
             var pending = managerExecutionMap[message.responseid];
