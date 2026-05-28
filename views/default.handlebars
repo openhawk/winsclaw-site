@@ -1651,10 +1651,11 @@
                                                 <label style="display:none" class="manager-wide"><span>目标商品名称</span><input id="flowPricingTargetProductName" type="text" /></label>
                                                 <label class="manager-wide"><span>参考基准</span><select id="flowPricingReferenceBenchmark" onchange="flowHandlePricingBenchmarkChange()"><option value="lowest">最低价</option><option value="highest">最高价</option><option value="average">平均价</option><option value="fixed">固定价</option></select></label>
                                                 <label><span>平均价格</span><input id="flowPricingAveragePrice" type="text" readonly="readonly" placeholder="选择平均价后自动带出" /></label>
-                                                <label><span>固定价格</span><input id="flowPricingFixedPrice" type="number" step="any" placeholder="仅固定价可输入" disabled="disabled" /></label>
+                                                <label><span>固定价格</span><input id="flowPricingFixedPrice" type="number" step="any" placeholder="仅固定价可输入" disabled="disabled" oninput="flowUpdatePricingDebugPrice()" /></label>
                                                 <label><span>最低价格</span><input id="flowPricingLimitMin" type="text" readonly="readonly" placeholder="选择最低价后自动带出" /></label>
                                                 <label><span>最高价格</span><input id="flowPricingLimitMax" type="text" readonly="readonly" placeholder="选择最高价后自动带出" /></label>
-                                                <label class="manager-wide"><span>价格偏移</span><input id="flowPricingPriceOffset" type="number" step="any" /></label>
+                                                <label><span>价格偏移</span><input id="flowPricingPriceOffset" type="number" step="any" oninput="flowUpdatePricingDebugPrice()" /></label>
+                                                <label class="flow-pricing-debug-field"><span>调试价格</span><input id="flowPricingDebugPrice" class="flow-pricing-debug-input" type="text" readonly="readonly" placeholder="自动计算最终价格" /></label>
                                             </div>
                                         </div>
                                     </div>
@@ -3967,6 +3968,29 @@
             if (Q('flowPricingLimitMin') != null) Q('flowPricingLimitMin').value = '';
             if (Q('flowPricingLimitMax') != null) Q('flowPricingLimitMax').value = '';
         }
+        function flowGetPricingBenchmarkBaseValue() {
+            if (Q('flowFormType') == null || Q('flowFormType').value !== 'pricing') return null;
+            var benchmarkField = Q('flowPricingReferenceBenchmark');
+            if (benchmarkField == null) return null;
+            var benchmark = benchmarkField.value;
+            var summary = flowCalculatePricingReferenceSummary();
+            if (benchmark === 'average') return summary.average;
+            if (benchmark === 'lowest') return summary.lowest;
+            if (benchmark === 'highest') return summary.highest;
+            if (benchmark === 'fixed') return managerToNumberOrNull(Q('flowPricingFixedPrice').value);
+            return null;
+        }
+        function flowUpdatePricingDebugPrice() {
+            var debugField = Q('flowPricingDebugPrice');
+            if (debugField == null) return;
+            var baseValue = flowGetPricingBenchmarkBaseValue();
+            var offsetValue = managerToNumberOrNull(Q('flowPricingPriceOffset').value);
+            if (baseValue == null) {
+                debugField.value = '';
+                return;
+            }
+            debugField.value = managerFormatPriceDisplay(Number(baseValue) + Number(offsetValue == null ? 0 : offsetValue));
+        }
         function flowHandlePricingBenchmarkChange() {
             if (Q('flowFormType') == null || Q('flowFormType').value !== 'pricing') return;
             var benchmarkField = Q('flowPricingReferenceBenchmark');
@@ -3986,6 +4010,7 @@
             } else if (benchmarkField.value === 'highest') {
                 Q('flowPricingLimitMax').value = managerFormatPlainPrice(summary.highest);
             }
+            flowUpdatePricingDebugPrice();
         }
         function flowHandlePricingPickerBlur(rowId, kind) {
             setTimeout(function () { flowHidePricingPickerSuggestions(rowId, kind); }, 120);

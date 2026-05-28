@@ -4421,6 +4421,9 @@ a {
 .manager-inline-grid .manager-check-row { flex-direction: row; align-items: center; margin-top: 28px; }
 .manager-inline-grid .manager-wide { grid-column: 1 / -1; }
 .manager-inline-grid input, .manager-inline-grid textarea, .manager-inline-grid select { width: 100%; border: 1px solid #cfe0f1; border-radius: 12px; background: #fff; padding: 11px 13px; box-sizing: border-box; }
+.flow-pricing-debug-field span { color: #0f4aa3; }
+.manager-inline-grid .flow-pricing-debug-input { border-color: #8cb8ff; background: linear-gradient(180deg, #f5faff 0%, #e9f3ff 100%); color: #0f4aa3; font-size: 24px; font-weight: 800; letter-spacing: 0.02em; text-align: center; box-shadow: inset 0 0 0 1px rgba(140,184,255,0.28); }
+.manager-inline-grid .flow-pricing-debug-input::placeholder { color: #6c8fb8; font-size: 14px; font-weight: 600; letter-spacing: 0; }
 .manager-repeat-list { display: grid; gap: 12px; margin-top: 12px; }
 .manager-repeat-card { border: 1px solid #dbe7f5; border-radius: 8px; background: #fff; padding: 14px; }
 .manager-repeat-head strong { color: #18324f; }
