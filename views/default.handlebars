@@ -1649,12 +1649,12 @@
                                             <div class="manager-inline-grid">
                                                 <label style="display:none"><span>参考商品关键词</span><input id="flowPricingReferenceKeyword" type="text" /></label>
                                                 <label style="display:none" class="manager-wide"><span>目标商品名称</span><input id="flowPricingTargetProductName" type="text" /></label>
-                                                <label><span>参考基准</span><select id="flowPricingReferenceBenchmark"><option value="lowest">最低价</option><option value="highest">最高价</option><option value="average">平均价</option><option value="fixed">固定价</option></select></label>
-                                                <label><span>价格偏移</span><input id="flowPricingPriceOffset" type="number" step="any" /></label>
-                                                <label><span>固定价格</span><input id="flowPricingFixedPrice" type="number" step="any" /></label>
-                                                <label><span>商品规格</span><select id="flowPricingSkuStrategy"><option value="allActive">全部生效规格</option><option value="first">仅第一项规格</option><option value="mainOnly">仅主价格</option></select></label>
-                                                <label><span>最低限价</span><input id="flowPricingLimitMin" type="number" step="any" /></label>
-                                                <label><span>最高限价</span><input id="flowPricingLimitMax" type="number" step="any" /></label>
+                                                <label class="manager-wide"><span>参考基准</span><select id="flowPricingReferenceBenchmark" onchange="flowHandlePricingBenchmarkChange()"><option value="lowest">最低价</option><option value="highest">最高价</option><option value="average">平均价</option><option value="fixed">固定价</option></select></label>
+                                                <label><span>平均价格</span><input id="flowPricingAveragePrice" type="text" readonly="readonly" placeholder="选择平均价后自动带出" /></label>
+                                                <label><span>固定价格</span><input id="flowPricingFixedPrice" type="text" readonly="readonly" placeholder="选择固定价后自动带出" /></label>
+                                                <label><span>最低价格</span><input id="flowPricingLimitMin" type="text" readonly="readonly" placeholder="选择最低价后自动带出" /></label>
+                                                <label><span>最高价格</span><input id="flowPricingLimitMax" type="text" readonly="readonly" placeholder="选择最高价后自动带出" /></label>
+                                                <label class="manager-wide"><span>价格偏移</span><input id="flowPricingPriceOffset" type="number" step="any" /></label>
                                             </div>
                                         </div>
                                     </div>
@@ -2843,7 +2843,7 @@
         var shopState = { items: [], total: 0, page: 1, limit: 12, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null };
         var myShopState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null };
         var productState = { items: [], total: 0, page: 1, limit: 12, search: '', storeSearch: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, loadTimer: null, loadRetry: 0, pendingAction: null };
-        var flowState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, loadTimer: null, loadRetry: 0, pendingAction: null, pendingMyShopId: '', currentRunsFlowId: null, runsPage: 1, runsLimit: 10, pricingReference: { nextRowSeq: 1, rows: {} } };
+        var flowState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, loadTimer: null, loadRetry: 0, pendingAction: null, pendingMyShopId: '', currentRunsFlowId: null, runsPage: 1, runsLimit: 10, pricingReference: { nextRowSeq: 1, rows: {} }, pricingTaskMeta: { skuStrategy: 'allActive' } };
         var collectState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, currentResultsTaskId: null, resultsPage: 1, resultsLimit: 10 };
         var managerExecutionMap = {};
 
@@ -3815,6 +3815,10 @@
             var numberValue = managerToNumberOrNull(value);
             return numberValue == null ? '' : ('¥' + Number(numberValue).toFixed(2));
         }
+        function managerFormatPlainPrice(value) {
+            var numberValue = managerToNumberOrNull(value);
+            return numberValue == null ? '' : Number(numberValue).toFixed(2);
+        }
         function flowMakePricingReferenceRowId() {
             return 'flowPricingReferenceRow_' + (flowState.pricingReference.nextRowSeq++);
         }
@@ -3885,6 +3889,7 @@
                 var action = rows[0].querySelector('.flow-pricing-reference-row-actions');
                 if (action != null) action.remove();
             }
+            flowHandlePricingBenchmarkChange();
         }
         function flowReadPricingReferenceRows() {
             var rows = flowGetPricingReferenceRows(), items = [];
@@ -3935,6 +3940,49 @@
             if (productPriceField != null) productPriceField.value = '';
             if (keepSearchText !== true && productSearchField != null) productSearchField.value = '';
             flowHidePricingPickerSuggestions(rowId, 'product');
+            flowHandlePricingBenchmarkChange();
+        }
+        function flowGetPricingReferencePriceNumbers() {
+            var items = flowReadPricingReferenceRows(), prices = [];
+            for (var i = 0; i < items.length; i++) {
+                var price = managerToNumberOrNull(items[i].referenceProductPrice);
+                if (price != null) prices.push(Number(price));
+            }
+            return prices;
+        }
+        function flowCalculatePricingReferenceSummary() {
+            var prices = flowGetPricingReferencePriceNumbers();
+            if (prices.length === 0) return { average: null, fixed: null, lowest: null, highest: null };
+            var sum = 0, min = prices[0], max = prices[0];
+            for (var i = 0; i < prices.length; i++) {
+                var price = prices[i];
+                sum += price;
+                if (price < min) min = price;
+                if (price > max) max = price;
+            }
+            return { average: sum / prices.length, fixed: prices[0], lowest: min, highest: max };
+        }
+        function flowClearPricingComputedFields() {
+            if (Q('flowPricingAveragePrice') != null) Q('flowPricingAveragePrice').value = '';
+            if (Q('flowPricingFixedPrice') != null) Q('flowPricingFixedPrice').value = '';
+            if (Q('flowPricingLimitMin') != null) Q('flowPricingLimitMin').value = '';
+            if (Q('flowPricingLimitMax') != null) Q('flowPricingLimitMax').value = '';
+        }
+        function flowHandlePricingBenchmarkChange() {
+            if (Q('flowFormType') == null || Q('flowFormType').value !== 'pricing') return;
+            var benchmarkField = Q('flowPricingReferenceBenchmark');
+            if (benchmarkField == null) return;
+            var summary = flowCalculatePricingReferenceSummary();
+            flowClearPricingComputedFields();
+            if (benchmarkField.value === 'average') {
+                Q('flowPricingAveragePrice').value = managerFormatPlainPrice(summary.average);
+            } else if (benchmarkField.value === 'fixed') {
+                Q('flowPricingFixedPrice').value = managerFormatPlainPrice(summary.fixed);
+            } else if (benchmarkField.value === 'lowest') {
+                Q('flowPricingLimitMin').value = managerFormatPlainPrice(summary.lowest);
+            } else if (benchmarkField.value === 'highest') {
+                Q('flowPricingLimitMax').value = managerFormatPlainPrice(summary.highest);
+            }
         }
         function flowHandlePricingPickerBlur(rowId, kind) {
             setTimeout(function () { flowHidePricingPickerSuggestions(rowId, kind); }, 120);
@@ -4034,6 +4082,7 @@
             flowGetPricingReferenceRowField(rowId, 'productSearch').value = productName;
             flowGetPricingReferenceRowField(rowId, 'productPrice').value = managerFormatPriceDisplay(product.price);
             flowHidePricingPickerSuggestions(rowId, 'product');
+            flowHandlePricingBenchmarkChange();
         }
         function flowHandlePricingReferenceShopResponse(message) {
             if (Q('flowFormType').value !== 'pricing') return;
@@ -4062,6 +4111,7 @@
         function flowLoadPricingTask(task, config) {
             task = task || {};
             config = config || {};
+            flowState.pricingTaskMeta = { skuStrategy: task.skuStrategy || 'allActive' };
             Q('flowPricingMyShopId').value = config.myShopId || Q('flowFormMyShopId').value || '';
             Q('flowPricingMyProductName').value = task.targetProductName || Q('flowFormMyProductName').value || '';
             flowSyncMyProductName('pricing');
@@ -4083,17 +4133,22 @@
             if (benchmark === "lowest" && task.strategy === "max") benchmark = "highest"; // Heuristic for mapping back
             Q("flowPricingReferenceBenchmark").value = benchmark;
             Q('flowPricingPriceOffset').value = task.priceOffset == null ? 0 : task.priceOffset;
-            Q('flowPricingFixedPrice').value = task.fixedPrice == null ? '' : task.fixedPrice;
-            Q('flowPricingSkuStrategy').value = task.skuStrategy || 'allActive';
-            Q('flowPricingLimitMin').value = task.priceLimit && task.priceLimit.min != null ? task.priceLimit.min : '';
-            Q('flowPricingLimitMax').value = task.priceLimit && task.priceLimit.max != null ? task.priceLimit.max : '';
+            Q('flowPricingAveragePrice').value = task.averagePrice == null ? '' : managerFormatPlainPrice(task.averagePrice);
+            Q('flowPricingFixedPrice').value = task.fixedPrice == null ? '' : managerFormatPlainPrice(task.fixedPrice);
+            Q('flowPricingLimitMin').value = task.lowestPrice == null ? '' : managerFormatPlainPrice(task.lowestPrice);
+            Q('flowPricingLimitMax').value = task.highestPrice == null ? '' : managerFormatPlainPrice(task.highestPrice);
+            flowHandlePricingBenchmarkChange();
         }
         function flowReadSinglePricingTask() {
-            var min = managerToNumberOrNull(Q('flowPricingLimitMin').value);
-            var max = managerToNumberOrNull(Q('flowPricingLimitMax').value);
             var myProductName = Q('flowPricingMyProductName').value.trim() || Q('flowFormMyProductName').value.trim();
             var referenceItems = flowReadPricingReferenceRows();
             var primaryReference = referenceItems.length > 0 ? referenceItems[0] : { referenceShopId: '', referenceShopName: '', referenceProductId: '', referenceProductName: '', referenceProductPrice: null };
+            var benchmark = Q("flowPricingReferenceBenchmark").value;
+            var computed = flowCalculatePricingReferenceSummary();
+            var averagePrice = benchmark === 'average' ? computed.average : null;
+            var fixedPrice = benchmark === 'fixed' ? computed.fixed : null;
+            var lowestPrice = benchmark === 'lowest' ? computed.lowest : null;
+            var highestPrice = benchmark === 'highest' ? computed.highest : null;
             Q('flowFormMyProductName').value = myProductName;
             Q('flowFormProductName').value = primaryReference.referenceProductName || '';
             Q('flowPricingReferenceKeyword').value = primaryReference.referenceProductName || '';
@@ -4109,14 +4164,16 @@
                 referenceProductName: primaryReference.referenceProductName || '',
                 referenceProductPrice: primaryReference.referenceProductPrice,
                 referenceItems: referenceItems,
-                referenceProductSelection: Q("flowPricingReferenceBenchmark").value === "fixed" ? "average" : Q("flowPricingReferenceBenchmark").value,
-                strategy: Q("flowPricingReferenceBenchmark").value === "fixed" ? "fixed" : (Q("flowPricingReferenceBenchmark").value === "highest" ? "max" : (Q("flowPricingReferenceBenchmark").value === "lowest" ? "min" : "average")),
+                referenceProductSelection: benchmark === "fixed" ? "average" : benchmark,
+                strategy: benchmark === "fixed" ? "fixed" : (benchmark === "highest" ? "max" : (benchmark === "lowest" ? "min" : "average")),
                 priceOffset: managerToNumberOrNull(Q('flowPricingPriceOffset').value) || 0,
-                fixedPrice: managerToNumberOrNull(Q('flowPricingFixedPrice').value),
+                averagePrice: averagePrice,
+                fixedPrice: fixedPrice,
+                lowestPrice: lowestPrice,
+                highestPrice: highestPrice,
                 duplicateTargetPolicy: 'fail',
-                skuStrategy: Q('flowPricingSkuStrategy').value
+                skuStrategy: flowState.pricingTaskMeta.skuStrategy || 'allActive'
             };
-            if (min != null || max != null) task.priceLimit = { min: min, max: max };
             return task;
         }
         function flowLoadConfigToFields(config, flowType) {
