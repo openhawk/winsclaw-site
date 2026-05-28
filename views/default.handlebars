@@ -1651,7 +1651,7 @@
                                                 <label style="display:none" class="manager-wide"><span>目标商品名称</span><input id="flowPricingTargetProductName" type="text" /></label>
                                                 <label class="manager-wide"><span>参考基准</span><select id="flowPricingReferenceBenchmark" onchange="flowHandlePricingBenchmarkChange()"><option value="lowest">最低价</option><option value="highest">最高价</option><option value="average">平均价</option><option value="fixed">固定价</option></select></label>
                                                 <label><span>平均价格</span><input id="flowPricingAveragePrice" type="text" readonly="readonly" placeholder="选择平均价后自动带出" /></label>
-                                                <label><span>固定价格</span><input id="flowPricingFixedPrice" type="text" readonly="readonly" placeholder="选择固定价后自动带出" /></label>
+                                                <label><span>固定价格</span><input id="flowPricingFixedPrice" type="number" step="any" placeholder="手动输入固定价格" /></label>
                                                 <label><span>最低价格</span><input id="flowPricingLimitMin" type="text" readonly="readonly" placeholder="选择最低价后自动带出" /></label>
                                                 <label><span>最高价格</span><input id="flowPricingLimitMax" type="text" readonly="readonly" placeholder="选择最高价后自动带出" /></label>
                                                 <label class="manager-wide"><span>价格偏移</span><input id="flowPricingPriceOffset" type="number" step="any" /></label>
@@ -3964,7 +3964,6 @@
         }
         function flowClearPricingComputedFields() {
             if (Q('flowPricingAveragePrice') != null) Q('flowPricingAveragePrice').value = '';
-            if (Q('flowPricingFixedPrice') != null) Q('flowPricingFixedPrice').value = '';
             if (Q('flowPricingLimitMin') != null) Q('flowPricingLimitMin').value = '';
             if (Q('flowPricingLimitMax') != null) Q('flowPricingLimitMax').value = '';
         }
@@ -3976,8 +3975,6 @@
             flowClearPricingComputedFields();
             if (benchmarkField.value === 'average') {
                 Q('flowPricingAveragePrice').value = managerFormatPlainPrice(summary.average);
-            } else if (benchmarkField.value === 'fixed') {
-                Q('flowPricingFixedPrice').value = managerFormatPlainPrice(summary.fixed);
             } else if (benchmarkField.value === 'lowest') {
                 Q('flowPricingLimitMin').value = managerFormatPlainPrice(summary.lowest);
             } else if (benchmarkField.value === 'highest') {
@@ -4146,7 +4143,7 @@
             var benchmark = Q("flowPricingReferenceBenchmark").value;
             var computed = flowCalculatePricingReferenceSummary();
             var averagePrice = benchmark === 'average' ? computed.average : null;
-            var fixedPrice = benchmark === 'fixed' ? computed.fixed : null;
+            var fixedPrice = managerToNumberOrNull(Q('flowPricingFixedPrice').value);
             var lowestPrice = benchmark === 'lowest' ? computed.lowest : null;
             var highestPrice = benchmark === 'highest' ? computed.highest : null;
             Q('flowFormMyProductName').value = myProductName;
