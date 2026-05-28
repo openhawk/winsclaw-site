@@ -1629,21 +1629,34 @@
                                 <input id="flowFormConfig" type="hidden" />
                                 <div id="flowPricingFields" class="flow-field flow-field-full manager-fieldset" style="display:none">
                                     <div class="manager-fieldset-title">调价配置</div>
-                                    <div class="manager-inline-grid">
-                                        <label><span>我的商铺</span><select id="flowPricingMyShopId"></select></label>
-                                        <label><span>我的商品</span><input id="flowPricingMyProductName" type="text" maxlength="512" oninput="flowSyncMyProductName('pricing')" /></label>
-                                        <div class="manager-wide flow-pricing-reference-toolbar">
-                                            <button type="button" class="flow-btn" onclick="flowAddPricingReferenceRow()">新增参考店铺</button>
+                                    <div class="flow-pricing-sections">
+                                        <div class="flow-pricing-section">
+                                            <div class="flow-pricing-section-title">我的店铺 / 商品</div>
+                                            <div class="manager-inline-grid">
+                                                <label><span>我的商铺</span><select id="flowPricingMyShopId"></select></label>
+                                                <label><span>我的商品</span><input id="flowPricingMyProductName" type="text" maxlength="512" oninput="flowSyncMyProductName('pricing')" /></label>
+                                            </div>
                                         </div>
-                                        <div id="flowPricingReferenceRows" class="manager-wide flow-pricing-reference-list"></div>
-                                        <label style="display:none"><span>参考商品关键词</span><input id="flowPricingReferenceKeyword" type="text" /></label>
-                                        <label style="display:none" class="manager-wide"><span>目标商品名称</span><input id="flowPricingTargetProductName" type="text" /></label>
-                                        <label><span>参考基准</span><select id="flowPricingReferenceBenchmark"><option value="lowest">最低价</option><option value="highest">最高价</option><option value="average">平均价</option><option value="fixed">固定价</option></select></label>
-                                        <label><span>价格偏移</span><input id="flowPricingPriceOffset" type="number" step="any" /></label>
-                                        <label><span>固定价格</span><input id="flowPricingFixedPrice" type="number" step="any" /></label>
-                                        <label><span>商品规格</span><select id="flowPricingSkuStrategy"><option value="allActive">全部生效规格</option><option value="first">仅第一项规格</option><option value="mainOnly">仅主价格</option></select></label>
-                                        <label><span>最低限价</span><input id="flowPricingLimitMin" type="number" step="any" /></label>
-                                        <label><span>最高限价</span><input id="flowPricingLimitMax" type="number" step="any" /></label>
+                                        <div class="flow-pricing-section">
+                                            <div class="flow-pricing-section-title">参考店铺 / 商品 / 价格</div>
+                                            <div class="flow-pricing-reference-toolbar">
+                                                <button type="button" class="flow-btn" onclick="flowAddPricingReferenceRow()">新增参考店铺</button>
+                                            </div>
+                                            <div id="flowPricingReferenceRows" class="flow-pricing-reference-list"></div>
+                                        </div>
+                                        <div class="flow-pricing-section">
+                                            <div class="flow-pricing-section-title">调价参数</div>
+                                            <div class="manager-inline-grid">
+                                                <label style="display:none"><span>参考商品关键词</span><input id="flowPricingReferenceKeyword" type="text" /></label>
+                                                <label style="display:none" class="manager-wide"><span>目标商品名称</span><input id="flowPricingTargetProductName" type="text" /></label>
+                                                <label><span>参考基准</span><select id="flowPricingReferenceBenchmark"><option value="lowest">最低价</option><option value="highest">最高价</option><option value="average">平均价</option><option value="fixed">固定价</option></select></label>
+                                                <label><span>价格偏移</span><input id="flowPricingPriceOffset" type="number" step="any" /></label>
+                                                <label><span>固定价格</span><input id="flowPricingFixedPrice" type="number" step="any" /></label>
+                                                <label><span>商品规格</span><select id="flowPricingSkuStrategy"><option value="allActive">全部生效规格</option><option value="first">仅第一项规格</option><option value="mainOnly">仅主价格</option></select></label>
+                                                <label><span>最低限价</span><input id="flowPricingLimitMin" type="number" step="any" /></label>
+                                                <label><span>最高限价</span><input id="flowPricingLimitMax" type="number" step="any" /></label>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                                 <div id="flowAutoReplyFields" class="flow-field flow-field-full manager-fieldset" style="display:none">
