@@ -5728,6 +5728,7 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         'myshopcreate': serverCommandMyShopCreate,
         'myshopdelete': serverCommandMyShopDelete,
         'myshoplist': serverCommandMyShopList,
+        'flowproductsearch': serverCommandFlowProductSearch,
         'pricingreferenceproducts': serverCommandPricingReferenceProductList,
         'pricingreferenceshops': serverCommandPricingReferenceShopList,
         'myshopupdate': serverCommandMyShopUpdate,
@@ -7489,6 +7490,19 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         db.GetProductList(search, storeSearch, page, limit, function (err, result) {
             if (err != null) { obj.send({ action: 'productlist', result: err.message ? err.message : 'Unable to load products.' }); return; }
             obj.send({ action: 'productlist', search: search, storeSearch: storeSearch, page: page, limit: limit, total: result.total, products: result.products });
+        });
+    }
+
+    function serverCommandFlowProductSearch(command) {
+        var search = '', limit = 8;
+        if (typeof command.search == 'string') {
+            search = command.search.trim();
+            if (search.length > 128) { obj.send({ action: 'flowproductsearch', result: 'Invalid search.' }); return; }
+        }
+        if (common.validateInt(command.limit, 1, 20) == true) { limit = command.limit; }
+        db.GetProductList(search, '', 1, limit, function (err, result) {
+            if (err != null) { obj.send({ action: 'flowproductsearch', result: err.message ? err.message : 'Unable to load products.' }); return; }
+            obj.send({ action: 'flowproductsearch', search: search, products: result && result.products ? result.products : [] });
         });
     }
 

@@ -1619,7 +1619,7 @@
                                 <div id="flowProductFields" class="flow-field flow-field-full manager-fieldset">
                                     <div class="manager-fieldset-title">商品绑定</div>
                                     <div class="manager-inline-grid">
-                                        <label><span id="flowFormProductNameLabel">商品名称 <b>*</b></span><input id="flowFormProductName" type="text" maxlength="512" placeholder="必须存在于商品页面" /></label>
+                                        <label class="flow-picker"><span id="flowFormProductNameLabel">商品名称 <b>*</b></span><input id="flowFormProductName" type="text" maxlength="512" placeholder="输入关键词搜索商品" autocomplete="off" oninput="flowHandleBindingProductInput()" onfocus="flowHandleBindingProductInput(true)" onblur="flowHandleBindingProductBlur()" /><div id="flowFormProductNameSuggest" class="flow-picker-suggest" style="display:none"></div></label>
                                         <label id="flowFormMyProductNameField"><span>我的商品名称</span><input id="flowFormMyProductName" type="text" maxlength="512" oninput="flowSyncMyProductName('form')" /></label>
                                     </div>
                                 </div>
@@ -2844,7 +2844,7 @@
         var shopState = { items: [], total: 0, page: 1, limit: 12, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null };
         var myShopState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null };
         var productState = { items: [], total: 0, page: 1, limit: 12, search: '', storeSearch: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, loadTimer: null, loadRetry: 0, pendingAction: null };
-        var flowState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, loadTimer: null, loadRetry: 0, pendingAction: null, pendingMyShopId: '', currentRunsFlowId: null, runsPage: 1, runsLimit: 10, pricingReference: { nextRowSeq: 1, rows: {} }, pricingTaskMeta: { skuStrategy: 'allActive' } };
+        var flowState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, loadTimer: null, loadRetry: 0, pendingAction: null, pendingMyShopId: '', currentRunsFlowId: null, runsPage: 1, runsLimit: 10, pricingReference: { nextRowSeq: 1, rows: {} }, pricingTaskMeta: { skuStrategy: 'allActive' }, productBinding: { searchTimer: null, suggestions: [], activeSearch: '' } };
         var collectState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, currentResultsTaskId: null, resultsPage: 1, resultsLimit: 10 };
         var managerExecutionMap = {};
 
@@ -3805,7 +3805,7 @@
         function flowSetSectionVisibility(flowType) {
             QV('flowProductFields', flowType === 'publish');
             QH("flowFormProductNameLabel", (flowType === "pricing" ? "参考商品关键词" : "商品名称") + " <b>*</b>");
-            Q("flowFormProductName").placeholder = (flowType === "pricing" ? "" : "必须存在于商品页面");
+            Q("flowFormProductName").placeholder = (flowType === "pricing" ? "" : "输入关键词搜索商品");
             QV('flowFormMyProductNameField', flowType !== 'pricing');
             QV('flowShopField', flowType !== 'pricing');
             QV('flowPricingFields', flowType === 'pricing');
@@ -3819,6 +3819,59 @@
         function managerFormatPlainPrice(value) {
             var numberValue = managerToNumberOrNull(value);
             return numberValue == null ? '' : Number(numberValue).toFixed(2);
+        }
+        function flowGetProductStoreName(product) {
+            var attrs = managerParseJson(product && product.required_attributes_json ? product.required_attributes_json : null, product && product.requiredAttributes ? product.requiredAttributes : {});
+            return attrs && attrs.storeName ? attrs.storeName : '';
+        }
+        function flowHideBindingProductSuggestions() {
+            if (Q('flowFormProductNameSuggest') != null) Q('flowFormProductNameSuggest').style.display = 'none';
+        }
+        function flowRenderBindingProductSuggestions(products) {
+            var suggestField = Q('flowFormProductNameSuggest');
+            flowState.productBinding.suggestions = Array.isArray(products) ? products : [];
+            if (suggestField == null) return;
+            if (flowState.productBinding.suggestions.length === 0) {
+                suggestField.innerHTML = '<div class="flow-picker-empty">没有匹配的商品</div>';
+                suggestField.style.display = 'block';
+                return;
+            }
+            var x = '';
+            for (var i = 0; i < flowState.productBinding.suggestions.length; i++) {
+                var product = flowState.productBinding.suggestions[i] || {};
+                x += '<div class="flow-picker-item" onmousedown="flowSelectBindingProductByIndex(' + i + '); return false;"><div>' + EscapeHtml(product.name || '') + '</div><div class="flow-picker-subitem">' + EscapeHtml(flowGetProductStoreName(product)) + (product.price != null ? (' · ' + EscapeHtml(managerFormatPriceDisplay(product.price))) : '') + '</div></div>';
+            }
+            suggestField.innerHTML = x;
+            suggestField.style.display = 'block';
+        }
+        function flowHandleBindingProductInput(forceSearch) {
+            if (Q('flowFormType') == null || Q('flowFormType').value !== 'publish') return;
+            var input = Q('flowFormProductName');
+            if (input == null) return;
+            var keyword = input.value.trim();
+            if (flowState.productBinding.searchTimer != null) clearTimeout(flowState.productBinding.searchTimer);
+            if (keyword === '') { flowHideBindingProductSuggestions(); return; }
+            flowState.productBinding.searchTimer = setTimeout(function () {
+                flowState.productBinding.activeSearch = keyword;
+                meshserver.send({ action: 'flowproductsearch', search: keyword, limit: 8 });
+            }, forceSearch === true ? 0 : 220);
+        }
+        function flowHandleBindingProductBlur() {
+            setTimeout(function () { flowHideBindingProductSuggestions(); }, 120);
+        }
+        function flowSelectBindingProductByIndex(index) {
+            var product = flowState.productBinding.suggestions[index];
+            if (product == null) return;
+            var productName = product.name || '';
+            Q('flowFormProductName').value = productName;
+            Q('flowFormMyProductName').value = productName;
+            flowHideBindingProductSuggestions();
+        }
+        function flowHandleBindingProductResponse(message) {
+            if (Q('flowFormType') == null || Q('flowFormType').value !== 'publish') return;
+            if (message.result != null) { flowShowToast(message.result, true); return; }
+            if (String(message.search || '') !== String(flowState.productBinding.activeSearch || '')) return;
+            flowRenderBindingProductSuggestions(message.products || []);
         }
         function flowMakePricingReferenceRowId() {
             return 'flowPricingReferenceRow_' + (flowState.pricingReference.nextRowSeq++);
@@ -4263,6 +4316,7 @@
         function flowHandleTypeChange() {
             var flowType = Q('flowFormType').value;
             flowSetSectionVisibility(flowType);
+            flowHideBindingProductSuggestions();
             if (Q('flowFormId').value === '') Q('flowFormScriptPath').value = managerDefaultFlowScriptPath(flowType, Q('flowFormDeviceOs').value);
             flowLoadConfigToFields(managerParseJson(Q('flowFormConfig').value || '{}', managerDefaultFlowConfig(flowType)), flowType);
         }
@@ -4283,6 +4337,10 @@
             Q('flowFormShopCategory').value = flow ? (flow.shop_category || flow.shopCategory || '') : '';
             Q('flowFormProductName').value = flow ? (flow.product_name || flow.productName || '') : '';
             Q('flowFormMyProductName').value = flow ? (flow.my_product_name || flow.myProductName || '') : '';
+            flowState.productBinding.suggestions = [];
+            flowState.productBinding.activeSearch = '';
+            if (flowState.productBinding.searchTimer != null) { clearTimeout(flowState.productBinding.searchTimer); flowState.productBinding.searchTimer = null; }
+            flowHideBindingProductSuggestions();
             Q('flowFormDeviceOs').value = flow ? (flow.device_os || flow.deviceOs || 'windows') : 'windows';
             Q('flowFormScriptPath').value = flow ? (flow.script_path || flow.scriptPath || '') : managerDefaultFlowScriptPath(Q('flowFormType').value, Q('flowFormDeviceOs').value);
             Q('flowFormConfig').value = managerPrettyJson(managerParseJson(typeof (flow ? flow.config : null) === 'string' ? flow.config : JSON.stringify((flow ? flow.config : managerDefaultFlowConfig(Q('flowFormType').value))), managerDefaultFlowConfig(Q('flowFormType').value)));
@@ -5519,6 +5577,10 @@
                 }
                 case 'productdelete': {
                     productHandleMutationResponse('delete', message);
+                    break;
+                }
+                case 'flowproductsearch': {
+                    flowHandleBindingProductResponse(message);
                     break;
                 }
                 case 'pricingreferenceshops': {

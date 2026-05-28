@@ -4416,6 +4416,7 @@ a {
 .flow-picker-item:hover { background: #eff6ff; }
 .flow-picker-subitem { margin-top: 2px; font-size: 12px; color: #60758c; }
 .flow-picker-empty { padding: 10px 12px; color: #60758c; font-size: 13px; }
+.flow-field .flow-picker-suggest { max-height: 240px; }
 .collect-shop-inline-grid { grid-template-columns: minmax(0, 1.1fr) minmax(180px, 0.7fr) minmax(0, 1.1fr); align-items: end; }
 .manager-inline-grid label { display: flex; flex-direction: column; gap: 8px; color: #2f4b69; font-weight: 600; }
 .manager-inline-grid .manager-check-row { flex-direction: row; align-items: center; margin-top: 28px; }
