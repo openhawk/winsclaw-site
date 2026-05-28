@@ -138,6 +138,8 @@ module.exports.CreateDB = function (parent, func) {
             });
         });
     }
+    let lastStaleFlowCleanupAt = 0;
+    let staleFlowCleanupRunning = false;
 
     // MongoDB bulk operations state
     if (parent.config.settings.mongodbbulkoperations) {
@@ -3904,8 +3906,12 @@ module.exports.CreateDB = function (parent, func) {
             });
         };
 
-        function finalizeStaleFlowRuns(func) {
-            if (obj.databaseType != DB_POSTGRESQL) { func(); return; }
+        function finalizeStaleFlowRuns() {
+            if (obj.databaseType != DB_POSTGRESQL) return;
+            const now = Date.now();
+            if (staleFlowCleanupRunning || ((now - lastStaleFlowCleanupAt) < 60000)) return;
+            staleFlowCleanupRunning = true;
+            lastStaleFlowCleanupAt = now;
             const summary = '执行超时：设备代理未回传进程标识、心跳或最终结果，系统已自动结束本次运行。';
             const resultJson = { status: 'failed', summary: summary, errorType: 'agent_stale_timeout' };
             const lastRunResult = { stdout: '', stderr: '', exitCode: -1, resultSummary: summary, resultJson: resultJson, processId: null };
@@ -3918,7 +3924,7 @@ module.exports.CreateDB = function (parent, func) {
                 'UPDATE flows SET last_run_at = NOW(), last_run_status = $1, active_run_id = NULL, last_run_result = $8::jsonb, updated_at = NOW() ' +
                 'WHERE id IN (SELECT flow_id FROM stale) AND (last_run_status = $6 OR active_run_id IN (SELECT id FROM stale))',
                 ['failed', -1, summary, JSON.stringify(resultJson), 'agent-stale-timeout', 'running', '2 hours', JSON.stringify(lastRunResult)],
-                function (err) { func(err); }
+                function () { staleFlowCleanupRunning = false; }
             );
         }
 
@@ -3927,8 +3933,7 @@ module.exports.CreateDB = function (parent, func) {
             if (typeof search != 'string') { search = ''; }
             if (typeof page != 'number' || page < 1) { page = 1; }
             if (typeof limit != 'number' || limit < 1) { limit = 10; }
-            finalizeStaleFlowRuns(function (staleErr) {
-                if (staleErr != null) { func(staleErr); return; }
+            finalizeStaleFlowRuns();
             const args = [], where = [];
             search = search.trim();
             if (search !== '') { args.push('%' + search + '%'); where.push('flows.name ILIKE $' + args.length); }
@@ -3945,18 +3950,15 @@ module.exports.CreateDB = function (parent, func) {
                     func(null, { total: total, flows: results.rows });
                 });
             });
-            });
         };
 
         obj.GetFlow = function (flowId, func) {
             if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Flow manager requires PostgreSQL.')); return; }
-            finalizeStaleFlowRuns(function (staleErr) {
-                if (staleErr != null) { func(staleErr); return; }
+            finalizeStaleFlowRuns();
             Datastore.query('SELECT flows.*, my_shops.name AS my_shop_name, COALESCE(flows.active_run_id, latest_running.id) AS running_run_id FROM flows LEFT JOIN my_shops ON flows.my_shop_id = my_shops.id LEFT JOIN LATERAL (SELECT id FROM flow_runs WHERE flow_id = flows.id AND status = \'running\' ORDER BY started_at DESC LIMIT 1) latest_running ON TRUE WHERE flows.id = $1 AND flows.is_deleted = FALSE', [flowId], function (err, results) {
                 if (err != null) { func(err); return; }
                 if (!results.rows || results.rows.length === 0) { func(new Error('Flow not found.')); return; }
                 func(null, results.rows[0]);
-            });
             });
         };
 

@@ -1592,6 +1592,11 @@
                         <div class="flow-empty-title">暂无流程</div>
                         <div class="flow-empty-text">点击右上角“新增流程”，开始维护第一条流程。</div>
                     </div>
+                    <div id="flowErrorState" class="flow-state flow-empty" style="display:none">
+                        <div class="flow-empty-title">流程数据加载超时</div>
+                        <div class="flow-empty-text">网络或登录会话可能还没准备好，请重新加载。</div>
+                        <button type="button" class="flow-btn flow-btn-primary" onclick="flowRefreshList(flowState.page)">重新加载</button>
+                    </div>
                     <div id="flowCardList" class="flow-card-grid"></div>
                     <div id="flowPagination" class="flow-pagination" style="display:none"></div>
                 </div>
@@ -3757,32 +3762,34 @@
             if (Q('p102') == null) return;
             QC('p102').remove('flow-page-active'); void Q('p102').offsetWidth; QC('p102').add('flow-page-active');
             if (Q('flowSearchInput') != null) Q('flowSearchInput').value = flowState.search;
-            if (flowState.loaded !== true) flowRefreshList(1); else flowRender();
+            flowRefreshList(flowState.page || 1);
         }
         function flowHandleSearchInput() { if (flowState.searchTimer != null) clearTimeout(flowState.searchTimer); flowState.searchTimer = setTimeout(function () { flowState.search = Q('flowSearchInput').value.trim(); flowRefreshList(1); }, 260); }
         function flowRefreshList(page, isRetry) {
             if (typeof page === 'number') flowState.page = page;
             if (isRetry !== true) flowState.loadRetry = 0;
             if (flowState.loadTimer != null) { clearTimeout(flowState.loadTimer); flowState.loadTimer = null; }
-            flowState.loaded = true; flowState.loading = true; QV('flowLoadingState', true); QV('flowEmptyState', false); QH('flowCardList', '');
+            flowState.loaded = true; flowState.loading = true; QV('flowLoadingState', true); QV('flowEmptyState', false); QV('flowErrorState', false);
+            if (!Array.isArray(flowState.items) || flowState.items.length === 0) QH('flowCardList', '');
             meshserver.send({ action: 'flowlist', search: flowState.search, page: flowState.page, limit: flowState.limit });
             flowState.loadTimer = setTimeout(function () {
                 if (flowState.loading !== true) return;
-                if (flowState.loadRetry < 1) {
+                if (flowState.loadRetry < 2) {
                     flowState.loadRetry++;
                     flowRefreshList(flowState.page, true);
                     return;
                 }
                 flowState.loading = false;
                 QV('flowLoadingState', false);
-                flowRender();
+                QV('flowErrorState', true);
+                QV('flowEmptyState', false);
                 flowShowToast('流程数据加载超时，请稍后重试。', true);
-            }, 12000);
+            }, 6000);
         }
         function flowHandleListResponse(message) {
             flowState.loading = false;
             if (flowState.loadTimer != null) { clearTimeout(flowState.loadTimer); flowState.loadTimer = null; }
-            QV('flowLoadingState', false);
+            QV('flowLoadingState', false); QV('flowErrorState', false);
             if (message.result != null) { flowState.items = []; flowState.total = 0; flowShowToast(message.result, true); } else { flowState.items = Array.isArray(message.flows) ? message.flows : []; flowState.total = typeof message.total === 'number' ? message.total : 0; if (typeof message.page === 'number') flowState.page = message.page; }
             flowRender();
         }
