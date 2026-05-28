@@ -1651,7 +1651,7 @@
                                                 <label style="display:none" class="manager-wide"><span>目标商品名称</span><input id="flowPricingTargetProductName" type="text" /></label>
                                                 <label class="manager-wide"><span>参考基准</span><select id="flowPricingReferenceBenchmark" onchange="flowHandlePricingBenchmarkChange()"><option value="lowest">最低价</option><option value="highest">最高价</option><option value="average">平均价</option><option value="fixed">固定价</option></select></label>
                                                 <label><span>平均价格</span><input id="flowPricingAveragePrice" type="text" readonly="readonly" placeholder="选择平均价后自动带出" /></label>
-                                                <label><span>固定价格</span><input id="flowPricingFixedPrice" type="number" step="any" placeholder="手动输入固定价格" /></label>
+                                                <label><span>固定价格</span><input id="flowPricingFixedPrice" type="number" step="any" placeholder="仅固定价可输入" disabled="disabled" /></label>
                                                 <label><span>最低价格</span><input id="flowPricingLimitMin" type="text" readonly="readonly" placeholder="选择最低价后自动带出" /></label>
                                                 <label><span>最高价格</span><input id="flowPricingLimitMax" type="text" readonly="readonly" placeholder="选择最高价后自动带出" /></label>
                                                 <label class="manager-wide"><span>价格偏移</span><input id="flowPricingPriceOffset" type="number" step="any" /></label>
@@ -3970,8 +3970,14 @@
         function flowHandlePricingBenchmarkChange() {
             if (Q('flowFormType') == null || Q('flowFormType').value !== 'pricing') return;
             var benchmarkField = Q('flowPricingReferenceBenchmark');
+            var fixedPriceField = Q('flowPricingFixedPrice');
             if (benchmarkField == null) return;
             var summary = flowCalculatePricingReferenceSummary();
+            var isFixed = (benchmarkField.value === 'fixed');
+            if (fixedPriceField != null) {
+                fixedPriceField.disabled = !isFixed;
+                if (!isFixed) fixedPriceField.value = '';
+            }
             flowClearPricingComputedFields();
             if (benchmarkField.value === 'average') {
                 Q('flowPricingAveragePrice').value = managerFormatPlainPrice(summary.average);
