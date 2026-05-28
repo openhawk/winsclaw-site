@@ -4398,6 +4398,8 @@ a {
 .manager-fieldset-title { font-size: 16px; font-weight: 800; color: #18324f; }
 .manager-section-header, .manager-repeat-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .manager-inline-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 12px; }
+.flow-pricing-reference-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(220px, 0.8fr); gap: 14px; }
+.flow-pricing-reference-row label { display: flex; flex-direction: column; gap: 8px; color: #2f4b69; font-weight: 600; }
 .flow-picker { position: relative; }
 .flow-picker-suggest { position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 40; background: #fff; border: 1px solid #cfe0f1; border-radius: 12px; box-shadow: 0 18px 40px rgba(21, 51, 84, 0.14); padding: 8px; max-height: 280px; overflow-y: auto; }
 .flow-picker-item { padding: 10px 12px; border-radius: 10px; cursor: pointer; color: #18324f; }
@@ -4449,6 +4451,10 @@ a {
     }
 
     .manager-inline-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .flow-pricing-reference-row {
         grid-template-columns: 1fr;
     }
 
