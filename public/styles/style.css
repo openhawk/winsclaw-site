@@ -4398,6 +4398,10 @@ a {
 .manager-fieldset-title { font-size: 16px; font-weight: 800; color: #18324f; }
 .manager-section-header, .manager-repeat-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .manager-inline-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 12px; }
+.flow-pricing-reference-toolbar { display: flex; justify-content: flex-start; }
+.flow-pricing-reference-list { display: grid; gap: 12px; }
+.flow-pricing-reference-row-wrap { display: grid; gap: 8px; }
+.flow-pricing-reference-row-actions { display: flex; justify-content: flex-end; }
 .flow-pricing-reference-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(220px, 0.8fr); gap: 14px; }
 .flow-pricing-reference-row label { display: flex; flex-direction: column; gap: 8px; color: #2f4b69; font-weight: 600; }
 .flow-picker { position: relative; }

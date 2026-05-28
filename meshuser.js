@@ -7356,8 +7356,8 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         }
         if (common.validateInt(command.limit, 1, 20) == true) { limit = command.limit; }
         db.GetShopList(search, 1, limit, function (err, result) {
-            if (err != null) { obj.send({ action: 'pricingreferenceshops', result: err.message ? err.message : 'Unable to load shops.' }); return; }
-            obj.send({ action: 'pricingreferenceshops', search: search, shops: result.shops || [] });
+            if (err != null) { obj.send({ action: 'pricingreferenceshops', rowId: command.rowId || '', result: err.message ? err.message : 'Unable to load shops.' }); return; }
+            obj.send({ action: 'pricingreferenceshops', rowId: command.rowId || '', search: search, shops: result.shops || [] });
         });
     }
 
@@ -7372,8 +7372,8 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         }
         if (common.validateInt(command.limit, 1, 20) == true) { limit = command.limit; }
         db.GetPricingReferenceProductList(shopName, search, limit, function (err, products) {
-            if (err != null) { obj.send({ action: 'pricingreferenceproducts', result: err.message ? err.message : 'Unable to load products.' }); return; }
-            obj.send({ action: 'pricingreferenceproducts', search: search, shopName: shopName, products: products || [] });
+            if (err != null) { obj.send({ action: 'pricingreferenceproducts', rowId: command.rowId || '', result: err.message ? err.message : 'Unable to load products.' }); return; }
+            obj.send({ action: 'pricingreferenceproducts', rowId: command.rowId || '', search: search, shopName: shopName, products: products || [] });
         });
     }
 
