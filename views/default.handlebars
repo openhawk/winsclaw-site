@@ -1620,7 +1620,7 @@
                                     <div class="manager-fieldset-title">商品绑定</div>
                                     <div class="manager-inline-grid">
                                         <label><span id="flowFormProductNameLabel">商品名称 <b>*</b></span><input id="flowFormProductName" type="text" maxlength="512" placeholder="必须存在于商品页面" /></label>
-                                        <label><span>我的商品名称</span><input id="flowFormMyProductName" type="text" maxlength="512" /></label>
+                                        <label id="flowFormMyProductNameField"><span>我的商品名称</span><input id="flowFormMyProductName" type="text" maxlength="512" oninput="flowSyncMyProductName('form')" /></label>
                                     </div>
                                 </div>
                                 <label class="flow-field"><span>目标设备 <b>*</b></span><select id="flowFormDeviceId" onchange="flowHandleDeviceChange()"></select></label>
@@ -1630,7 +1630,8 @@
                                 <div id="flowPricingFields" class="flow-field flow-field-full manager-fieldset" style="display:none">
                                     <div class="manager-fieldset-title">调价配置</div>
                                     <div class="manager-inline-grid">
-                                        <label class="manager-wide"><span>我的商铺</span><select id="flowPricingMyShopId"></select></label>
+                                        <label><span>我的商铺</span><select id="flowPricingMyShopId"></select></label>
+                                        <label><span>我的商品</span><input id="flowPricingMyProductName" type="text" maxlength="512" oninput="flowSyncMyProductName('pricing')" /></label>
                                         <label style="display:none"><span>参考商品关键词</span><input id="flowPricingReferenceKeyword" type="text" /></label>
                                         <label style="display:none" class="manager-wide"><span>目标商品名称</span><input id="flowPricingTargetProductName" type="text" /></label>
                                         <label class="manager-wide"><span>参考店铺列表</span><textarea id="flowPricingReferenceShops" rows="3" placeholder="每行一个店铺名"></textarea></label>
@@ -3788,9 +3789,25 @@
             QV('flowProductFields', (flowType === 'publish') || (flowType === 'pricing'));
             QH("flowFormProductNameLabel", (flowType === "pricing" ? "参考商品关键词" : "商品名称") + " <b>*</b>");
             Q("flowFormProductName").placeholder = (flowType === "pricing" ? "" : "必须存在于商品页面");
+            QV('flowFormMyProductNameField', flowType !== 'pricing');
             QV('flowShopField', flowType !== 'pricing');
             QV('flowPricingFields', flowType === 'pricing');
             QV('flowAutoReplyFields', flowType === 'auto_reply');
+            if (flowType === 'pricing') flowSyncMyProductName('form');
+        }
+        function flowSyncMyProductName(source) {
+            var formInput = Q('flowFormMyProductName');
+            var pricingInput = Q('flowPricingMyProductName');
+            var value = '';
+            if (source === 'pricing' && pricingInput != null) {
+                value = pricingInput.value;
+            } else if (formInput != null) {
+                value = formInput.value;
+            } else if (pricingInput != null) {
+                value = pricingInput.value;
+            }
+            if (formInput != null && source !== 'form') formInput.value = value;
+            if (pricingInput != null && source !== 'pricing') pricingInput.value = value;
         }
         function flowGetScriptPathValue() { return Q('flowFormScriptPath').value.trim(); }
         function flowGetSinglePricingTask(config) {
@@ -3801,6 +3818,8 @@
             task = task || {};
             config = config || {};
             Q('flowPricingMyShopId').value = config.myShopId || Q('flowFormMyShopId').value || '';
+            Q('flowPricingMyProductName').value = task.targetProductName || Q('flowFormMyProductName').value || '';
+            flowSyncMyProductName('pricing');
             Q('flowPricingReferenceKeyword').value = task.referenceKeyword || '';
             Q('flowPricingTargetProductName').value = task.targetProductName || '';
             Q('flowPricingReferenceShops').value = managerArrayToLines(task.referenceShops || []);
@@ -3816,10 +3835,12 @@
         function flowReadSinglePricingTask() {
             var min = managerToNumberOrNull(Q('flowPricingLimitMin').value);
             var max = managerToNumberOrNull(Q('flowPricingLimitMax').value);
+            var myProductName = Q('flowPricingMyProductName').value.trim() || Q('flowFormMyProductName').value.trim();
+            Q('flowFormMyProductName').value = myProductName;
             var task = {
                 taskId: 'task_1',
                 enabled: true,
-                targetProductName: Q('flowFormMyProductName').value.trim(),
+                targetProductName: myProductName,
                 referenceKeyword: Q('flowFormProductName').value.trim(),
                 referenceShops: managerLinesToArray(Q('flowPricingReferenceShops').value),
                 referenceProductSelection: Q("flowPricingReferenceBenchmark").value === "fixed" ? "average" : Q("flowPricingReferenceBenchmark").value,
