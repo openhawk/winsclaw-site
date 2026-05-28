@@ -5728,6 +5728,8 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         'myshopcreate': serverCommandMyShopCreate,
         'myshopdelete': serverCommandMyShopDelete,
         'myshoplist': serverCommandMyShopList,
+        'pricingreferenceproducts': serverCommandPricingReferenceProductList,
+        'pricingreferenceshops': serverCommandPricingReferenceShopList,
         'myshopupdate': serverCommandMyShopUpdate,
         'shopcreate': serverCommandShopCreate,
         'shopdelete': serverCommandShopDelete,
@@ -7342,6 +7344,36 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         db.GetMyShopList(search, page, limit, function (err, result) {
             if (err != null) { obj.send({ action: 'myshoplist', result: err.message ? err.message : 'Unable to load my shops.' }); return; }
             obj.send({ action: 'myshoplist', search: search, page: page, limit: limit, total: result.total, shops: result.shops });
+        });
+    }
+
+    function serverCommandPricingReferenceShopList(command) {
+        var search = '';
+        var limit = 8;
+        if (typeof command.search == 'string') {
+            search = command.search.trim();
+            if (search.length > 128) { obj.send({ action: 'pricingreferenceshops', result: 'Invalid search.' }); return; }
+        }
+        if (common.validateInt(command.limit, 1, 20) == true) { limit = command.limit; }
+        db.GetShopList(search, 1, limit, function (err, result) {
+            if (err != null) { obj.send({ action: 'pricingreferenceshops', result: err.message ? err.message : 'Unable to load shops.' }); return; }
+            obj.send({ action: 'pricingreferenceshops', search: search, shops: result.shops || [] });
+        });
+    }
+
+    function serverCommandPricingReferenceProductList(command) {
+        var search = '';
+        var limit = 8;
+        var shopName = managerGetTextField(command.shopName || '', 256, false);
+        if (shopName == null || shopName === '') { obj.send({ action: 'pricingreferenceproducts', result: '所属店铺不能为空。' }); return; }
+        if (typeof command.search == 'string') {
+            search = command.search.trim();
+            if (search.length > 128) { obj.send({ action: 'pricingreferenceproducts', result: 'Invalid search.' }); return; }
+        }
+        if (common.validateInt(command.limit, 1, 20) == true) { limit = command.limit; }
+        db.GetPricingReferenceProductList(shopName, search, limit, function (err, products) {
+            if (err != null) { obj.send({ action: 'pricingreferenceproducts', result: err.message ? err.message : 'Unable to load products.' }); return; }
+            obj.send({ action: 'pricingreferenceproducts', search: search, shopName: shopName, products: products || [] });
         });
     }
 

@@ -3551,6 +3551,25 @@ module.exports.CreateDB = function (parent, func) {
             });
         };
 
+        obj.GetPricingReferenceProductList = function (shopName, search, limit, func) {
+            if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Product manager requires PostgreSQL.')); return; }
+            if (typeof shopName != 'string' || shopName.trim() === '') { func(new Error('所属店铺不能为空。')); return; }
+            if (typeof search != 'string') { search = ''; }
+            if (typeof limit != 'number' || limit < 1) { limit = 8; }
+            shopName = shopName.trim();
+            search = search.trim();
+            const args = [shopName], where = ['p.is_deleted = FALSE', 'COALESCE(p.required_attributes_json->>\'storeName\', \'\') = $1'];
+            if (search !== '') {
+                args.push('%' + search + '%');
+                where.push('p.name ILIKE $' + args.length);
+            }
+            args.push(limit);
+            Datastore.query('SELECT p.*, cr.collected_at AS collect_result_collected_at FROM meituan_h5_products p LEFT JOIN collect_results cr ON cr.id = p.collect_result_id WHERE ' + where.join(' AND ') + ' ORDER BY cr.collected_at DESC NULLS LAST, p.updated_at DESC NULLS LAST, p.id DESC LIMIT $' + args.length, args, function (err, results) {
+                if (err != null) { func(err); return; }
+                func(null, results.rows || []);
+            });
+        };
+
         obj.GetProductList = function (search, storeSearch, page, limit, func) {
             if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Product manager requires PostgreSQL.')); return; }
             if (typeof search != 'string') { search = ''; }

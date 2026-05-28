@@ -1632,9 +1632,11 @@
                                     <div class="manager-inline-grid">
                                         <label><span>我的商铺</span><select id="flowPricingMyShopId"></select></label>
                                         <label><span>我的商品</span><input id="flowPricingMyProductName" type="text" maxlength="512" oninput="flowSyncMyProductName('pricing')" /></label>
+                                        <label class="flow-picker"><span>参考店铺</span><input id="flowPricingReferenceShopSearch" type="search" maxlength="256" placeholder="输入关键词搜索店铺" autocomplete="off" oninput="flowHandlePricingReferenceShopInput()" onfocus="flowHandlePricingReferenceShopInput(true)" onblur="flowHandlePricingPickerBlur('shop')" /><input id="flowPricingReferenceShopId" type="hidden" /><input id="flowPricingReferenceShopName" type="hidden" /><div id="flowPricingReferenceShopSuggest" class="flow-picker-suggest" style="display:none"></div></label>
+                                        <label class="flow-picker"><span>参考商品</span><input id="flowPricingReferenceProductSearch" type="search" maxlength="512" placeholder="输入关键词搜索商品" autocomplete="off" oninput="flowHandlePricingReferenceProductInput()" onfocus="flowHandlePricingReferenceProductInput(true)" onblur="flowHandlePricingPickerBlur('product')" /><input id="flowPricingReferenceProductId" type="hidden" /><input id="flowPricingReferenceProductName" type="hidden" /><div id="flowPricingReferenceProductSuggest" class="flow-picker-suggest" style="display:none"></div></label>
+                                        <label><span>商品价格</span><input id="flowPricingReferenceProductPrice" type="text" readonly="readonly" placeholder="选择商品后自动带出" /></label>
                                         <label style="display:none"><span>参考商品关键词</span><input id="flowPricingReferenceKeyword" type="text" /></label>
                                         <label style="display:none" class="manager-wide"><span>目标商品名称</span><input id="flowPricingTargetProductName" type="text" /></label>
-                                        <label class="manager-wide"><span>参考店铺列表</span><textarea id="flowPricingReferenceShops" rows="3" placeholder="每行一个店铺名"></textarea></label>
                                         <label><span>参考基准</span><select id="flowPricingReferenceBenchmark"><option value="lowest">最低价</option><option value="highest">最高价</option><option value="average">平均价</option><option value="fixed">固定价</option></select></label>
                                         <label><span>价格偏移</span><input id="flowPricingPriceOffset" type="number" step="any" /></label>
                                         <label><span>固定价格</span><input id="flowPricingFixedPrice" type="number" step="any" /></label>
@@ -2827,7 +2829,7 @@
         var shopState = { items: [], total: 0, page: 1, limit: 12, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null };
         var myShopState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null };
         var productState = { items: [], total: 0, page: 1, limit: 12, search: '', storeSearch: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, loadTimer: null, loadRetry: 0, pendingAction: null };
-        var flowState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, loadTimer: null, loadRetry: 0, pendingAction: null, pendingMyShopId: '', currentRunsFlowId: null, runsPage: 1, runsLimit: 10 };
+        var flowState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, loadTimer: null, loadRetry: 0, pendingAction: null, pendingMyShopId: '', currentRunsFlowId: null, runsPage: 1, runsLimit: 10, pricingReference: { shopSearchTimer: null, productSearchTimer: null, shopSuggestions: [], productSuggestions: [], activeShopSearch: '', activeProductSearch: '' } };
         var collectState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, currentResultsTaskId: null, resultsPage: 1, resultsLimit: 10 };
         var managerExecutionMap = {};
 
@@ -3786,7 +3788,7 @@
         }
         function flowSetSubmitBusy(busy) { QE('flowSubmitButton', !busy); Q('flowSubmitButton').value = Q('flowSubmitButton').innerText = busy ? '保存中...' : '保存'; }
         function flowSetSectionVisibility(flowType) {
-            QV('flowProductFields', (flowType === 'publish') || (flowType === 'pricing'));
+            QV('flowProductFields', flowType === 'publish');
             QH("flowFormProductNameLabel", (flowType === "pricing" ? "参考商品关键词" : "商品名称") + " <b>*</b>");
             Q("flowFormProductName").placeholder = (flowType === "pricing" ? "" : "必须存在于商品页面");
             QV('flowFormMyProductNameField', flowType !== 'pricing');
@@ -3794,6 +3796,10 @@
             QV('flowPricingFields', flowType === 'pricing');
             QV('flowAutoReplyFields', flowType === 'auto_reply');
             if (flowType === 'pricing') flowSyncMyProductName('form');
+        }
+        function managerFormatPriceDisplay(value) {
+            var numberValue = managerToNumberOrNull(value);
+            return numberValue == null ? '' : ('¥' + Number(numberValue).toFixed(2));
         }
         function flowSyncMyProductName(source) {
             var formInput = Q('flowFormMyProductName');
@@ -3809,6 +3815,122 @@
             if (formInput != null && source !== 'form') formInput.value = value;
             if (pricingInput != null && source !== 'pricing') pricingInput.value = value;
         }
+        function flowResetPricingReferenceShop() {
+            Q('flowPricingReferenceShopId').value = '';
+            Q('flowPricingReferenceShopName').value = '';
+            flowResetPricingReferenceProduct(true);
+        }
+        function flowResetPricingReferenceProduct(keepSearchText) {
+            Q('flowPricingReferenceProductId').value = '';
+            Q('flowPricingReferenceProductName').value = '';
+            Q('flowPricingReferenceProductPrice').value = '';
+            Q('flowPricingReferenceKeyword').value = '';
+            Q('flowFormProductName').value = '';
+            if (keepSearchText !== true) Q('flowPricingReferenceProductSearch').value = '';
+            flowHidePricingPickerSuggestions('product');
+        }
+        function flowHandlePricingPickerBlur(kind) {
+            setTimeout(function () { flowHidePricingPickerSuggestions(kind); }, 120);
+        }
+        function flowHidePricingPickerSuggestions(kind) {
+            if (kind === 'shop') {
+                QV('flowPricingReferenceShopSuggest', false);
+            } else {
+                QV('flowPricingReferenceProductSuggest', false);
+            }
+        }
+        function flowRenderPricingReferenceShopSuggestions(shops) {
+            flowState.pricingReference.shopSuggestions = Array.isArray(shops) ? shops : [];
+            if (flowState.pricingReference.shopSuggestions.length === 0) {
+                QH('flowPricingReferenceShopSuggest', '<div class="flow-picker-empty">没有匹配的店铺</div>');
+                QV('flowPricingReferenceShopSuggest', true);
+                return;
+            }
+            var x = '';
+            for (var i = 0; i < flowState.pricingReference.shopSuggestions.length; i++) {
+                var shop = flowState.pricingReference.shopSuggestions[i] || {};
+                x += '<div class="flow-picker-item" onmousedown="flowSelectPricingReferenceShopByIndex(' + i + '); return false;"><div>' + EscapeHtml(shop.name || '') + '</div><div class="flow-picker-subitem">' + EscapeHtml(shop.category || '') + (shop.address ? (' · ' + EscapeHtml(shop.address)) : '') + '</div></div>';
+            }
+            QH('flowPricingReferenceShopSuggest', x);
+            QV('flowPricingReferenceShopSuggest', true);
+        }
+        function flowRenderPricingReferenceProductSuggestions(products) {
+            flowState.pricingReference.productSuggestions = Array.isArray(products) ? products : [];
+            if (flowState.pricingReference.productSuggestions.length === 0) {
+                QH('flowPricingReferenceProductSuggest', '<div class="flow-picker-empty">没有匹配的商品</div>');
+                QV('flowPricingReferenceProductSuggest', true);
+                return;
+            }
+            var x = '';
+            for (var i = 0; i < flowState.pricingReference.productSuggestions.length; i++) {
+                var product = flowState.pricingReference.productSuggestions[i] || {};
+                x += '<div class="flow-picker-item" onmousedown="flowSelectPricingReferenceProductByIndex(' + i + '); return false;"><div>' + EscapeHtml(product.name || '') + '</div><div class="flow-picker-subitem">' + EscapeHtml(managerFormatPriceDisplay(product.price)) + '</div></div>';
+            }
+            QH('flowPricingReferenceProductSuggest', x);
+            QV('flowPricingReferenceProductSuggest', true);
+        }
+        function flowHandlePricingReferenceShopInput(forceSearch) {
+            var input = Q('flowPricingReferenceShopSearch');
+            var keyword = input.value.trim();
+            if (Q('flowPricingReferenceShopName').value !== keyword) flowResetPricingReferenceShop();
+            if (flowState.pricingReference.shopSearchTimer != null) clearTimeout(flowState.pricingReference.shopSearchTimer);
+            if (keyword === '') { flowHidePricingPickerSuggestions('shop'); return; }
+            flowState.pricingReference.shopSearchTimer = setTimeout(function () {
+                if (forceSearch !== true && keyword.length < 1) return;
+                flowState.pricingReference.activeShopSearch = keyword;
+                meshserver.send({ action: 'pricingreferenceshops', search: keyword, limit: 8 });
+            }, forceSearch === true ? 0 : 220);
+        }
+        function flowHandlePricingReferenceProductInput(forceSearch) {
+            var shopName = Q('flowPricingReferenceShopName').value.trim();
+            var input = Q('flowPricingReferenceProductSearch');
+            var keyword = input.value.trim();
+            if (Q('flowPricingReferenceProductName').value !== keyword) flowResetPricingReferenceProduct(true);
+            if (flowState.pricingReference.productSearchTimer != null) clearTimeout(flowState.pricingReference.productSearchTimer);
+            if (shopName === '') {
+                if (keyword !== '') flowShowToast('请先选择参考店铺。', true);
+                return;
+            }
+            if (keyword === '') { flowHidePricingPickerSuggestions('product'); return; }
+            flowState.pricingReference.productSearchTimer = setTimeout(function () {
+                flowState.pricingReference.activeProductSearch = keyword;
+                meshserver.send({ action: 'pricingreferenceproducts', shopName: shopName, search: keyword, limit: 8 });
+            }, forceSearch === true ? 0 : 220);
+        }
+        function flowSelectPricingReferenceShopByIndex(index) {
+            var shop = flowState.pricingReference.shopSuggestions[index];
+            if (shop == null) return;
+            Q('flowPricingReferenceShopId').value = shop.id == null ? '' : String(shop.id);
+            Q('flowPricingReferenceShopName').value = shop.name || '';
+            Q('flowPricingReferenceShopSearch').value = shop.name || '';
+            flowHidePricingPickerSuggestions('shop');
+            flowResetPricingReferenceProduct(false);
+        }
+        function flowSelectPricingReferenceProductByIndex(index) {
+            var product = flowState.pricingReference.productSuggestions[index];
+            if (product == null) return;
+            var productName = product.name || '';
+            Q('flowPricingReferenceProductId').value = product.id == null ? '' : String(product.id);
+            Q('flowPricingReferenceProductName').value = productName;
+            Q('flowPricingReferenceProductSearch').value = productName;
+            Q('flowPricingReferenceProductPrice').value = managerFormatPriceDisplay(product.price);
+            Q('flowPricingReferenceKeyword').value = productName;
+            Q('flowFormProductName').value = productName;
+            flowHidePricingPickerSuggestions('product');
+        }
+        function flowHandlePricingReferenceShopResponse(message) {
+            if (Q('flowFormType').value !== 'pricing') return;
+            if (message.result != null) { flowShowToast(message.result, true); return; }
+            if (String(message.search || '') !== String(flowState.pricingReference.activeShopSearch || '')) return;
+            flowRenderPricingReferenceShopSuggestions(message.shops || []);
+        }
+        function flowHandlePricingReferenceProductResponse(message) {
+            if (Q('flowFormType').value !== 'pricing') return;
+            if (message.result != null) { flowShowToast(message.result, true); return; }
+            if (String(message.shopName || '') !== String(Q('flowPricingReferenceShopName').value || '')) return;
+            if (String(message.search || '') !== String(flowState.pricingReference.activeProductSearch || '')) return;
+            flowRenderPricingReferenceProductSuggestions(message.products || []);
+        }
         function flowGetScriptPathValue() { return Q('flowFormScriptPath').value.trim(); }
         function flowGetSinglePricingTask(config) {
             var tasks = Array.isArray(config && config.tasks) ? config.tasks : [];
@@ -3820,9 +3942,16 @@
             Q('flowPricingMyShopId').value = config.myShopId || Q('flowFormMyShopId').value || '';
             Q('flowPricingMyProductName').value = task.targetProductName || Q('flowFormMyProductName').value || '';
             flowSyncMyProductName('pricing');
-            Q('flowPricingReferenceKeyword').value = task.referenceKeyword || '';
+            Q('flowPricingReferenceShopId').value = task.referenceShopId == null ? '' : String(task.referenceShopId);
+            Q('flowPricingReferenceShopName').value = task.referenceShopName || ((task.referenceShops || []).length > 0 ? task.referenceShops[0] : '');
+            Q('flowPricingReferenceShopSearch').value = Q('flowPricingReferenceShopName').value;
+            Q('flowPricingReferenceProductId').value = task.referenceProductId == null ? '' : String(task.referenceProductId);
+            Q('flowPricingReferenceProductName').value = task.referenceProductName || task.referenceKeyword || '';
+            Q('flowPricingReferenceProductSearch').value = Q('flowPricingReferenceProductName').value;
+            Q('flowPricingReferenceProductPrice').value = managerFormatPriceDisplay(task.referenceProductPrice);
+            Q('flowPricingReferenceKeyword').value = task.referenceKeyword || Q('flowPricingReferenceProductName').value || '';
             Q('flowPricingTargetProductName').value = task.targetProductName || '';
-            Q('flowPricingReferenceShops').value = managerArrayToLines(task.referenceShops || []);
+            if (Q('flowPricingReferenceProductName').value !== '') Q('flowFormProductName').value = Q('flowPricingReferenceProductName').value;
             var benchmark = task.strategy === "fixed" ? "fixed" : (task.referenceProductSelection || "average");
             if (benchmark === "lowest" && task.strategy === "max") benchmark = "highest"; // Heuristic for mapping back
             Q("flowPricingReferenceBenchmark").value = benchmark;
@@ -3836,13 +3965,23 @@
             var min = managerToNumberOrNull(Q('flowPricingLimitMin').value);
             var max = managerToNumberOrNull(Q('flowPricingLimitMax').value);
             var myProductName = Q('flowPricingMyProductName').value.trim() || Q('flowFormMyProductName').value.trim();
+            var referenceShopName = Q('flowPricingReferenceShopName').value.trim();
+            var referenceProductName = Q('flowPricingReferenceProductName').value.trim() || Q('flowPricingReferenceProductSearch').value.trim();
+            var referenceProductPrice = managerToNumberOrNull(String(Q('flowPricingReferenceProductPrice').value || '').replace(/[^\d.\-]/g, ''));
             Q('flowFormMyProductName').value = myProductName;
+            Q('flowFormProductName').value = referenceProductName;
+            Q('flowPricingReferenceKeyword').value = referenceProductName;
             var task = {
                 taskId: 'task_1',
                 enabled: true,
                 targetProductName: myProductName,
-                referenceKeyword: Q('flowFormProductName').value.trim(),
-                referenceShops: managerLinesToArray(Q('flowPricingReferenceShops').value),
+                referenceKeyword: referenceProductName,
+                referenceShopId: Q('flowPricingReferenceShopId').value.trim(),
+                referenceShopName: referenceShopName,
+                referenceShops: referenceShopName !== '' ? [referenceShopName] : [],
+                referenceProductId: Q('flowPricingReferenceProductId').value.trim(),
+                referenceProductName: referenceProductName,
+                referenceProductPrice: referenceProductPrice,
                 referenceProductSelection: Q("flowPricingReferenceBenchmark").value === "fixed" ? "average" : Q("flowPricingReferenceBenchmark").value,
                 strategy: Q("flowPricingReferenceBenchmark").value === "fixed" ? "fixed" : (Q("flowPricingReferenceBenchmark").value === "highest" ? "max" : (Q("flowPricingReferenceBenchmark").value === "lowest" ? "min" : "average")),
                 priceOffset: managerToNumberOrNull(Q('flowPricingPriceOffset').value) || 0,
@@ -3952,6 +4091,8 @@
             if (payload.name === '') { flowShowToast('流程名称不能为空。', true); return; }
             if (payload.deviceId === '') { flowShowToast('目标设备不能为空。', true); return; }
             if (payload.scriptPath === '') { flowShowToast('脚本路径不能为空。', true); return; }
+            if (flowType === 'pricing' && Q('flowPricingReferenceShopName').value.trim() === '') { flowShowToast('参考店铺不能为空。', true); return; }
+            if (flowType === 'pricing' && Q('flowPricingReferenceProductName').value.trim() === '') { flowShowToast('参考商品不能为空。', true); return; }
             if (((flowType === 'publish') || (flowType === 'pricing')) && (payload.productName === '')) { flowShowToast(((flowType === 'pricing') ? '参考商品关键词' : '商品名称') + '不能为空。', true); return; }
             flowSetSubmitBusy(true); flowState.pendingAction = payload.id !== '' ? 'flowupdate' : 'flowcreate'; meshserver.send({ action: flowState.pendingAction, id: payload.id, name: payload.name, flowType: payload.flowType, myShopId: payload.myShopId, shopCategory: payload.shopCategory, productName: payload.productName, myProductName: payload.myProductName, deviceId: payload.deviceId, deviceOs: payload.deviceOs, scriptPath: payload.scriptPath, config: payload.config, remark: payload.remark });
         }
@@ -5165,6 +5306,14 @@
                 }
                 case 'productdelete': {
                     productHandleMutationResponse('delete', message);
+                    break;
+                }
+                case 'pricingreferenceshops': {
+                    flowHandlePricingReferenceShopResponse(message);
+                    break;
+                }
+                case 'pricingreferenceproducts': {
+                    flowHandlePricingReferenceProductResponse(message);
                     break;
                 }
                 case 'flowlist': {
