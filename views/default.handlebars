@@ -1731,6 +1731,11 @@
                         <div class="collect-empty-title">暂无采集任务</div>
                         <div class="collect-empty-text">点击右上角“新增采集任务”，开始维护第一条采集任务。</div>
                     </div>
+                    <div id="collectErrorState" class="collect-state collect-empty" style="display:none">
+                        <div class="collect-empty-title">采集任务加载超时</div>
+                        <div class="collect-empty-text">网络或登录会话可能还没准备好，请重新加载。</div>
+                        <button type="button" class="collect-btn collect-btn-primary" onclick="collectRefreshList(collectState.page)">重新加载</button>
+                    </div>
                     <div id="collectCardList" class="collect-card-grid"></div>
                     <div id="collectPagination" class="collect-pagination" style="display:none"></div>
                 </div>
@@ -4467,12 +4472,34 @@
             if (Q('p103') == null) return;
             QC('p103').remove('collect-page-active'); void Q('p103').offsetWidth; QC('p103').add('collect-page-active');
             if (Q('collectSearchInput') != null) Q('collectSearchInput').value = collectState.search;
-            if (collectState.loaded !== true) collectRefreshList(1); else collectRender();
+            collectRefreshList(collectState.page || 1);
         }
         function collectHandleSearchInput() { if (collectState.searchTimer != null) clearTimeout(collectState.searchTimer); collectState.searchTimer = setTimeout(function () { collectState.search = Q('collectSearchInput').value.trim(); collectRefreshList(1); }, 260); }
-        function collectRefreshList(page) { if (typeof page === 'number') collectState.page = page; collectState.loaded = true; collectState.loading = true; QV('collectLoadingState', true); QV('collectEmptyState', false); QH('collectCardList', ''); meshserver.send({ action: 'collectlist', search: collectState.search, page: collectState.page, limit: collectState.limit }); }
+        function collectRefreshList(page, isRetry) {
+            if (typeof page === 'number') collectState.page = page;
+            if (isRetry !== true) collectState.loadRetry = 0;
+            if (collectState.loadTimer != null) { clearTimeout(collectState.loadTimer); collectState.loadTimer = null; }
+            collectState.loaded = true; collectState.loading = true; QV('collectLoadingState', true); QV('collectEmptyState', false); QV('collectErrorState', false);
+            if (!Array.isArray(collectState.items) || collectState.items.length === 0) QH('collectCardList', '');
+            meshserver.send({ action: 'collectlist', search: collectState.search, page: collectState.page, limit: collectState.limit });
+            collectState.loadTimer = setTimeout(function () {
+                if (collectState.loading !== true) return;
+                if (collectState.loadRetry < 2) {
+                    collectState.loadRetry++;
+                    collectRefreshList(collectState.page, true);
+                    return;
+                }
+                collectState.loading = false;
+                QV('collectLoadingState', false);
+                QV('collectErrorState', true);
+                QV('collectEmptyState', false);
+                collectShowToast('采集任务加载超时，请稍后重试。', true);
+            }, 6000);
+        }
         function collectHandleListResponse(message) {
-            collectState.loading = false; QV('collectLoadingState', false);
+            collectState.loading = false;
+            if (collectState.loadTimer != null) { clearTimeout(collectState.loadTimer); collectState.loadTimer = null; }
+            QV('collectLoadingState', false); QV('collectErrorState', false);
             if (message.result != null) { collectState.items = []; collectState.total = 0; collectShowToast(message.result, true); } else { collectState.items = Array.isArray(message.tasks) ? message.tasks : []; collectState.total = typeof message.total === 'number' ? message.total : 0; if (typeof message.page === 'number') collectState.page = message.page; }
             collectRender();
         }
