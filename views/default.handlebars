@@ -186,6 +186,9 @@
             <div id="LeftMenuCollectManager" tabindex="0" class="lbbutton" title="采集管理" onmouseup="go(103,event)" onkeypress="if (event.key=='Enter') { go(103); }">
                 <div class="lbtg lb10"></div>
             </div>
+            <div id="LeftMenuScheduledTaskManager" tabindex="0" class="lbbutton" title="定时任务" onmouseup="go(105,event)" onkeypress="if (event.key=='Enter') { go(105); }">
+                <div class="lbtg lb6"></div>
+            </div>
             <div id="LeftMenuMyDevices" tabindex="0" class="lbbutton lbbuttonsel" title="我的设备" onmouseup="go(1,event)" onkeypress="if (event.key=='Enter') { go(1); }">
                 <div class="lbtg lb2"></div>
             </div>
@@ -243,6 +246,7 @@
                             <td tabindex="0" id="MainMenuProductManager" class="topbar_td style3x" onmouseup="go(101,event)" onkeypress="if (event.key == 'Enter') go(101)">商品管理</td>
                             <td tabindex="0" id="MainMenuFlowManager" class="topbar_td style3x" onmouseup="go(102,event)" onkeypress="if (event.key == 'Enter') go(102)">流程管理</td>
                             <td tabindex="0" id="MainMenuCollectManager" class="topbar_td style3x" onmouseup="go(103,event)" onkeypress="if (event.key == 'Enter') go(103)">采集管理</td>
+                            <td tabindex="0" id="MainMenuScheduledTaskManager" class="topbar_td style3x" onmouseup="go(105,event)" onkeypress="if (event.key == 'Enter') go(105)">定时任务</td>
                             <td class="topbar_td_end style3">&nbsp;</td>
                         </tr>
                     </tbody></table>
@@ -1800,6 +1804,74 @@
                     </div>
                 </div>
             </div>
+            <div id=p105 style="display:none">
+                <div class="collect-page-shell">
+                    <div class="collect-page-top">
+                        <div>
+                            <h1 class="collect-page-title">定时任务</h1>
+                            <div class="collect-page-subtitle">按每天固定时间依次执行采集任务、发布流程和调价流程。</div>
+                        </div>
+                        <div class="collect-toolbar-actions">
+                            <button type="button" class="collect-btn collect-btn-primary" onclick="scheduledOpenEditor()">新增定时任务</button>
+                        </div>
+                    </div>
+                    <div class="collect-toolbar">
+                        <div class="collect-search"><input id="scheduledSearchInput" type="search" placeholder="搜索定时任务名称" autocomplete="off" oninput="scheduledHandleSearchInput()" /></div>
+                        <div class="collect-toolbar-meta" id="scheduledToolbarMeta">共 0 条定时任务</div>
+                    </div>
+                    <div id="scheduledLoadingState" class="collect-state collect-state-loading" style="display:none">正在加载定时任务...</div>
+                    <div id="scheduledEmptyState" class="collect-state collect-empty" style="display:none">
+                        <div class="collect-empty-title">暂无定时任务</div>
+                        <div class="collect-empty-text">点击右上角“新增定时任务”，编排每天自动执行的步骤。</div>
+                    </div>
+                    <div id="scheduledCardList" class="collect-card-grid"></div>
+                    <div id="scheduledPagination" class="collect-pagination" style="display:none"></div>
+                </div>
+                <div id="scheduledToast" class="collect-toast" style="display:none"></div>
+                <div id="scheduledModalMask" class="collect-modal-mask" style="display:none" onclick="scheduledCloseEditor(event)">
+                    <div class="collect-modal" onclick="event.stopPropagation()">
+                        <div class="collect-modal-header">
+                            <div>
+                                <div id="scheduledModalTitle" class="collect-modal-title">新增定时任务</div>
+                                <div class="collect-modal-subtitle">配置每天执行时间，并按顺序添加采集和流程步骤。</div>
+                            </div>
+                            <button type="button" class="collect-modal-close" onclick="scheduledCloseEditor()">×</button>
+                        </div>
+                        <div class="collect-modal-body">
+                            <input id="scheduledFormId" type="hidden" />
+                            <div class="collect-form-grid">
+                                <label class="collect-field"><span>任务名称 <b>*</b></span><input id="scheduledFormName" type="text" maxlength="256" /></label>
+                                <label class="collect-field"><span>每天执行时间 <b>*</b></span><input id="scheduledFormTime" type="time" value="03:00" /></label>
+                                <label class="collect-field"><span>启用状态</span><select id="scheduledFormEnabled"><option value="true">启用</option><option value="false">停用</option></select></label>
+                                <label class="collect-field"><span>时区</span><input id="scheduledFormTimezone" type="text" value="Asia/Shanghai" readonly /></label>
+                                <div class="collect-field collect-field-full manager-fieldset">
+                                    <div class="manager-section-header"><div class="manager-fieldset-title">执行步骤</div><button type="button" class="collect-btn" onclick="scheduledAddStepRow()">新增步骤</button></div>
+                                    <div id="scheduledStepRows" class="manager-repeat-list"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="collect-modal-footer">
+                            <button type="button" class="collect-btn" onclick="scheduledCloseEditor()">取消</button>
+                            <button type="button" id="scheduledSubmitButton" class="collect-btn collect-btn-primary" onclick="scheduledSubmitEditor()">保存</button>
+                        </div>
+                    </div>
+                </div>
+                <div id="scheduledRunsMask" class="collect-modal-mask" style="display:none" onclick="scheduledCloseRuns(event)">
+                    <div class="collect-modal collect-history-modal" onclick="event.stopPropagation()">
+                        <div class="collect-modal-header">
+                            <div>
+                                <div id="scheduledRunsTitle" class="collect-modal-title">定时任务执行记录</div>
+                                <div class="collect-modal-subtitle">查看每次批次执行结果和步骤明细。</div>
+                            </div>
+                            <button type="button" class="collect-modal-close" onclick="scheduledCloseRuns()">×</button>
+                        </div>
+                        <div class="collect-modal-body">
+                            <div id="scheduledRunsContent" class="collect-history-list"></div>
+                            <div id="scheduledRunsPagination" class="collect-pagination" style="display:none"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
             <br id="column_l_bottomgap">
         </div>
         <div id="footer" style="display:none">
@@ -2856,6 +2928,7 @@
         var productState = { items: [], total: 0, page: 1, limit: 12, search: '', storeSearch: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, loadTimer: null, loadRetry: 0, pendingAction: null };
         var flowState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, loadTimer: null, loadRetry: 0, pendingAction: null, pendingMyShopId: '', currentRunsFlowId: null, runsPage: 1, runsLimit: 10, runsTimer: null, pricingReference: { nextRowSeq: 1, rows: {} }, pricingTaskMeta: { skuStrategy: 'allActive' }, productBinding: { searchTimer: null, suggestions: [], activeSearch: '' } };
         var collectState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, currentResultsTaskId: null, resultsPage: 1, resultsLimit: 10 };
+        var scheduledState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, currentRunsTaskId: null, runsPage: 1, runsLimit: 10, runSteps: {} };
         var managerExecutionMap = {};
 
         function shopEnterPage() {
@@ -3801,6 +3874,7 @@
             QV('flowLoadingState', false); QV('flowErrorState', false);
             if (message.result != null) { flowState.items = []; flowState.total = 0; flowShowToast(message.result, true); } else { flowState.items = Array.isArray(message.flows) ? message.flows : []; flowState.total = typeof message.total === 'number' ? message.total : 0; if (typeof message.page === 'number') flowState.page = message.page; }
             flowRender();
+            if (Q('scheduledModalMask') != null && Q('scheduledModalMask').style.display !== 'none') { var rows = Q('scheduledStepRows').querySelectorAll('.scheduled-step-row'); for (var i = 0; i < rows.length; i++) scheduledRefreshStepTarget(rows[i].id); }
         }
         function flowHandleMutationResponse(kind, message) {
             flowState.pendingAction = null; flowSetSubmitBusy(false);
@@ -4745,6 +4819,162 @@
             collectShowToast('采集结果已更新。', false); collectRefreshList(collectState.page); if (collectState.currentResultsTaskId) collectOpenResults(collectState.currentResultsTaskId, collectState.resultsPage);
         }
 
+        function scheduledEnterPage() {
+            if (Q('p105') == null) return;
+            if (Q('scheduledSearchInput') != null) Q('scheduledSearchInput').value = scheduledState.search;
+            if (scheduledState.loaded !== true) scheduledRefreshList(1); else scheduledRender();
+        }
+        function scheduledHandleSearchInput() { if (scheduledState.searchTimer != null) clearTimeout(scheduledState.searchTimer); scheduledState.searchTimer = setTimeout(function () { scheduledState.search = Q('scheduledSearchInput').value.trim(); scheduledRefreshList(1); }, 260); }
+        function scheduledRefreshList(page) { if (typeof page === 'number') scheduledState.page = page; scheduledState.loaded = true; scheduledState.loading = true; QV('scheduledLoadingState', true); QV('scheduledEmptyState', false); QH('scheduledCardList', ''); meshserver.send({ action: 'scheduledtasklist', search: scheduledState.search, page: scheduledState.page, limit: scheduledState.limit }); }
+        function scheduledHandleListResponse(message) {
+            scheduledState.loading = false; QV('scheduledLoadingState', false);
+            if (message.result != null) { scheduledState.items = []; scheduledState.total = 0; scheduledShowToast(message.result, true); } else { scheduledState.items = Array.isArray(message.tasks) ? message.tasks : []; scheduledState.total = typeof message.total === 'number' ? message.total : 0; if (typeof message.page === 'number') scheduledState.page = message.page; }
+            scheduledRender();
+        }
+        function scheduledStepLabel(step) {
+            if (!step) return '';
+            var type = step.type === 'collect_task' ? '采集任务' : (step.type === 'publish_flow' ? '发布流程' : '调价流程');
+            return type + ' · ' + (step.failurePolicy === 'continue' ? '失败继续' : '失败停止');
+        }
+        function scheduledRender() {
+            QH('scheduledToolbarMeta', '共 ' + scheduledState.total + ' 条定时任务');
+            var list = scheduledState.items || [];
+            if (list.length === 0) { QH('scheduledCardList', ''); QV('scheduledEmptyState', !scheduledState.loading); QV('scheduledPagination', false); return; }
+            QV('scheduledEmptyState', false);
+            var x = '';
+            for (var i = 0; i < list.length; i++) {
+                var task = list[i], steps = managerParseJson(typeof task.steps === 'string' ? task.steps : JSON.stringify(task.steps || []), []);
+                x += '<article class="collect-card"><div class="collect-card-body">';
+                x += '<div class="collect-card-head"><div><h3>' + EscapeHtml(task.name || '') + '</h3><div class="collect-card-category">' + (task.enabled ? '已启用' : '已停用') + ' · 每天 ' + EscapeHtml(task.schedule_time || task.scheduleTime || '') + '</div></div><div class="collect-card-badges">' + managerRenderStatusBadge('flow', task.last_run_status || task.lastRunStatus || 'idle', '') + '</div></div>';
+                x += '<div class="collect-card-meta"><span>步骤数量</span><strong>' + steps.length + '</strong></div>';
+                x += '<div class="collect-card-meta"><span>上次执行</span><strong>' + EscapeHtml(task.last_run_at ? new Date(task.last_run_at).toLocaleString() : '从未执行') + '</strong></div>';
+                x += '<div class="collect-card-meta"><span>摘要</span><strong>' + EscapeHtml(task.last_run_summary || task.lastRunSummary || '') + '</strong></div>';
+                x += '<div class="collect-card-footer"><div class="collect-card-hints"><span>' + EscapeHtml(steps.map(scheduledStepLabel).join(' / ') || '无步骤') + '</span></div><div class="collect-card-actions">';
+                x += '<button type="button" class="collect-btn" onclick="scheduledOpenEditorById(\'' + EscapeHtml(String(task.id)) + '\')">编辑</button>';
+                x += '<button type="button" class="collect-btn collect-btn-danger" onclick="scheduledConfirmDelete(\'' + EscapeHtml(String(task.id)) + '\')">删除</button>';
+                x += '<button type="button" class="collect-btn collect-btn-primary" onclick="scheduledExecute(\'' + EscapeHtml(String(task.id)) + '\')">手动执行</button>';
+                x += '<button type="button" class="collect-btn" onclick="scheduledOpenRuns(\'' + EscapeHtml(String(task.id)) + '\')">查看记录</button>';
+                x += '</div></div></div></article>';
+            }
+            QH('scheduledCardList', x); scheduledRenderPagination();
+        }
+        function scheduledRenderPagination() {
+            var totalPages = Math.max(1, Math.ceil(scheduledState.total / scheduledState.limit)), current = Math.min(Math.max(1, scheduledState.page), totalPages);
+            var startItem = (scheduledState.total === 0) ? 0 : ((current - 1) * scheduledState.limit + 1), endItem = Math.min(scheduledState.total, current * scheduledState.limit);
+            var x = '<button type="button" class="collect-page-btn" ' + (current <= 1 ? 'disabled="disabled"' : 'onclick="scheduledRefreshList(1)"') + '>首页</button>';
+            x += '<button type="button" class="collect-page-btn" ' + (current <= 1 ? 'disabled="disabled"' : 'onclick="scheduledRefreshList(' + (current - 1) + ')"') + '>上一页</button>';
+            x += '<span class="collect-page-indicator">第 ' + current + ' / ' + totalPages + ' 页，显示 ' + startItem + '-' + endItem + '，共 ' + scheduledState.total + ' 条</span>';
+            x += '<button type="button" class="collect-page-btn" ' + (current >= totalPages ? 'disabled="disabled"' : 'onclick="scheduledRefreshList(' + (current + 1) + ')"') + '>下一页</button>';
+            x += '<button type="button" class="collect-page-btn" ' + (current >= totalPages ? 'disabled="disabled"' : 'onclick="scheduledRefreshList(' + totalPages + ')"') + '>末页</button>';
+            QH('scheduledPagination', x); QV('scheduledPagination', true);
+        }
+        function scheduledShowToast(text, isError) { if (scheduledState.toastTimer != null) clearTimeout(scheduledState.toastTimer); QH('scheduledToast', EscapeHtml(text)); Q('scheduledToast').className = 'collect-toast' + (isError ? ' collect-toast-error' : ' collect-toast-success'); QV('scheduledToast', true); scheduledState.toastTimer = setTimeout(function () { QV('scheduledToast', false); }, 2800); }
+        function scheduledSetSubmitBusy(busy) { QE('scheduledSubmitButton', !busy); Q('scheduledSubmitButton').innerText = busy ? '保存中...' : '保存'; }
+        function scheduledTargetOptions(type, selectedId) {
+            var source = type === 'collect_task' ? (collectState.items || []) : (flowState.items || []);
+            var x = '<option value="">请选择</option>', found = false;
+            for (var i = 0; i < source.length; i++) {
+                var item = source[i], itemType = item.flow_type || item.flowType || '';
+                if (type === 'publish_flow' && itemType !== 'publish') continue;
+                if (type === 'pricing_flow' && itemType !== 'pricing') continue;
+                if (String(selectedId || '') === String(item.id)) found = true;
+                x += '<option value="' + EscapeHtml(String(item.id)) + '"' + (String(selectedId || '') === String(item.id) ? ' selected' : '') + '>' + EscapeHtml(item.name || item.id) + '</option>';
+            }
+            if ((selectedId != null) && (String(selectedId) !== '') && (found === false)) x += '<option value="' + EscapeHtml(String(selectedId)) + '" selected>已选目标（可能已删除）</option>';
+            return x;
+        }
+        function scheduledStepTypeChanged(rowId) {
+            var row = Q(rowId), target = row ? row.querySelector('[data-field="targetId"]') : null;
+            if (target) { target.value = ''; target.setAttribute('data-selected', ''); }
+            scheduledRefreshStepTarget(rowId);
+        }
+        function scheduledRefreshStepTarget(rowId) {
+            var row = Q(rowId), type = row.querySelector('[data-field="type"]').value, target = row.querySelector('[data-field="targetId"]'), selected = target.getAttribute('data-selected') || target.value;
+            target.innerHTML = scheduledTargetOptions(type, selected);
+            if (selected) { target.value = selected; }
+            target.setAttribute('data-selected', target.value || selected || '');
+        }
+        function scheduledAddStepRow(step) {
+            step = step || {};
+            var id = 'scheduledStepRow_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
+            var x = '<div id="' + id + '" class="manager-repeat-card scheduled-step-row">';
+            x += '<div class="manager-repeat-head"><strong>执行步骤</strong><span><button type="button" class="collect-btn" onclick="scheduledMoveStepRow(\'' + id + '\',-1)">上移</button> <button type="button" class="collect-btn" onclick="scheduledMoveStepRow(\'' + id + '\',1)">下移</button> <button type="button" class="collect-btn collect-btn-danger" onclick="Q(\'' + id + '\').remove()">删除</button></span></div>';
+            x += '<div class="manager-inline-grid">';
+            x += '<label><span>步骤类型</span><select data-field="type" onchange="scheduledStepTypeChanged(\'' + id + '\')"><option value="collect_task">采集任务</option><option value="publish_flow">发布流程</option><option value="pricing_flow">调价流程</option></select></label>';
+            x += '<label><span>目标</span><select data-field="targetId" data-selected="' + EscapeHtml(step.targetId || '') + '" onchange="this.setAttribute(\'data-selected\', this.value)"></select></label>';
+            x += '<label><span>失败策略</span><select data-field="failurePolicy"><option value="stop">失败停止</option><option value="continue">失败继续</option></select></label>';
+            x += '</div></div>';
+            Q('scheduledStepRows').insertAdjacentHTML('beforeend', x);
+            Q(id).querySelector('[data-field="type"]').value = step.type || 'collect_task';
+            Q(id).querySelector('[data-field="failurePolicy"]').value = step.failurePolicy || 'stop';
+            scheduledRefreshStepTarget(id);
+        }
+        function scheduledMoveStepRow(id, dir) { var row = Q(id), parentNode = Q('scheduledStepRows'); if (!row) return; if (dir < 0 && row.previousElementSibling) parentNode.insertBefore(row, row.previousElementSibling); if (dir > 0 && row.nextElementSibling) parentNode.insertBefore(row.nextElementSibling, row); }
+        function scheduledReadSteps() {
+            var rows = Q('scheduledStepRows').querySelectorAll('.scheduled-step-row'), steps = [];
+            for (var i = 0; i < rows.length; i++) {
+                var type = rows[i].querySelector('[data-field="type"]').value, targetId = rows[i].querySelector('[data-field="targetId"]').value, failurePolicy = rows[i].querySelector('[data-field="failurePolicy"]').value;
+                if (targetId !== '') steps.push({ type: type, targetId: targetId, failurePolicy: failurePolicy });
+            }
+            return steps;
+        }
+        function scheduledOpenEditorById(id) { for (var i = 0; i < scheduledState.items.length; i++) { if (String(scheduledState.items[i].id) === String(id)) { scheduledOpenEditor(scheduledState.items[i]); return; } } }
+        function scheduledOpenEditor(task) {
+            meshserver.send({ action: 'collectlist', search: '', page: 1, limit: 200 });
+            meshserver.send({ action: 'flowlist', search: '', page: 1, limit: 200 });
+            Q('scheduledFormId').value = task ? task.id : '';
+            Q('scheduledFormName').value = task ? (task.name || '') : '';
+            Q('scheduledFormTime').value = task ? (task.schedule_time || task.scheduleTime || '03:00') : '03:00';
+            Q('scheduledFormEnabled').value = (!task || task.enabled !== false) ? 'true' : 'false';
+            Q('scheduledFormTimezone').value = task ? (task.timezone || 'Asia/Shanghai') : 'Asia/Shanghai';
+            QH('scheduledStepRows', '');
+            var steps = task ? managerParseJson(typeof task.steps === 'string' ? task.steps : JSON.stringify(task.steps || []), []) : [];
+            if (steps.length === 0) scheduledAddStepRow(); else { for (var i = 0; i < steps.length; i++) scheduledAddStepRow(steps[i]); }
+            QH('scheduledModalTitle', task ? '编辑定时任务' : '新增定时任务');
+            scheduledSetSubmitBusy(false); QV('scheduledModalMask', true);
+        }
+        function scheduledCloseEditor(event) { if (event && event.target && event.target.id !== 'scheduledModalMask') return; QV('scheduledModalMask', false); }
+        function scheduledSubmitEditor() {
+            var payload = { id: Q('scheduledFormId').value, name: Q('scheduledFormName').value.trim(), enabled: Q('scheduledFormEnabled').value === 'true', scheduleTime: Q('scheduledFormTime').value, timezone: Q('scheduledFormTimezone').value, steps: scheduledReadSteps() };
+            if (payload.name === '') { scheduledShowToast('任务名称不能为空。', true); return; }
+            if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(payload.scheduleTime)) { scheduledShowToast('定时时间必须是 HH:mm。', true); return; }
+            if (payload.steps.length === 0) { scheduledShowToast('至少需要添加一个步骤。', true); return; }
+            scheduledSetSubmitBusy(true); scheduledState.pendingAction = payload.id !== '' ? 'scheduledtaskupdate' : 'scheduledtaskcreate';
+            meshserver.send({ action: scheduledState.pendingAction, id: payload.id, name: payload.name, enabled: payload.enabled, scheduleTime: payload.scheduleTime, timezone: payload.timezone, steps: JSON.stringify(payload.steps) });
+        }
+        function scheduledHandleMutationResponse(kind, message) {
+            scheduledState.pendingAction = null; scheduledSetSubmitBusy(false);
+            if (message.success !== true) { scheduledShowToast(message.result || '操作失败。', true); return; }
+            if (kind !== 'delete') scheduledCloseEditor();
+            scheduledShowToast(kind === 'create' ? '定时任务新增成功。' : (kind === 'update' ? '定时任务保存成功。' : '定时任务已删除。'), false);
+            scheduledRefreshList(kind === 'create' ? 1 : scheduledState.page);
+        }
+        function scheduledConfirmDelete(id) { setDialogMode(2, '删除定时任务', 3, function (button, tag) { if (button === 1) meshserver.send({ action: 'scheduledtaskdelete', id: tag }); }, '确认删除该定时任务吗？历史执行记录会保留。', id); }
+        function scheduledExecute(id) { scheduledShowToast('定时任务已提交执行。', false); meshserver.send({ action: 'scheduledtaskexecute', id: id }); }
+        function scheduledHandleExecuteResponse(message) { if (message.success !== true) { scheduledShowToast(message.result || '执行失败。', true); return; } scheduledShowToast('定时任务执行完成。', false); scheduledRefreshList(scheduledState.page); if (scheduledState.currentRunsTaskId) scheduledOpenRuns(scheduledState.currentRunsTaskId, scheduledState.runsPage); }
+        function scheduledOpenRuns(taskId, page) { scheduledState.currentRunsTaskId = taskId; scheduledState.runsPage = typeof page === 'number' ? page : 1; QH('scheduledRunsContent', '正在加载执行记录...'); QV('scheduledRunsMask', true); meshserver.send({ action: 'scheduledtaskruns', taskId: taskId, page: scheduledState.runsPage, limit: scheduledState.runsLimit }); }
+        function scheduledCloseRuns(event) { if (event && event.target && event.target.id !== 'scheduledRunsMask') return; QV('scheduledRunsMask', false); }
+        function scheduledHandleRunsResponse(message) {
+            if (message.result != null) { QH('scheduledRunsContent', '<div class="collect-history-empty">' + EscapeHtml(message.result) + '</div>'); return; }
+            var runs = Array.isArray(message.runs) ? message.runs : [], x = '';
+            if (runs.length === 0) x = '<div class="collect-history-empty">暂无执行记录。</div>';
+            for (var i = 0; i < runs.length; i++) {
+                x += '<div class="collect-history-item"><div class="collect-history-head"><div>' + managerRenderStatusBadge('flow', runs[i].status || 'idle', '') + '</div><strong>' + EscapeHtml(runs[i].started_at ? new Date(runs[i].started_at).toLocaleString() : '') + '</strong></div>';
+                x += '<div class="collect-history-meta">触发方式：' + EscapeHtml(runs[i].trigger_type || '') + '</div><div class="collect-history-meta">' + EscapeHtml(runs[i].summary || '') + '</div>';
+                x += '<div id="scheduledRunSteps_' + EscapeHtml(runs[i].id) + '" class="collect-history-data">正在加载步骤...</div></div>';
+                meshserver.send({ action: 'scheduledtaskrunsteps', runId: runs[i].id });
+            }
+            QH('scheduledRunsContent', x);
+            var totalPages = Math.max(1, Math.ceil((message.total || 0) / scheduledState.runsLimit)), current = Math.min(Math.max(1, message.page || 1), totalPages);
+            if (message.total > scheduledState.runsLimit) { QH('scheduledRunsPagination', '<button type="button" class="collect-page-btn" ' + (current <= 1 ? 'disabled="disabled"' : 'onclick="scheduledOpenRuns(\'' + EscapeHtml(scheduledState.currentRunsTaskId) + '\',' + (current - 1) + ')"') + '>上一页</button><span class="collect-page-indicator">第 ' + current + ' / ' + totalPages + ' 页</span><button type="button" class="collect-page-btn" ' + (current >= totalPages ? 'disabled="disabled"' : 'onclick="scheduledOpenRuns(\'' + EscapeHtml(scheduledState.currentRunsTaskId) + '\',' + (current + 1) + ')"') + '>下一页</button>'); QV('scheduledRunsPagination', true); } else { QV('scheduledRunsPagination', false); }
+        }
+        function scheduledHandleRunStepsResponse(message) {
+            if (message.result != null) return;
+            var steps = Array.isArray(message.steps) ? message.steps : [], x = '';
+            for (var i = 0; i < steps.length; i++) x += '<div>' + EscapeHtml(String(steps[i].step_index + 1)) + '. ' + EscapeHtml(steps[i].target_name || steps[i].target_id || '') + ' - ' + EscapeHtml(steps[i].status || '') + (steps[i].error ? ('：' + EscapeHtml(steps[i].error)) : '') + '</div>';
+            if (Q('scheduledRunSteps_' + message.runId) != null) QH('scheduledRunSteps_' + message.runId, x || '无步骤明细');
+        }
+
         // Return the number of 2nd factor for this account
         function count2factoraAuths() {
             if (userinfo == null) return -1;
@@ -5649,6 +5879,34 @@
                 }
                 case 'collectfinalizeexecute': {
                     collectHandleFinalizeExecute(message);
+                    break;
+                }
+                case 'scheduledtasklist': {
+                    scheduledHandleListResponse(message);
+                    break;
+                }
+                case 'scheduledtaskcreate': {
+                    scheduledHandleMutationResponse('create', message);
+                    break;
+                }
+                case 'scheduledtaskupdate': {
+                    scheduledHandleMutationResponse('update', message);
+                    break;
+                }
+                case 'scheduledtaskdelete': {
+                    scheduledHandleMutationResponse('delete', message);
+                    break;
+                }
+                case 'scheduledtaskexecute': {
+                    scheduledHandleExecuteResponse(message);
+                    break;
+                }
+                case 'scheduledtaskruns': {
+                    scheduledHandleRunsResponse(message);
+                    break;
+                }
+                case 'scheduledtaskrunsteps': {
+                    scheduledHandleRunStepsResponse(message);
                     break;
                 }
                 case 'productlist': {
@@ -21528,7 +21786,7 @@
             if (xxcurrentView == 17) deviceDetailsStatsClear();
 
             // Edit this line when adding a new screen
-            for (var i = 0; i < 105; i++) { QV('p' + i, i == x); }
+            for (var i = 0; i < 106; i++) { QV('p' + i, i == x); }
             xxcurrentView = x;
 
             // Get out of fullscreen if needed
@@ -21558,7 +21816,7 @@
             }
 
             // Remove left bar selection
-            var leftBarItems = ['LeftMenuMyDevices', 'LeftMenuMyAccount', 'LeftMenuMyEvents', 'LeftMenuMyFiles', 'LeftMenuMyUsers', 'LeftMenuMyServer', 'LeftMenuShopManager', 'LeftMenuMyShopManager', 'LeftMenuProductManager', 'LeftMenuFlowManager', 'LeftMenuCollectManager'];
+            var leftBarItems = ['LeftMenuMyDevices', 'LeftMenuMyAccount', 'LeftMenuMyEvents', 'LeftMenuMyFiles', 'LeftMenuMyUsers', 'LeftMenuMyServer', 'LeftMenuShopManager', 'LeftMenuMyShopManager', 'LeftMenuProductManager', 'LeftMenuFlowManager', 'LeftMenuCollectManager', 'LeftMenuScheduledTaskManager'];
             for (var i in leftBarItems) {
                 QC(leftBarItems[i]).remove('lbbuttonsel');
                 QC(leftBarItems[i]).remove('lbbuttonsel2');
@@ -21615,6 +21873,10 @@
                 // Collect Manager
                 QC('MainMenuCollectManager').add(mainMenuActiveClass);
                 QC('LeftMenuCollectManager').add(leftMenuActiveClass);
+            } else if (x == 105) {
+                // Scheduled Task Manager
+                QC('MainMenuScheduledTaskManager').add(mainMenuActiveClass);
+                QC('LeftMenuScheduledTaskManager').add(leftMenuActiveClass);
             }
             QV('ServerPlugins', pluginHandler != null);
 
@@ -21637,6 +21899,7 @@
             if (x == 101) { productEnterPage(); }
             if (x == 102) { flowEnterPage(); }
             if (x == 103) { collectEnterPage(); }
+            if (x == 105) { scheduledEnterPage(); }
             var panels = { 3: 'EventsLive', 4: 'UsersGeneral', 10: 'MainDev', 11: 'MainDevDesktop', 12: 'MainDevTerminal', 13: 'MainDevFiles', 14: 'MainDevAmt', 15: 'MainDevConsole', 16: 'MainDevEvents', 17: 'MainDevInfo', 19: 'MainDevPlugins', 20: 'MeshGeneral', 21: 'MeshSummary', 30: 'UserGeneral', 31: 'UserEvents', 6: 'ServerGeneral', 40: 'ServerStats', 41: 'ServerTrace', 42: 'ServerPlugins', 50: 'UsersGroups', 52: 'UsersRecordings', 60: 'EventsReport', 115: 'ServerConsole' };
             for (var i in panels) {
                 QC(panels[i]).remove('style3x');
