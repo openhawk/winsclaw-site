@@ -1491,6 +1491,9 @@ module.exports.CreateDB = function (parent, func) {
             'CREATE TABLE IF NOT EXISTS collect_results (id VARCHAR(64) PRIMARY KEY, task_id VARCHAR(64) NOT NULL REFERENCES collect_tasks(id) ON DELETE RESTRICT, collect_type VARCHAR(32) NOT NULL, data JSONB NOT NULL DEFAULT \'[]\'::jsonb, data_count INT NOT NULL DEFAULT 0, collected_at TIMESTAMP NOT NULL, device_id VARCHAR(256) NOT NULL, status VARCHAR(32) NOT NULL, exit_code INT NULL, stdout TEXT NULL, stderr TEXT NULL, sync_status VARCHAR(32) NULL, synced_at TIMESTAMP NULL, sync_error TEXT NULL, command_text TEXT NULL, result_meta JSONB NOT NULL DEFAULT \'{}\'::jsonb)',
             'CREATE TABLE IF NOT EXISTS flows (id VARCHAR(64) PRIMARY KEY, name VARCHAR(256) NOT NULL, flow_type VARCHAR(32) NOT NULL, device_os VARCHAR(16) NOT NULL, device_id VARCHAR(256) NOT NULL, my_shop_id VARCHAR(64) NULL, shop_category TEXT NOT NULL DEFAULT \'\', product_name TEXT NOT NULL DEFAULT \'\', my_product_name TEXT NOT NULL DEFAULT \'\', script_path TEXT NOT NULL, config JSONB NOT NULL DEFAULT \'{}\'::jsonb, remark TEXT NULL, last_run_at TIMESTAMP NULL, last_run_status VARCHAR(32) NOT NULL DEFAULT \'idle\', last_run_result JSONB NOT NULL DEFAULT \'{}\'::jsonb, active_run_id VARCHAR(64) NULL, is_deleted BOOLEAN NOT NULL DEFAULT FALSE, deleted_at TIMESTAMP NULL, created_at TIMESTAMP NOT NULL, updated_at TIMESTAMP NOT NULL)',
             'CREATE TABLE IF NOT EXISTS flow_runs (id VARCHAR(64) PRIMARY KEY, flow_id VARCHAR(64) NOT NULL REFERENCES flows(id) ON DELETE RESTRICT, flow_type VARCHAR(32) NOT NULL, collect_bindings JSONB NULL, script_path TEXT NULL, arguments JSONB NOT NULL DEFAULT \'[]\'::jsonb, device_id VARCHAR(256) NOT NULL, device_os VARCHAR(16) NOT NULL, status VARCHAR(32) NOT NULL, stdout TEXT NULL, stderr TEXT NULL, exit_code INT NULL, result_summary TEXT NULL, result_json JSONB NULL, session_id VARCHAR(128) NULL, process_id VARCHAR(128) NULL, last_heartbeat_at TIMESTAMP NULL, started_at TIMESTAMP NOT NULL, finished_at TIMESTAMP NULL, stop_reason TEXT NULL)',
+            'CREATE TABLE IF NOT EXISTS scheduled_tasks (id VARCHAR(64) PRIMARY KEY, name VARCHAR(256) NOT NULL, enabled BOOLEAN NOT NULL DEFAULT TRUE, schedule_time VARCHAR(5) NOT NULL, timezone VARCHAR(64) NOT NULL DEFAULT \'Asia/Shanghai\', steps JSONB NOT NULL DEFAULT \'[]\'::jsonb, last_run_at TIMESTAMP NULL, last_run_status VARCHAR(32) NOT NULL DEFAULT \'idle\', last_run_summary TEXT NOT NULL DEFAULT \'\', last_run_date DATE NULL, is_deleted BOOLEAN NOT NULL DEFAULT FALSE, deleted_at TIMESTAMP NULL, created_at TIMESTAMP NOT NULL, updated_at TIMESTAMP NOT NULL)',
+            'CREATE TABLE IF NOT EXISTS scheduled_task_runs (id VARCHAR(64) PRIMARY KEY, scheduled_task_id VARCHAR(64) NOT NULL REFERENCES scheduled_tasks(id) ON DELETE RESTRICT, status VARCHAR(32) NOT NULL, trigger_type VARCHAR(32) NOT NULL, started_at TIMESTAMP NOT NULL, finished_at TIMESTAMP NULL, summary TEXT NOT NULL DEFAULT \'\')',
+            'CREATE TABLE IF NOT EXISTS scheduled_task_run_steps (id VARCHAR(64) PRIMARY KEY, run_id VARCHAR(64) NOT NULL REFERENCES scheduled_task_runs(id) ON DELETE CASCADE, step_index INT NOT NULL, step_type VARCHAR(32) NOT NULL, target_id VARCHAR(128) NOT NULL, target_name VARCHAR(256) NOT NULL DEFAULT \'\', status VARCHAR(32) NOT NULL, collect_result_id VARCHAR(64) NULL, flow_run_id VARCHAR(64) NULL, error TEXT NULL, started_at TIMESTAMP NOT NULL, finished_at TIMESTAMP NULL)',
             'CREATE TABLE IF NOT EXISTS meituan_h5_shops (id BIGINT PRIMARY KEY, name TEXT NOT NULL, scheme TEXT NOT NULL, poi_id_str TEXT, source_page_url TEXT NOT NULL DEFAULT \'\', category TEXT NOT NULL DEFAULT \'\', distance_text TEXT NOT NULL DEFAULT \'\', distance_km DOUBLE PRECISION NOT NULL DEFAULT 0, rating_text TEXT NOT NULL DEFAULT \'\', monthly_sales_text TEXT NOT NULL DEFAULT \'\', min_price_tip TEXT NOT NULL DEFAULT \'\', delivery_fee_tip TEXT NOT NULL DEFAULT \'\', delivery_time_tip TEXT NOT NULL DEFAULT \'\', review_highlight TEXT NOT NULL DEFAULT \'\', promo_tags_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, platform_tags_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, phone TEXT NOT NULL DEFAULT \'\', address TEXT NOT NULL DEFAULT \'\', detail_fetched BOOLEAN NOT NULL DEFAULT FALSE, detail_fetched_at TIMESTAMP WITH TIME ZONE, created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(), updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(), detail_status TEXT NOT NULL DEFAULT \'pending\', detail_started_at TIMESTAMP WITH TIME ZONE, detail_last_attempt_at TIMESTAMP WITH TIME ZONE, detail_attempt_count INTEGER NOT NULL DEFAULT 0, detail_error_message TEXT NOT NULL DEFAULT \'\', is_deleted BOOLEAN NOT NULL DEFAULT FALSE, deleted_at TIMESTAMP WITH TIME ZONE)',
             'CREATE TABLE IF NOT EXISTS my_shops (id VARCHAR(64) PRIMARY KEY, name TEXT NOT NULL, scheme TEXT NOT NULL DEFAULT \'\', poi_id_str TEXT, source_page_url TEXT NOT NULL DEFAULT \'\', category TEXT NOT NULL DEFAULT \'\', distance_text TEXT NOT NULL DEFAULT \'\', distance_km DOUBLE PRECISION NOT NULL DEFAULT 0, rating_text TEXT NOT NULL DEFAULT \'\', monthly_sales_text TEXT NOT NULL DEFAULT \'\', min_price_tip TEXT NOT NULL DEFAULT \'\', delivery_fee_tip TEXT NOT NULL DEFAULT \'\', delivery_time_tip TEXT NOT NULL DEFAULT \'\', review_highlight TEXT NOT NULL DEFAULT \'\', promo_tags_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, platform_tags_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, phone TEXT NOT NULL DEFAULT \'\', address TEXT NOT NULL DEFAULT \'\', detail_fetched BOOLEAN NOT NULL DEFAULT FALSE, detail_fetched_at TIMESTAMP WITH TIME ZONE, created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(), updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(), detail_status TEXT NOT NULL DEFAULT \'manual\', detail_started_at TIMESTAMP WITH TIME ZONE, detail_last_attempt_at TIMESTAMP WITH TIME ZONE, detail_attempt_count INTEGER NOT NULL DEFAULT 0, detail_error_message TEXT NOT NULL DEFAULT \'\', is_deleted BOOLEAN NOT NULL DEFAULT FALSE, deleted_at TIMESTAMP WITH TIME ZONE)',
             'CREATE TABLE IF NOT EXISTS meituan_h5_products (id BIGINT PRIMARY KEY, name TEXT NOT NULL, price NUMERIC(10,2), original_price NUMERIC(10,2), description TEXT, inventory INTEGER, image_paths_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, image_urls_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, sku_json JSONB NOT NULL DEFAULT \'{}\'::jsonb, sku_list_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, category_path_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, store_category_path_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, required_attributes_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, entry_url TEXT, use_existing_options_only BOOLEAN DEFAULT FALSE, publish_history_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, source_url TEXT, collect_task_id VARCHAR(64), collect_result_id VARCHAR(64), collect_source_key VARCHAR(256), source_type VARCHAR(32), created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(), updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(), is_deleted BOOLEAN NOT NULL DEFAULT FALSE, deleted_at TIMESTAMP WITH TIME ZONE)',
@@ -1539,6 +1542,9 @@ module.exports.CreateDB = function (parent, func) {
             sqlDbExec('CREATE INDEX IF NOT EXISTS ndx_flows_name ON flows (name)', null, function (err, response) { });
             sqlDbExec('CREATE INDEX IF NOT EXISTS ndx_flows_my_shop_id ON flows (my_shop_id)', null, function (err, response) { });
             sqlDbExec('CREATE INDEX IF NOT EXISTS ndx_flow_runs_flow_time ON flow_runs (flow_id, started_at DESC)', null, function (err, response) { });
+            sqlDbExec('CREATE INDEX IF NOT EXISTS ndx_scheduled_tasks_enabled_time ON scheduled_tasks (enabled, schedule_time)', null, function (err, response) { });
+            sqlDbExec('CREATE INDEX IF NOT EXISTS ndx_scheduled_runs_task_time ON scheduled_task_runs (scheduled_task_id, started_at DESC)', null, function (err, response) { });
+            sqlDbExec('CREATE INDEX IF NOT EXISTS ndx_scheduled_run_steps_run ON scheduled_task_run_steps (run_id, step_index)', null, function (err, response) { });
 
             sqlDbExec('CREATE INDEX IF NOT EXISTS ndx_meituan_h5_shops_name ON meituan_h5_shops (name)', null, function (err, response) { });
             sqlDbExec('CREATE INDEX IF NOT EXISTS ndx_my_shops_name ON my_shops (name)', null, function (err, response) { });
@@ -4054,6 +4060,134 @@ module.exports.CreateDB = function (parent, func) {
                 func(null, run);
             }).catch(function (err) {
                 func(err);
+            });
+        };
+
+        obj.GetScheduledTaskList = function (search, page, limit, func) {
+            if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Scheduled task manager requires PostgreSQL.')); return; }
+            if (typeof search != 'string') search = '';
+            if (typeof page != 'number' || page < 1) page = 1;
+            if (typeof limit != 'number' || limit < 1) limit = 10;
+            const args = [], where = ['is_deleted = FALSE'];
+            search = search.trim();
+            if (search !== '') { args.push('%' + search + '%'); where.push('name ILIKE $' + args.length); }
+            const whereSql = ' WHERE ' + where.join(' AND ');
+            Datastore.query('SELECT COUNT(*) AS count FROM scheduled_tasks' + whereSql, args, function (err, countResults) {
+                if (err != null) { func(err); return; }
+                const total = parseInt(countResults.rows[0].count);
+                const listArgs = args.slice(0);
+                listArgs.push(limit);
+                listArgs.push((page - 1) * limit);
+                Datastore.query('SELECT * FROM scheduled_tasks' + whereSql + ' ORDER BY updated_at DESC NULLS LAST, created_at DESC LIMIT $' + (args.length + 1) + ' OFFSET $' + (args.length + 2), listArgs, function (listErr, results) {
+                    if (listErr != null) { func(listErr); return; }
+                    func(null, { total: total, tasks: results.rows });
+                });
+            });
+        };
+
+        obj.GetScheduledTask = function (taskId, func) {
+            if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Scheduled task manager requires PostgreSQL.')); return; }
+            Datastore.query('SELECT * FROM scheduled_tasks WHERE id = $1 AND is_deleted = FALSE', [taskId], function (err, results) {
+                if (err != null) { func(err); return; }
+                if (!results.rows || results.rows.length === 0) { func(new Error('Scheduled task not found.')); return; }
+                func(null, results.rows[0]);
+            });
+        };
+
+        obj.CreateScheduledTask = function (task, func) {
+            if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Scheduled task manager requires PostgreSQL.')); return; }
+            const now = new Date(), taskId = managerMakeId('scheduledtask');
+            Datastore.query('INSERT INTO scheduled_tasks (id, name, enabled, schedule_time, timezone, steps, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8) RETURNING *', [taskId, task.name, task.enabled === true, task.scheduleTime, task.timezone || 'Asia/Shanghai', JSON.stringify(task.steps || []), now, now], function (err, results) {
+                if (err != null) { func(err); return; }
+                func(null, results.rows[0]);
+            });
+        };
+
+        obj.UpdateScheduledTask = function (taskId, task, func) {
+            if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Scheduled task manager requires PostgreSQL.')); return; }
+            Datastore.query('UPDATE scheduled_tasks SET name = $2, enabled = $3, schedule_time = $4, timezone = $5, steps = $6::jsonb, updated_at = $7 WHERE id = $1 AND is_deleted = FALSE RETURNING *', [taskId, task.name, task.enabled === true, task.scheduleTime, task.timezone || 'Asia/Shanghai', JSON.stringify(task.steps || []), new Date()], function (err, results) {
+                if (err != null) { func(err); return; }
+                if (!results.rows || results.rows.length === 0) { func(new Error('Scheduled task not found.')); return; }
+                func(null, results.rows[0]);
+            });
+        };
+
+        obj.DeleteScheduledTask = function (taskId, func) {
+            if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Scheduled task manager requires PostgreSQL.')); return; }
+            Datastore.query('UPDATE scheduled_tasks SET is_deleted = TRUE, deleted_at = $2, enabled = FALSE, updated_at = $2 WHERE id = $1 AND is_deleted = FALSE RETURNING id', [taskId, new Date()], function (err, results) {
+                if (err != null) { func(err); return; }
+                if (!results.rows || results.rows.length === 0) { func(new Error('Scheduled task not found.')); return; }
+                func(null, taskId);
+            });
+        };
+
+        obj.GetDueScheduledTasks = function (today, currentTime, func) {
+            if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Scheduled task manager requires PostgreSQL.')); return; }
+            Datastore.query("SELECT st.* FROM scheduled_tasks st WHERE st.is_deleted = FALSE AND st.enabled = TRUE AND st.schedule_time <= $2 AND (st.last_run_date IS NULL OR st.last_run_date <> $1::date) AND NOT EXISTS (SELECT 1 FROM scheduled_task_runs r WHERE r.scheduled_task_id = st.id AND r.status = 'running') ORDER BY st.schedule_time ASC, st.updated_at ASC", [today, currentTime], function (err, results) {
+                if (err != null) { func(err); return; }
+                func(null, results.rows || []);
+            });
+        };
+
+        obj.StartScheduledTaskRun = function (task, triggerType, today, func) {
+            if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Scheduled task manager requires PostgreSQL.')); return; }
+            const now = new Date(), runId = managerMakeId('scheduledrun');
+            Datastore.query('INSERT INTO scheduled_task_runs (id, scheduled_task_id, status, trigger_type, started_at, summary) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *', [runId, task.id, 'running', triggerType || 'manual', now, '定时任务执行中。'], function (err, results) {
+                if (err != null) { func(err); return; }
+                const markRunDate = (triggerType === 'scheduled') || (triggerType === 'missed_makeup');
+                Datastore.query('UPDATE scheduled_tasks SET last_run_at = $2, last_run_status = $3, last_run_summary = $4, last_run_date = CASE WHEN $6 THEN $5::date ELSE last_run_date END, updated_at = $2 WHERE id = $1', [task.id, now, 'running', '定时任务执行中。', today, markRunDate], function () {
+                    func(null, results.rows[0]);
+                });
+            });
+        };
+
+        obj.FinishScheduledTaskRun = function (runId, taskId, status, summary, func) {
+            if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Scheduled task manager requires PostgreSQL.')); return; }
+            const now = new Date();
+            Datastore.query('UPDATE scheduled_task_runs SET status = $2, finished_at = $3, summary = $4 WHERE id = $1 RETURNING *', [runId, status, now, summary || ''], function (err, results) {
+                if (err != null) { func(err); return; }
+                Datastore.query('UPDATE scheduled_tasks SET last_run_at = $2, last_run_status = $3, last_run_summary = $4, updated_at = $2 WHERE id = $1', [taskId, now, status, summary || ''], function () {
+                    func(null, results.rows && results.rows[0]);
+                });
+            });
+        };
+
+        obj.StartScheduledTaskRunStep = function (runId, stepIndex, step, targetName, func) {
+            if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Scheduled task manager requires PostgreSQL.')); return; }
+            const stepRunId = managerMakeId('scheduledstep');
+            Datastore.query('INSERT INTO scheduled_task_run_steps (id, run_id, step_index, step_type, target_id, target_name, status, started_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *', [stepRunId, runId, stepIndex, step.type, step.targetId, targetName || '', 'running', new Date()], function (err, results) {
+                if (err != null) { func(err); return; }
+                func(null, results.rows[0]);
+            });
+        };
+
+        obj.FinishScheduledTaskRunStep = function (stepRunId, updates, func) {
+            if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Scheduled task manager requires PostgreSQL.')); return; }
+            Datastore.query('UPDATE scheduled_task_run_steps SET status = $2, collect_result_id = $3, flow_run_id = $4, error = $5, finished_at = $6 WHERE id = $1 RETURNING *', [stepRunId, updates.status || 'failed', updates.collectResultId || null, updates.flowRunId || null, updates.error || null, new Date()], function (err, results) {
+                if (err != null) { func(err); return; }
+                func(null, results.rows && results.rows[0]);
+            });
+        };
+
+        obj.GetScheduledTaskRuns = function (taskId, page, limit, func) {
+            if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Scheduled task manager requires PostgreSQL.')); return; }
+            if (typeof page != 'number' || page < 1) page = 1;
+            if (typeof limit != 'number' || limit < 1) limit = 10;
+            Datastore.query('SELECT COUNT(*) AS count FROM scheduled_task_runs WHERE scheduled_task_id = $1', [taskId], function (err, countResults) {
+                if (err != null) { func(err); return; }
+                const total = parseInt(countResults.rows[0].count);
+                Datastore.query('SELECT * FROM scheduled_task_runs WHERE scheduled_task_id = $1 ORDER BY started_at DESC LIMIT $2 OFFSET $3', [taskId, limit, (page - 1) * limit], function (listErr, results) {
+                    if (listErr != null) { func(listErr); return; }
+                    func(null, { total: total, runs: results.rows || [] });
+                });
+            });
+        };
+
+        obj.GetScheduledTaskRunSteps = function (runId, func) {
+            if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Scheduled task manager requires PostgreSQL.')); return; }
+            Datastore.query('SELECT * FROM scheduled_task_run_steps WHERE run_id = $1 ORDER BY step_index ASC', [runId], function (err, results) {
+                if (err != null) { func(err); return; }
+                func(null, results.rows || []);
             });
         };
 

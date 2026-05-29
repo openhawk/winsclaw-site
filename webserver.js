@@ -51,6 +51,7 @@ module.exports.CreateWebServer = function (parent, db, args, certificates, doneF
     obj.meshDesktopMultiplexHandler = require('./meshdesktopmultiplex.js');
     obj.meshIderHandler = require('./amt/amt-ider.js');
     obj.meshUserHandler = require('./meshuser.js');
+    obj.scheduledTaskHandler = require('./scheduledtasks.js');
     obj.interceptor = require('./interceptor');
     obj.uaparser = require('ua-parser-js');
     obj.uaclienthints = require('ua-client-hints-js');
@@ -68,6 +69,7 @@ module.exports.CreateWebServer = function (parent, db, args, certificates, doneF
     obj.parent = parent;
     obj.filespath = parent.filespath;
     obj.db = db;
+    obj.scheduledTaskManager = obj.scheduledTaskHandler.CreateScheduledTaskManager(obj, db);
     obj.app = obj.express();
     if (obj.args.agentport) { obj.agentapp = obj.express(); }
     if (args.compression === true) {
@@ -7986,6 +7988,7 @@ module.exports.CreateWebServer = function (parent, db, args, certificates, doneF
         function finalizeWebserver() {
             // Setup all HTTP handlers
             setupHTTPHandlers()
+            if (obj.scheduledTaskManager != null) { obj.scheduledTaskManager.start(); }
 
             // Handle 404 error
             if (obj.args.nice404 !== false) {
@@ -10028,6 +10031,7 @@ module.exports.CreateWebServer = function (parent, db, args, certificates, doneF
 
     // Route a command from a agent. domainid, nodeid and meshid are the values of the source agent.
     obj.routeAgentCommand = function (command, domainid, nodeid, meshid) {
+        if ((obj.scheduledTaskManager != null) && (obj.scheduledTaskManager.handleAgentRunCommandMessage(command) === true)) { return; }
         // Route a message.
         // If this command has a sessionid, that is the target.
         if (command.sessionid != null) {

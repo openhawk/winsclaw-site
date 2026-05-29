@@ -5743,6 +5743,13 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         'collectprepareexecute': serverCommandCollectPrepareExecute,
         'collectresults': serverCommandCollectResults,
         'collectupdate': serverCommandCollectUpdate,
+        'scheduledtaskcreate': serverCommandScheduledTaskCreate,
+        'scheduledtaskdelete': serverCommandScheduledTaskDelete,
+        'scheduledtaskexecute': serverCommandScheduledTaskExecute,
+        'scheduledtasklist': serverCommandScheduledTaskList,
+        'scheduledtaskruns': serverCommandScheduledTaskRuns,
+        'scheduledtaskrunsteps': serverCommandScheduledTaskRunSteps,
+        'scheduledtaskupdate': serverCommandScheduledTaskUpdate,
         'productcreate': serverCommandProductCreate,
         'productdelete': serverCommandProductDelete,
         'productlist': serverCommandProductList,
@@ -7795,6 +7802,30 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         return { name: name, collectType: collectType, deviceId: deviceId, deviceOs: deviceOs, scriptPath: scriptPath, config: config, remark: remark };
     }
 
+    function getScheduledTaskPayload(command) {
+        var name = managerGetTextField(command.name || '', 256, false);
+        var scheduleTime = managerGetTextField(command.scheduleTime || '', 5, false);
+        var timezone = managerGetTextField(command.timezone || 'Asia/Shanghai', 64, false) || 'Asia/Shanghai';
+        var steps = managerGetJsonField(command.steps || '[]', []);
+        if (name == null) return { error: '定时任务名称不能为空。' };
+        if ((scheduleTime == null) || (/^([01]\d|2[0-3]):[0-5]\d$/.test(scheduleTime) === false)) return { error: '定时时间必须是 HH:mm 格式。' };
+        if (!Array.isArray(steps)) return { error: '定时任务步骤格式无效。' };
+        var normalizedSteps = [];
+        for (var i = 0; i < steps.length; i++) {
+            var step = steps[i];
+            if (step == null || typeof step !== 'object') continue;
+            var type = managerGetTextField(step.type || '', 32, false);
+            var targetId = managerGetTextField(step.targetId || '', 128, false);
+            var failurePolicy = managerGetTextField(step.failurePolicy || 'stop', 16, false) || 'stop';
+            if (['collect_task', 'publish_flow', 'pricing_flow'].indexOf(type) < 0) return { error: '定时任务步骤类型无效。' };
+            if (targetId == null) return { error: '定时任务步骤目标不能为空。' };
+            if (['stop', 'continue'].indexOf(failurePolicy) < 0) failurePolicy = 'stop';
+            normalizedSteps.push({ stepId: managerMakeId('schedulestep'), type: type, targetId: targetId, failurePolicy: failurePolicy });
+        }
+        if (normalizedSteps.length === 0) return { error: '至少需要添加一个定时任务步骤。' };
+        return { name: name, enabled: command.enabled === true, scheduleTime: scheduleTime, timezone: timezone, steps: normalizedSteps };
+    }
+
     function getFlowPayload(command) {
         var flowType = managerGetTextField(command.flowType || '', 32, false);
         var name = managerGetTextField(command.name || '', 256, false);
@@ -8080,6 +8111,81 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         db.FinalizeCollectRun(resultId, { status: status, exitCode: (typeof command.exitCode === 'number') ? command.exitCode : null, stdout: typeof command.stdout === 'string' ? command.stdout : '', stderr: typeof command.stderr === 'string' ? command.stderr : '', data: data, resultMeta: managerGetJsonField(command.resultMeta || '{}', {}) || {} }, function (err, resultRow) {
             if (err != null) { obj.send({ action: 'collectfinalizeexecute', result: err.message ? err.message : '无法保存采集结果。' }); return; }
             obj.send({ action: 'collectfinalizeexecute', success: true, resultId: resultId, row: resultRow });
+        });
+    }
+
+    function serverCommandScheduledTaskList(command) {
+        var search = '', page = 1, limit = 10;
+        if (typeof command.search === 'string') {
+            search = command.search.trim();
+            if (search.length > 128) { obj.send({ action: 'scheduledtasklist', result: 'Invalid search.' }); return; }
+        }
+        if (common.validateInt(command.page, 1, 100000) == true) page = command.page;
+        if (common.validateInt(command.limit, 1, 50) == true) limit = command.limit;
+        db.GetScheduledTaskList(search, page, limit, function (err, result) {
+            if (err != null) { obj.send({ action: 'scheduledtasklist', result: err.message ? err.message : 'Unable to load scheduled tasks.' }); return; }
+            obj.send({ action: 'scheduledtasklist', search: search, page: page, limit: limit, total: result.total, tasks: result.tasks });
+        });
+    }
+
+    function serverCommandScheduledTaskCreate(command) {
+        var payload = getScheduledTaskPayload(command);
+        if (payload.error != null) { obj.send({ action: 'scheduledtaskcreate', result: payload.error }); return; }
+        db.CreateScheduledTask(payload, function (err, task) {
+            if (err != null) { obj.send({ action: 'scheduledtaskcreate', result: err.message ? err.message : '新增失败。' }); return; }
+            obj.send({ action: 'scheduledtaskcreate', success: true, task: task });
+        });
+    }
+
+    function serverCommandScheduledTaskUpdate(command) {
+        var taskId = managerGetTextField(command.id || '', 128, false);
+        if (taskId == null) { obj.send({ action: 'scheduledtaskupdate', result: '无效的定时任务编号。' }); return; }
+        var payload = getScheduledTaskPayload(command);
+        if (payload.error != null) { obj.send({ action: 'scheduledtaskupdate', result: payload.error }); return; }
+        db.UpdateScheduledTask(taskId, payload, function (err, task) {
+            if (err != null) { obj.send({ action: 'scheduledtaskupdate', result: err.message ? err.message : '保存失败。' }); return; }
+            obj.send({ action: 'scheduledtaskupdate', success: true, task: task });
+        });
+    }
+
+    function serverCommandScheduledTaskDelete(command) {
+        var taskId = managerGetTextField(command.id || '', 128, false);
+        if (taskId == null) { obj.send({ action: 'scheduledtaskdelete', result: '无效的定时任务编号。' }); return; }
+        db.DeleteScheduledTask(taskId, function (err, deletedId) {
+            if (err != null) { obj.send({ action: 'scheduledtaskdelete', result: err.message ? err.message : '删除失败。' }); return; }
+            obj.send({ action: 'scheduledtaskdelete', success: true, id: deletedId });
+        });
+    }
+
+    function serverCommandScheduledTaskExecute(command) {
+        var taskId = managerGetTextField(command.id || '', 128, false);
+        if (taskId == null) { obj.send({ action: 'scheduledtaskexecute', result: '无效的定时任务编号。' }); return; }
+        if (parent.scheduledTaskManager == null) { obj.send({ action: 'scheduledtaskexecute', result: '定时任务执行器未启动。' }); return; }
+        parent.scheduledTaskManager.executeScheduledTask(taskId, 'manual').then(function (run) {
+            obj.send({ action: 'scheduledtaskexecute', success: true, run: run });
+        }).catch(function (err) {
+            obj.send({ action: 'scheduledtaskexecute', result: err.message ? err.message : '执行失败。' });
+        });
+    }
+
+    function serverCommandScheduledTaskRuns(command) {
+        var taskId = managerGetTextField(command.taskId || '', 128, false);
+        var page = 1, limit = 10;
+        if (taskId == null) { obj.send({ action: 'scheduledtaskruns', result: '无效的定时任务编号。' }); return; }
+        if (common.validateInt(command.page, 1, 100000) == true) page = command.page;
+        if (common.validateInt(command.limit, 1, 50) == true) limit = command.limit;
+        db.GetScheduledTaskRuns(taskId, page, limit, function (err, result) {
+            if (err != null) { obj.send({ action: 'scheduledtaskruns', result: err.message ? err.message : '无法加载执行记录。' }); return; }
+            obj.send({ action: 'scheduledtaskruns', success: true, taskId: taskId, page: page, limit: limit, total: result.total, runs: result.runs });
+        });
+    }
+
+    function serverCommandScheduledTaskRunSteps(command) {
+        var runId = managerGetTextField(command.runId || '', 128, false);
+        if (runId == null) { obj.send({ action: 'scheduledtaskrunsteps', result: '无效的执行记录编号。' }); return; }
+        db.GetScheduledTaskRunSteps(runId, function (err, steps) {
+            if (err != null) { obj.send({ action: 'scheduledtaskrunsteps', result: err.message ? err.message : '无法加载执行步骤。' }); return; }
+            obj.send({ action: 'scheduledtaskrunsteps', success: true, runId: runId, steps: steps });
         });
     }
 
