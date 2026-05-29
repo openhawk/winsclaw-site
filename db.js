@@ -3923,7 +3923,7 @@ module.exports.CreateDB = function (parent, func) {
                 ') ' +
                 'UPDATE flows SET last_run_at = NOW(), last_run_status = $1, active_run_id = NULL, last_run_result = $8::jsonb, updated_at = NOW() ' +
                 'WHERE id IN (SELECT flow_id FROM stale) AND (last_run_status = $6 OR active_run_id IN (SELECT id FROM stale))',
-                ['failed', -1, summary, JSON.stringify(resultJson), 'agent-stale-timeout', 'running', '2 hours', JSON.stringify(lastRunResult)],
+                ['failed', -1, summary, JSON.stringify(resultJson), 'agent-stale-timeout', 'running', '20 minutes', JSON.stringify(lastRunResult)],
                 function () { staleFlowCleanupRunning = false; }
             );
         }

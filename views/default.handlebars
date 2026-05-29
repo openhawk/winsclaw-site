@@ -2854,7 +2854,7 @@
         var shopState = { items: [], total: 0, page: 1, limit: 12, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null };
         var myShopState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null };
         var productState = { items: [], total: 0, page: 1, limit: 12, search: '', storeSearch: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, loadTimer: null, loadRetry: 0, pendingAction: null };
-        var flowState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, loadTimer: null, loadRetry: 0, pendingAction: null, pendingMyShopId: '', currentRunsFlowId: null, runsPage: 1, runsLimit: 10, pricingReference: { nextRowSeq: 1, rows: {} }, pricingTaskMeta: { skuStrategy: 'allActive' }, productBinding: { searchTimer: null, suggestions: [], activeSearch: '' } };
+        var flowState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, loadTimer: null, loadRetry: 0, pendingAction: null, pendingMyShopId: '', currentRunsFlowId: null, runsPage: 1, runsLimit: 10, runsTimer: null, pricingReference: { nextRowSeq: 1, rows: {} }, pricingTaskMeta: { skuStrategy: 'allActive' }, productBinding: { searchTimer: null, suggestions: [], activeSearch: '' } };
         var collectState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, currentResultsTaskId: null, resultsPage: 1, resultsLimit: 10 };
         var managerExecutionMap = {};
 
@@ -4421,18 +4421,25 @@
         }
         function flowConfirmDelete(id) { setDialogMode(2, '删除流程', 3, function (button, tag) { if (button === 1) meshserver.send({ action: 'flowdelete', id: tag }); }, '确认删除该流程吗？删除后将立即刷新列表。', id); }
         function flowShowToast(text, isError) { if (flowState.toastTimer != null) clearTimeout(flowState.toastTimer); QH('flowToast', EscapeHtml(text)); Q('flowToast').className = 'flow-toast' + (isError ? ' flow-toast-error' : ' flow-toast-success'); QV('flowToast', true); flowState.toastTimer = setTimeout(function () { QV('flowToast', false); }, 2800); }
-        function flowOpenRuns(flowId, page) { flowState.currentRunsFlowId = flowId; flowState.runsPage = typeof page === 'number' ? page : 1; QH('flowRunsTitle', '流程执行记录'); QH('flowRunsContent', '正在加载执行记录...'); QV('flowRunsMask', true); meshserver.send({ action: 'flowruns', flowId: flowId, page: flowState.runsPage, limit: flowState.runsLimit }); }
-        function flowCloseRuns(event) { if (event && event.target && event.target.id !== 'flowRunsMask') return; QV('flowRunsMask', false); }
+        function flowOpenRuns(flowId, page, silent) { flowState.currentRunsFlowId = flowId; flowState.runsPage = typeof page === 'number' ? page : 1; if (flowState.runsTimer != null) { clearTimeout(flowState.runsTimer); flowState.runsTimer = null; } QH('flowRunsTitle', '流程执行记录'); if (silent !== true) QH('flowRunsContent', '正在加载执行记录...'); QV('flowRunsMask', true); meshserver.send({ action: 'flowruns', flowId: flowId, page: flowState.runsPage, limit: flowState.runsLimit }); }
+        function flowCloseRuns(event) { if (event && event.target && event.target.id !== 'flowRunsMask') return; if (flowState.runsTimer != null) { clearTimeout(flowState.runsTimer); flowState.runsTimer = null; } QV('flowRunsMask', false); }
+        function flowRunLooksUnstarted(run) {
+            if (!run || run.status !== 'running' || run.process_id || run.processId || run.stdout || run.stderr) return false;
+            var started = run.started_at ? new Date(run.started_at).getTime() : 0;
+            return started > 0 && ((Date.now() - started) > 60000);
+        }
         function flowHandleRunsResponse(message) {
             if (message.result != null) { QH('flowRunsContent', '<div class="flow-history-empty">' + EscapeHtml(message.result) + '</div>'); QV('flowRunsPagination', false); return; }
-            var runs = Array.isArray(message.runs) ? message.runs : [], x = '';
+            var runs = Array.isArray(message.runs) ? message.runs : [], x = '', hasRunning = false;
             if (runs.length === 0) { x = '<div class="flow-history-empty">暂无执行记录。</div>'; } else {
                 for (var i = 0; i < runs.length; i++) {
+                    if (runs[i].status === 'running') hasRunning = true;
                     var resultJson = managerParseJson(typeof runs[i].result_json === 'string' ? runs[i].result_json : JSON.stringify(runs[i].result_json || null), null);
                     x += '<div class="flow-history-item"><div class="flow-history-head"><div>' + managerRenderStatusBadge('flow', runs[i].status || 'idle') + '</div><strong>' + EscapeHtml(runs[i].started_at ? new Date(runs[i].started_at).toLocaleString() : '') + '</strong></div>';
                     x += '<div class="flow-history-meta"><span>脚本</span><strong>' + EscapeHtml(runs[i].script_path || '') + '</strong></div>';
                     x += '<div class="flow-history-meta"><span>采集绑定</span><strong>' + EscapeHtml(JSON.stringify(runs[i].collect_bindings || runs[i].collectBindings || null)) + '</strong></div>';
                     x += '<div class="flow-history-meta"><span>摘要</span><strong>' + EscapeHtml(runs[i].result_summary || '暂无') + '</strong></div>';
+                    if (flowRunLooksUnstarted(runs[i])) x += '<div class="flow-history-meta"><span>执行痕迹</span><strong>尚未收到本机进程号、心跳或输出；通常表示设备代理还没有真正启动脚本。</strong></div>';
                     x += '<details class="flow-history-raw"><summary>查看原始输出</summary><pre>' + EscapeHtml(runs[i].stdout || '') + '</pre></details>';
                     if (resultJson != null) x += '<details class="flow-history-raw"><summary>查看解析结果 JSON</summary><pre>' + EscapeHtml(JSON.stringify(resultJson, null, 2)) + '</pre></details>';
                     x += '</div>';
@@ -4441,6 +4448,10 @@
             QH('flowRunsContent', x);
             var totalPages = Math.max(1, Math.ceil((message.total || 0) / flowState.runsLimit)), current = Math.min(Math.max(1, message.page || 1), totalPages);
             if (message.total > flowState.runsLimit) { QH('flowRunsPagination', '<button type="button" class="flow-page-btn" ' + (current <= 1 ? 'disabled="disabled"' : 'onclick="flowOpenRuns(\'' + EscapeHtml(flowState.currentRunsFlowId) + '\',' + (current - 1) + ')"') + '>上一页</button><span class="flow-page-indicator">第 ' + current + ' / ' + totalPages + ' 页</span><button type="button" class="flow-page-btn" ' + (current >= totalPages ? 'disabled="disabled"' : 'onclick="flowOpenRuns(\'' + EscapeHtml(flowState.currentRunsFlowId) + '\',' + (current + 1) + ')"') + '>下一页</button>'); QV('flowRunsPagination', true); } else { QV('flowRunsPagination', false); }
+            if (hasRunning && flowState.currentRunsFlowId) {
+                if (flowState.runsTimer != null) clearTimeout(flowState.runsTimer);
+                flowState.runsTimer = setTimeout(function () { if (Q('flowRunsMask') && QS('flowRunsMask').display !== 'none') flowOpenRuns(flowState.currentRunsFlowId, flowState.runsPage, true); }, 8000);
+            }
         }
         function flowFindById(id) { for (var i = 0; i < flowState.items.length; i++) { if (String(flowState.items[i].id) === String(id)) return flowState.items[i]; } return null; }
         function flowExecute(id) {
