@@ -31,6 +31,7 @@ module.exports.CreateDB = function (parent, func) {
     var expireEventsSeconds = (60 * 60 * 24 * 20);              // By default, expire events after 20 days (1728000). (Seconds * Minutes * Hours * Days)
     var expirePowerEventsSeconds = (60 * 60 * 24 * 10);         // By default, expire power events after 10 days (864000). (Seconds * Minutes * Hours * Days)
     var expireServerStatsSeconds = (60 * 60 * 24 * 30);         // By default, expire server stats after 30 days (2592000). (Seconds * Minutes * Hours * Days)
+    var defaultCollectInventory = 999;
     const common = require('./common.js');
     const path = require('path');
     const fs = require('fs');
@@ -3841,7 +3842,7 @@ module.exports.CreateDB = function (parent, func) {
                     price,
                     managerCollectNumber(item.originalPrice, null),
                     description,
-                    Math.max(0, Math.floor(managerCollectNumber(item.inventory, 1) || 1)),
+                    Math.max(0, Math.floor(managerCollectNumber(item.inventory, defaultCollectInventory) || defaultCollectInventory)),
                     JSON.stringify(managerCollectArray(item.imagePaths)),
                     JSON.stringify(imageUrls),
                     JSON.stringify(managerCollectArray(item.sku)),
