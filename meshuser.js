@@ -7872,9 +7872,10 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         return result;
     }
 
-    function managerApplyFlowContext(config, flow) {
+    function managerApplyFlowContext(config, flow, runId) {
         config._meshFlow = config._meshFlow || {};
         config._meshFlow.flowId = flow.id;
+        if (runId) config._meshFlow.runId = runId;
         config._meshFlow.flowType = flow.flow_type || flow.flowType;
         config._meshFlow.myShopId = flow.my_shop_id || flow.myShopId || '';
         config._meshFlow.myShopName = flow.my_shop_name || flow.myShopName || '';
@@ -7969,7 +7970,7 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         return result;
     }
 
-    async function managerPreparePublishFlowConfig(flowConfig, flow) {
+    async function managerPreparePublishFlowConfig(flowConfig, flow, runId) {
         var cloned = managerCloneJson(flowConfig || {});
         var product = await managerDbPromise('GetProductByExactName', flow.product_name || flow.productName || '');
         var myShop = null;
@@ -7994,12 +7995,12 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
             imageUrls: managerFlowJsonArray(product.image_urls_json)
         };
         cloned._meshFlow = { flowType: 'publish', requestedAt: new Date().toISOString() };
-        return { config: managerApplyFlowContext(cloned, flow), bindings: null };
+        return { config: managerApplyFlowContext(cloned, flow, runId), bindings: null };
     }
 
-    async function managerPreparePricingFlowConfig(flowConfig, flow) {
+    async function managerPreparePricingFlowConfig(flowConfig, flow, runId) {
         var cloned = managerCloneJson(flowConfig || {});
-        return { config: managerApplyFlowContext(cloned, flow), bindings: null };
+        return { config: managerApplyFlowContext(cloned, flow, runId), bindings: null };
     }
 
     function managerPrepareAutoReplyFlowConfig(flowConfig) {
@@ -8010,10 +8011,10 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         return { config: cloned, bindings: null, background: background };
     }
 
-    async function managerPrepareFlowExecution(flow) {
+    async function managerPrepareFlowExecution(flow, runId) {
         var flowConfig = managerGetJsonField(flow.config, {});
-        if (flow.flow_type === 'publish') return managerPreparePublishFlowConfig(flowConfig, flow);
-        if (flow.flow_type === 'pricing') return managerPreparePricingFlowConfig(flowConfig, flow);
+        if (flow.flow_type === 'publish') return managerPreparePublishFlowConfig(flowConfig, flow, runId);
+        if (flow.flow_type === 'pricing') return managerPreparePricingFlowConfig(flowConfig, flow, runId);
         return managerPrepareAutoReplyFlowConfig(flowConfig);
     }
 
@@ -8277,7 +8278,7 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
             var nodeId = await managerValidateExecutableNode(flow.device_id || flow.deviceId);
             flow.device_id = nodeId;
             var runId = managerMakeId('flowrun');
-            var prepared = await managerPrepareFlowExecution(flow);
+            var prepared = await managerPrepareFlowExecution(flow, runId);
             var remote = managerBuildRemoteCommand(flow.device_os || flow.deviceOs, flow.script_path || flow.scriptPath, prepared.config, runId, 'flow', { background: prepared.background === true, useScriptDefaults: false, taskType: flow.flow_type || flow.flowType });
             var runRow = await managerDbPromise('StartFlowRun', flow, { id: runId, collectBindings: prepared.bindings, scriptPath: remote.scriptPath, arguments: remote.arguments, resultSummary: prepared.background === true ? '常驻流程启动中。' : '流程执行中。' });
             return { flow: flow, runRow: runRow, remote: remote, prepared: prepared };
