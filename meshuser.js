@@ -8284,9 +8284,37 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
             return { flow: flow, runRow: runRow, remote: remote, prepared: prepared };
         })().then(function (prepared) {
             obj.send({ action: 'flowprepareexecute', success: true, flowId: prepared.flow.id, runId: prepared.runRow.id, nodeId: prepared.flow.device_id || prepared.flow.deviceId, commandType: prepared.remote.commandType, cmds: prepared.remote.cmds, flowType: prepared.flow.flow_type || prepared.flow.flowType, runMode: prepared.prepared.background === true ? 'background' : 'foreground', runAsUser: 0, collectBindings: prepared.prepared.bindings, commandMeta: { configPath: prepared.remote.configPath, outputPath: prepared.remote.outputPath, scriptPath: prepared.remote.scriptPath }, responseid: 'flowexec_' + prepared.runRow.id });
+            managerScheduleFlowStartWatchdog(prepared.flow, prepared.runRow);
         }).catch(function (err) {
             obj.send({ action: 'flowprepareexecute', result: err.message ? err.message : '无法准备流程执行。' });
         });
+    }
+
+    function managerScheduleFlowStartWatchdog(flow, runRow) {
+        if (!flow || !runRow) return;
+        var flowType = flow.flow_type || flow.flowType || '';
+        if (flowType !== 'pricing') return;
+        setTimeout(function () {
+            (async function () {
+                var currentRun = await managerDbPromise('GetFlowRun', runRow.id);
+                if (!currentRun || currentRun.status !== 'running') return;
+                if (currentRun.process_id || currentRun.session_id || currentRun.last_heartbeat_at) return;
+                if ((currentRun.stdout || '').trim() || (currentRun.stderr || '').trim()) return;
+                await new Promise(function (resolve, reject) {
+                    db.FinalizeFlowRun(runRow.id, {
+                        status: 'failed',
+                        stdout: '执行未真正启动：服务端创建了运行记录，但设备代理没有回传启动确认或执行结果。',
+                        stderr: '',
+                        exitCode: -1,
+                        resultSummary: '执行未真正启动：设备代理未回传执行结果。',
+                        resultJson: { status: 'failed', summary: '执行未真正启动：设备代理未回传执行结果。', errorType: 'server-start-watchdog' },
+                        stopReason: 'server-start-watchdog'
+                    }, function (err) { if (err) reject(err); else resolve(); });
+                });
+            })().catch(function (err) {
+                console.log('Flow start watchdog failed: ' + (err && err.message ? err.message : err));
+            });
+        }, 90000);
     }
 
     function serverCommandFlowPrepareStop(command) {
