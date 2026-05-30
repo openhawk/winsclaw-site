@@ -7999,16 +7999,7 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
 
     async function managerPreparePricingFlowConfig(flowConfig, flow) {
         var cloned = managerCloneJson(flowConfig || {});
-        var resolvedResult = null;
-        try {
-            resolvedResult = await managerResolveCollectResultReference({ collectTaskId: cloned.collectTaskId, collectResultId: cloned.collectResultId }, 'collect_price', { maxAgeDays: 7, requireSyncSuccess: false, notFoundMessage: '调价流程缺少可用的价格采集结果。' });
-        } catch (ex) {
-            resolvedResult = await managerResolveCollectResultReference({ collectTaskId: cloned.collectTaskId, collectResultId: cloned.collectResultId }, 'collect_shop', { maxAgeDays: 7, requireSyncSuccess: false, notFoundMessage: '调价流程缺少可用的店铺采集价格结果。' });
-        }
-        cloned.referenceCollectResultId = resolvedResult.id;
-        cloned.referenceCollectTaskId = resolvedResult.task_id;
-        cloned.referenceCollectData = managerGetJsonField(resolvedResult.data, []);
-        return { config: managerApplyFlowContext(cloned, flow), bindings: [{ collectTaskId: resolvedResult.task_id, collectResultId: resolvedResult.id }] };
+        return { config: managerApplyFlowContext(cloned, flow), bindings: null };
     }
 
     function managerPrepareAutoReplyFlowConfig(flowConfig) {
