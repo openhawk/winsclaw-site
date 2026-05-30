@@ -3730,10 +3730,46 @@
             }
             return { raw: text, exitCode: exitMatch ? parseInt(exitMatch[1]) : null, processId: pidMatch ? pidMatch[1] : null, output: output };
         }
+        function managerClearRuncommandsTimeout(pending) {
+            if ((pending != null) && (pending.timeoutId != null)) { clearTimeout(pending.timeoutId); pending.timeoutId = null; }
+            if ((pending != null) && (pending.outputTimeoutId != null)) { clearTimeout(pending.outputTimeoutId); pending.outputTimeoutId = null; }
+        }
+        function managerFinalizeRuncommandsTimeout(responseid, acknowledged) {
+            var pending = managerExecutionMap[responseid];
+            if (!pending || ((acknowledged !== true) && (pending.acknowledged === true))) return;
+            var summary = acknowledged === true ? '执行超时：设备代理已确认命令，但执行结果长时间未回传。' : '执行未真正启动：设备代理未在限定时间内确认执行命令。';
+            managerClearRuncommandsTimeout(pending);
+            if (pending.kind === 'collect') {
+                meshserver.send({ action: 'collectfinalizeexecute', resultId: pending.resultId, status: 'failed', exitCode: -1, stdout: summary, stderr: '', data: '[]', resultMeta: JSON.stringify({ errorType: acknowledged === true ? 'agent_output_timeout' : 'agent_ack_timeout' }) });
+            } else if (pending.kind === 'flow' && pending.operation === 'stop') {
+                meshserver.send({ action: 'flowfinalizeexecute', runId: pending.runId, status: 'running', exitCode: -1, stdout: summary, stderr: '', resultSummary: acknowledged === true ? '停止失败：设备代理未回传停止结果。' : '停止失败：设备代理未确认停止命令。', resultJson: JSON.stringify({ status: 'failed', summary: summary, errorType: acknowledged === true ? 'agent_output_timeout' : 'agent_ack_timeout' }), processId: pending.processId || '', stopReason: acknowledged === true ? 'agent-output-timeout' : 'agent-ack-timeout' });
+            } else if (pending.kind === 'flow') {
+                meshserver.send({ action: 'flowfinalizeexecute', runId: pending.runId, status: 'failed', exitCode: -1, stdout: summary, stderr: '', resultSummary: summary, resultJson: JSON.stringify({ status: 'failed', summary: summary, errorType: acknowledged === true ? 'agent_output_timeout' : 'agent_ack_timeout' }), collectBindings: JSON.stringify(pending.collectBindings || null), stopReason: acknowledged === true ? 'agent-output-timeout' : 'agent-ack-timeout' });
+            }
+            delete managerExecutionMap[responseid];
+        }
+        function managerStartRuncommandsTimeout(responseid) {
+            var pending = managerExecutionMap[responseid];
+            if (!pending) return;
+            managerClearRuncommandsTimeout(pending);
+            pending.timeoutId = setTimeout(function () { managerFinalizeRuncommandsTimeout(responseid, false); }, 15000);
+            managerStartRuncommandsOutputTimeout(responseid);
+        }
+        function managerStartRuncommandsOutputTimeout(responseid) {
+            var pending = managerExecutionMap[responseid];
+            if (!pending) return;
+            if (pending.outputTimeoutId != null) clearTimeout(pending.outputTimeoutId);
+            var timeoutMs = 30 * 60 * 1000;
+            if (pending.kind === 'flow' && pending.operation === 'stop') timeoutMs = 2 * 60 * 1000;
+            else if (pending.kind === 'flow' && pending.runMode !== 'background') timeoutMs = 15 * 60 * 1000;
+            else if (pending.kind === 'flow') timeoutMs = 2 * 60 * 1000;
+            pending.outputTimeoutId = setTimeout(function () { managerFinalizeRuncommandsTimeout(responseid, true); }, timeoutMs);
+        }
         function managerHandleRuncommandsAck(message) {
             var pending = managerExecutionMap[message.responseid];
             if (!pending) return false;
             if ((message.result != null) && (message.result !== 'OK')) {
+                managerClearRuncommandsTimeout(pending);
                 if (pending.kind === 'collect') {
                     meshserver.send({ action: 'collectfinalizeexecute', resultId: pending.resultId, status: 'failed', exitCode: -1, stdout: String(message.result), stderr: '', data: '[]', resultMeta: '{}' });
                 } else if (pending.kind === 'flow' && pending.operation === 'stop') {
@@ -3742,12 +3778,17 @@
                     meshserver.send({ action: 'flowfinalizeexecute', runId: pending.runId, status: 'failed', exitCode: -1, stdout: String(message.result), stderr: '', resultSummary: '执行失败：' + String(message.result), resultJson: '{}', collectBindings: JSON.stringify(pending.collectBindings || null) });
                 }
                 delete managerExecutionMap[message.responseid];
+            } else if (message.result === 'OK') {
+                pending.acknowledged = true;
+                managerClearRuncommandsTimeout(pending);
+                managerStartRuncommandsOutputTimeout(message.responseid);
             }
             return true;
         }
         function managerHandleRuncommandsOutput(message) {
             var pending = managerExecutionMap[message.responseid];
             if (!pending) return false;
+            managerClearRuncommandsTimeout(pending);
             var parsed = managerParseCommandEnvelope(message.result || '');
             if (pending.kind === 'collect') {
                 var parsedData = managerTryParseCollectData(parsed.output);
@@ -4034,12 +4075,14 @@
             if (message.success !== true) { flowShowToast(message.result || '无法准备流程执行。', true); return; }
             managerExecutionMap[message.responseid] = { kind: 'flow', runId: message.runId, flowId: message.flowId, runMode: message.runMode, collectBindings: message.collectBindings || null };
             meshserver.send({ action: 'runcommands', nodeids: [message.nodeId], type: message.commandType, cmds: message.cmds, runAsUser: (typeof message.runAsUser === 'number' ? message.runAsUser : 0), reply: true, responseid: message.responseid });
+            managerStartRuncommandsTimeout(message.responseid);
             flowShowToast(message.runMode === 'background' ? '正在启动常驻流程...' : '正在执行流程...', false);
         }
         function flowHandlePrepareStop(message) {
             if (message.success !== true) { flowShowToast(message.result || '无法准备停止流程。', true); return; }
             managerExecutionMap[message.responseid] = { kind: 'flow', operation: 'stop', runId: message.runId, flowId: message.flowId };
             meshserver.send({ action: 'runcommands', nodeids: [message.nodeId], type: message.commandType, cmds: message.cmds, runAsUser: 0, reply: true, responseid: message.responseid });
+            managerStartRuncommandsTimeout(message.responseid);
             flowShowToast('正在停止常驻流程...', false);
         }
         function flowHandleFinalizeExecute(message) {
@@ -4265,6 +4308,7 @@
             if (message.success !== true) { collectShowToast(message.result || '无法准备采集执行。', true); return; }
             managerExecutionMap[message.responseid] = { kind: 'collect', resultId: message.resultId, taskId: message.taskId };
             meshserver.send({ action: 'runcommands', nodeids: [message.nodeId], type: message.commandType, cmds: message.cmds, runAsUser: 0, reply: true, responseid: message.responseid });
+            managerStartRuncommandsTimeout(message.responseid);
             collectShowToast('正在执行采集任务...', false);
         }
         function collectHandleFinalizeExecute(message) {
