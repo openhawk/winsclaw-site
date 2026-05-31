@@ -7221,8 +7221,54 @@ module.exports.CreateWebServer = function (parent, db, args, certificates, doneF
             return { nodeId: nodeId, body: body };
         }
 
+        function getConfiguredNodeJobNodeIds() {
+            var settings = parent.config && parent.config.settings ? parent.config.settings : {};
+            var tokens = settings.nodeJobTokens || settings.nodejobtokens || {};
+            var nodeIds = [];
+            if (tokens && typeof tokens == 'object') {
+                for (var key in tokens) {
+                    if (typeof tokens[key] != 'string') continue;
+                    nodeIds.push(String(key));
+                }
+            }
+            return nodeIds;
+        }
+
         function sendNodeJobError(res, err, code) {
             res.status(code || 400).json({ success: false, result: err && err.message ? err.message : String(err || 'Node job request failed.') });
+        }
+
+        obj.nodeWorkerHeartbeats = obj.nodeWorkerHeartbeats || {};
+
+        function handleNodeWorkerHeartbeatRequest(req, res) {
+            var request = validateNodeJobRequest(req, res);
+            if (request == null) return;
+            obj.nodeWorkerHeartbeats[request.nodeId] = {
+                nodeId: request.nodeId,
+                status: String(request.body.status || 'running'),
+                lastSeen: Date.now(),
+                leaseSeconds: Math.max(60, Math.min(3600, Number(request.body.leaseSeconds || request.body.lease_seconds || 600)))
+            };
+            res.json({ success: true });
+        }
+
+        function handleNodeWorkerStatusRequest(req, res) {
+            var nodeIds = getConfiguredNodeJobNodeIds();
+            var now = Date.now();
+            var workers = [];
+            for (var i in nodeIds) {
+                var nodeId = nodeIds[i];
+                var heartbeat = obj.nodeWorkerHeartbeats[nodeId] || null;
+                var leaseSeconds = heartbeat ? heartbeat.leaseSeconds : 600;
+                var online = heartbeat != null && ((now - heartbeat.lastSeen) <= Math.max(90000, leaseSeconds * 1000));
+                workers.push({
+                    nodeId: nodeId,
+                    online: online,
+                    status: heartbeat ? heartbeat.status : 'missing',
+                    lastSeen: heartbeat ? heartbeat.lastSeen : null
+                });
+            }
+            res.json({ success: true, workers: workers });
         }
 
         function handleNodeJobPollRequest(req, res) {
@@ -7281,6 +7327,8 @@ module.exports.CreateWebServer = function (parent, db, args, certificates, doneF
                     obj.app.post(url, obj.bodyParser.urlencoded({ extended: false }), handleRootPostRequest);
                 }
                 obj.app.get(url + 'refresh.ashx', function (req, res) { res.sendStatus(200); });
+                obj.app.get(url + 'api/node-workers/status', handleNodeWorkerStatusRequest);
+                obj.app.post(url + 'api/node-workers/heartbeat', obj.bodyParser.json({ limit: '2mb' }), handleNodeWorkerHeartbeatRequest);
                 obj.app.post(url + 'api/node-jobs/poll', obj.bodyParser.json({ limit: '2mb' }), handleNodeJobPollRequest);
                 obj.app.post(url + 'api/node-jobs/:id/heartbeat', obj.bodyParser.json({ limit: '2mb' }), handleNodeJobHeartbeatRequest);
                 obj.app.post(url + 'api/node-jobs/:id/complete', obj.bodyParser.json({ limit: '10mb' }), handleNodeJobCompleteRequest);
