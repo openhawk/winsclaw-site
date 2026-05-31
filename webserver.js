@@ -7201,6 +7201,12 @@ module.exports.CreateWebServer = function (parent, db, args, certificates, doneF
                 if (typeof tokens[nodeId] == 'string') return tokens[nodeId];
                 var shortId = String(nodeId || '').split('/').pop();
                 if (typeof tokens[shortId] == 'string') return tokens[shortId];
+                var nodeIdLower = String(nodeId || '').toLowerCase();
+                var shortIdLower = shortId.toLowerCase();
+                for (var key in tokens) {
+                    var keyLower = String(key || '').toLowerCase();
+                    if ((keyLower === nodeIdLower) || (keyLower === shortIdLower)) return tokens[key];
+                }
             }
             return '';
         }
