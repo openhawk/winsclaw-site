@@ -432,11 +432,30 @@ module.exports.CreateScheduledTaskManager = function (parent, db) {
     obj.enqueueCollectTask = enqueueCollectTask;
     obj.enqueueFlow = enqueueFlow;
     obj.claimNodeJob = async function (nodeId, leaseSeconds) {
-        return await dbPromise('ClaimNodeJob', nodeId, leaseSeconds || 600);
+        const row = await dbPromise('ClaimNodeJob', nodeId, leaseSeconds || 600);
+        if (row != null) {
+            try {
+                const payload = jsonField(row.payload, {});
+                if (payload.kind === 'flow' && payload.recordId) {
+                    await dbPromise('FinalizeFlowRun', payload.recordId, { status: 'running', resultSummary: '节点任务执行中。', stdout: '', stderr: '', resultJson: {}, lastHeartbeatAt: new Date() });
+                }
+            } catch (ex) {
+                parent.parent.debug && parent.parent.debug('nodejobs', ex.message || String(ex));
+            }
+        }
+        return row;
     };
     obj.heartbeatNodeJob = async function (jobId, nodeId, leaseToken, leaseSeconds, progress) {
         const row = await dbPromise('HeartbeatNodeJob', jobId, nodeId, leaseToken, leaseSeconds || 600, progress || '');
         if (row == null) throw new Error('任务租约无效或已过期。');
+        try {
+            const payload = jsonField(row.payload, {});
+            if (payload.kind === 'flow' && payload.recordId) {
+                await dbPromise('FinalizeFlowRun', payload.recordId, { status: 'running', resultSummary: '节点任务执行中。', stdout: '', stderr: '', resultJson: {}, lastHeartbeatAt: new Date() });
+            }
+        } catch (ex) {
+            parent.parent.debug && parent.parent.debug('nodejobs', ex.message || String(ex));
+        }
         return row;
     };
     obj.completeNodeJob = async function (jobId, nodeId, leaseToken, status, exitCode, stdout, stderr, resultJson) {
