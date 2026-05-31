@@ -662,7 +662,7 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
                 }
 
                 // Send any server warnings if any
-                var serverWarnings = parent.parent.getServerWarnings();
+                var serverWarnings = parent.parent.getServerWarnings().slice();
                 if (typeof parent.getNodeWorkerWarningStates == 'function') {
                     var nodeWorkerStates = parent.getNodeWorkerWarningStates();
                     if (nodeWorkerStates.length > 0) {
@@ -672,14 +672,30 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
                         };
                         for (var nodeWorkerStateIndex in nodeWorkerStates) {
                             (function (nodeId) {
-                                db.Get(nodeId, function (err, docs) {
-                                    var nodeName = nodeId;
-                                    if ((err == null) && docs && docs[0] && (typeof docs[0].name == 'string') && (docs[0].name != '')) {
-                                        nodeName = docs[0].name;
-                                    }
+                                var finishNodeWorkerLookup = function (nodeName) {
                                     serverWarnings.push('设备节点 ' + nodeName + ' 未运行 D:\\winsclaw-work\\aibot\\scripts\\start-node-worker.ps1，节点任务不会自动执行。');
                                     pendingNodeWorkerLookups--;
                                     if (pendingNodeWorkerLookups === 0) { sendServerWarnings(); }
+                                };
+                                db.Get(nodeId, function (err, docs) {
+                                    var nodeName = nodeId;
+                                    if ((err == null) && docs && docs[0] && (typeof docs[0].name == 'string') && (docs[0].name != '')) {
+                                        finishNodeWorkerLookup(docs[0].name);
+                                        return;
+                                    }
+                                    db.GetAllTypeNoTypeField('node', domain.id, function (err2, nodes) {
+                                        var nodeIdLower = String(nodeId || '').toLowerCase();
+                                        if ((err2 == null) && Array.isArray(nodes)) {
+                                            for (var nodeIndex in nodes) {
+                                                var candidate = nodes[nodeIndex];
+                                                if ((candidate != null) && (String(candidate._id || '').toLowerCase() === nodeIdLower) && (typeof candidate.name == 'string') && (candidate.name != '')) {
+                                                    nodeName = candidate.name;
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                        finishNodeWorkerLookup(nodeName);
+                                    });
                                 });
                             })(nodeWorkerStates[nodeWorkerStateIndex].nodeId);
                         }
