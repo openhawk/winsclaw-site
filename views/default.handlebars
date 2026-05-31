@@ -645,6 +645,7 @@
                     <div id="serverWarningsDiv" style="display:none">
                         <br><strong>服务器警告</strong><br><br>
                         <div id="serverCertWarnings"></div>
+                        <div id="serverNodeWorkerWarnings"></div>
                         <div id="serverWarnings"></div>
                     </div>
                 </div>
@@ -2348,6 +2349,8 @@
             // Setup server stats panels
             setupGeneralServerStats();
             setupServerTimelineStats();
+            refreshNodeWorkerStatus();
+            setInterval(refreshNodeWorkerStatus, 60000);
 
             // Setup the user interface in the right mode
             userInterfaceSelectMenu();
@@ -5160,6 +5163,7 @@
                         }
                         QH('serverWarnings', x);
                         QV('serverWarningsDiv', true);
+                        refreshNodeWorkerStatus();
                     }
                     break;
                 }
@@ -5285,6 +5289,7 @@
                     updateDevicePageState();
 
                     mainUpdate(1 | 2 | 4 | 64);
+                    refreshNodeWorkerStatus();
                     
                     // If groups are to be collapsed by default, do it now
                     if (collapseGroups === 'true' && Object.keys(CollapsedGroups).length === 0 && typeof(getstore('_collapse')) === 'undefined') { cmexpandaction(2); }
@@ -21230,6 +21235,44 @@
         }
 
         var lastServerStats = null;
+        var lastNodeWorkerStatus = null;
+
+        function refreshNodeWorkerStatus() {
+            if (typeof fetch != 'function') return;
+            fetch(domainUrl + 'api/node-workers/status', { credentials: 'same-origin' }).then(function (response) {
+                if (response.ok !== true) throw new Error('node worker status unavailable');
+                return response.json();
+            }).then(function (data) {
+                lastNodeWorkerStatus = data;
+                updateNodeWorkerWarnings();
+            }).catch(function () {
+                lastNodeWorkerStatus = null;
+                updateNodeWorkerWarnings();
+            });
+        }
+
+        function getNodeWorkerDisplayName(nodeId) {
+            var node = getNodeFromId(nodeId);
+            if (node != null) return node.name;
+            return nodeId;
+        }
+
+        function updateNodeWorkerWarnings() {
+            var x = '';
+            if ((lastNodeWorkerStatus != null) && (lastNodeWorkerStatus.success === true) && Array.isArray(lastNodeWorkerStatus.workers)) {
+                var offline = [];
+                for (var i = 0; i < lastNodeWorkerStatus.workers.length; i++) {
+                    var worker = lastNodeWorkerStatus.workers[i];
+                    if (worker.online !== true) offline.push(worker);
+                }
+                for (var j = 0; j < offline.length; j++) {
+                    x += '<div style=color:red;padding-bottom:6px><b>警告：设备节点 ' + EscapeHtml(getNodeWorkerDisplayName(offline[j].nodeId)) + ' 未运行 D:\\winsclaw-work\\aibot\\scripts\\start-node-worker.ps1，节点任务不会自动执行。</b></div>';
+                }
+            }
+            QH('serverNodeWorkerWarnings', x);
+            if (x != '') QV('serverWarningsDiv', true);
+        }
+
         function updateGeneralServerStats(message) {
             if (message != null) { lastServerStats = message; } else { message = lastServerStats; }
             if (message == null) return;
