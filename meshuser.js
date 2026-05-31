@@ -164,6 +164,7 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         // Perform cleanup
         parent.parent.RemoveAllEventDispatch(obj.ws);
         if (obj.serverStatsTimer != null) { clearInterval(obj.serverStatsTimer); delete obj.serverStatsTimer; }
+        if (obj.serverWarningsTimer != null) { clearInterval(obj.serverWarningsTimer); delete obj.serverWarningsTimer; }
         if (req.session && req.session.ws && req.session.ws == obj.ws) { delete req.session.ws; }
         if (parent.wssessions2[ws.sessionId]) { delete parent.wssessions2[ws.sessionId]; }
 
@@ -661,50 +662,52 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
                     try { ws.send(JSON.stringify({ action: 'traceinfo', traceSources: parent.parent.debugRemoteSources })); } catch (ex) { }
                 }
 
-                // Send any server warnings if any
-                var serverWarnings = parent.parent.getServerWarnings().slice();
-                if (typeof parent.getNodeWorkerWarningStates == 'function') {
+                // Send server warnings now and keep open pages refreshed as node workers come online/offline.
+                var nodeWorkerWarningsRefreshRunning = false;
+                var sendServerWarnings = function () {
+                    if (nodeWorkerWarningsRefreshRunning === true) return;
+                    nodeWorkerWarningsRefreshRunning = true;
+                    var serverWarnings = parent.parent.getServerWarnings().slice();
+                    var sendWarnings = function () {
+                        nodeWorkerWarningsRefreshRunning = false;
+                        try { ws.send(JSON.stringify({ action: 'serverwarnings', warnings: serverWarnings })); } catch (ex) { }
+                    };
+                    if (typeof parent.getNodeWorkerWarningStates != 'function') { sendWarnings(); return; }
                     var nodeWorkerStates = parent.getNodeWorkerWarningStates();
-                    if (nodeWorkerStates.length > 0) {
-                        var pendingNodeWorkerLookups = nodeWorkerStates.length;
-                        var sendServerWarnings = function () {
-                            if (serverWarnings.length > 0) { try { ws.send(JSON.stringify({ action: 'serverwarnings', warnings: serverWarnings })); } catch (ex) { } }
-                        };
-                        for (var nodeWorkerStateIndex in nodeWorkerStates) {
-                            (function (nodeId) {
-                                var finishNodeWorkerLookup = function (nodeName) {
-                                    serverWarnings.push('设备节点 ' + nodeName + ' 未运行 D:\\winsclaw-work\\aibot\\scripts\\start-node-worker.ps1，节点任务不会自动执行。');
-                                    pendingNodeWorkerLookups--;
-                                    if (pendingNodeWorkerLookups === 0) { sendServerWarnings(); }
-                                };
-                                db.Get(nodeId, function (err, docs) {
-                                    var nodeName = nodeId;
-                                    if ((err == null) && docs && docs[0] && (typeof docs[0].name == 'string') && (docs[0].name != '')) {
-                                        finishNodeWorkerLookup(docs[0].name);
-                                        return;
-                                    }
-                                    db.GetAllTypeNoTypeField('node', domain.id, function (err2, nodes) {
-                                        var nodeIdLower = String(nodeId || '').toLowerCase();
-                                        if ((err2 == null) && Array.isArray(nodes)) {
-                                            for (var nodeIndex in nodes) {
-                                                var candidate = nodes[nodeIndex];
-                                                if ((candidate != null) && (String(candidate._id || '').toLowerCase() === nodeIdLower) && (typeof candidate.name == 'string') && (candidate.name != '')) {
-                                                    nodeName = candidate.name;
-                                                    break;
-                                                }
+                    if (nodeWorkerStates.length === 0) { sendWarnings(); return; }
+                    var pendingNodeWorkerLookups = nodeWorkerStates.length;
+                    for (var nodeWorkerStateIndex in nodeWorkerStates) {
+                        (function (nodeId) {
+                            var finishNodeWorkerLookup = function (nodeName) {
+                                serverWarnings.push('设备节点 ' + nodeName + ' 未运行 D:\\winsclaw-work\\aibot\\scripts\\start-node-worker.ps1，节点任务不会自动执行。');
+                                pendingNodeWorkerLookups--;
+                                if (pendingNodeWorkerLookups === 0) { sendWarnings(); }
+                            };
+                            db.Get(nodeId, function (err, docs) {
+                                var nodeName = nodeId;
+                                if ((err == null) && docs && docs[0] && (typeof docs[0].name == 'string') && (docs[0].name != '')) {
+                                    finishNodeWorkerLookup(docs[0].name);
+                                    return;
+                                }
+                                db.GetAllTypeNoTypeField('node', domain.id, function (err2, nodes) {
+                                    var nodeIdLower = String(nodeId || '').toLowerCase();
+                                    if ((err2 == null) && Array.isArray(nodes)) {
+                                        for (var nodeIndex in nodes) {
+                                            var candidate = nodes[nodeIndex];
+                                            if ((candidate != null) && (String(candidate._id || '').toLowerCase() === nodeIdLower) && (typeof candidate.name == 'string') && (candidate.name != '')) {
+                                                nodeName = candidate.name;
+                                                break;
                                             }
                                         }
-                                        finishNodeWorkerLookup(nodeName);
-                                    });
+                                    }
+                                    finishNodeWorkerLookup(nodeName);
                                 });
-                            })(nodeWorkerStates[nodeWorkerStateIndex].nodeId);
-                        }
-                    } else if (serverWarnings.length > 0) {
-                        try { ws.send(JSON.stringify({ action: 'serverwarnings', warnings: serverWarnings })); } catch (ex) { }
+                            });
+                        })(nodeWorkerStates[nodeWorkerStateIndex].nodeId);
                     }
-                } else {
-                    if (serverWarnings.length > 0) { try { ws.send(JSON.stringify({ action: 'serverwarnings', warnings: serverWarnings })); } catch (ex) { } }
-                }
+                };
+                sendServerWarnings();
+                obj.serverWarningsTimer = setInterval(sendServerWarnings, 30000);
             }
 
             // See how many times bad login attempts where made since the last login

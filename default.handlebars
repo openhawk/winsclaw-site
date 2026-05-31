@@ -4615,6 +4615,7 @@
                     break;
                 }
                 case 'serverwarnings': {
+                    var x = '';
                     if ((message.warnings != null) && (message.warnings.length > 0)) {
                         var ServerWarnings = {
                             1: "",
@@ -4645,7 +4646,6 @@
                             26: "This NodeJS version does not support Discord.js.",
                             27: "Firebase now requires a service account JSON file, Firebase disabled."
                         };
-                        var x = '';
                         for (var i in message.warnings) {
                             var y = message.warnings[i];
                             if (typeof y == 'string') {
@@ -4656,10 +4656,10 @@
                                 x += '<div style=color:red;padding-bottom:6px><b>' + "警告： " + z + '</b></div>';
                             }
                         }
-                        QH('serverWarnings', x);
-                        QV('serverWarningsDiv', true);
-                        refreshNodeWorkerStatus();
                     }
+                    QH('serverWarnings', x);
+                    QV('serverWarningsDiv', (x != '') || (Q('serverCertWarnings').innerHTML != '') || (Q('serverNodeWorkerWarnings').innerHTML != ''));
+                    refreshNodeWorkerStatus();
                     break;
                 }
                 case 'servertimelinestats': {
