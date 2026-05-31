@@ -7243,7 +7243,8 @@ module.exports.CreateWebServer = function (parent, db, args, certificates, doneF
         function handleNodeWorkerHeartbeatRequest(req, res) {
             var request = validateNodeJobRequest(req, res);
             if (request == null) return;
-            obj.nodeWorkerHeartbeats[request.nodeId] = {
+            var nodeIdKey = String(request.nodeId || '').toLowerCase();
+            obj.nodeWorkerHeartbeats[nodeIdKey] = {
                 nodeId: request.nodeId,
                 status: String(request.body.status || 'running'),
                 lastSeen: Date.now(),
@@ -7258,7 +7259,7 @@ module.exports.CreateWebServer = function (parent, db, args, certificates, doneF
             var workers = [];
             for (var i in nodeIds) {
                 var nodeId = nodeIds[i];
-                var heartbeat = obj.nodeWorkerHeartbeats[nodeId] || null;
+                var heartbeat = obj.nodeWorkerHeartbeats[String(nodeId || '').toLowerCase()] || null;
                 var leaseSeconds = heartbeat ? heartbeat.leaseSeconds : 600;
                 var online = heartbeat != null && ((now - heartbeat.lastSeen) <= Math.max(90000, leaseSeconds * 1000));
                 workers.push({
