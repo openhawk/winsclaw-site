@@ -7579,151 +7579,6 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         });
     }
 
-    function managerShellEscape(value) {
-        return String(value == null ? '' : value).replace(/(["\\$`])/g, '\\$1');
-    }
-
-    function managerPowerShellEscape(value) {
-        return String(value == null ? '' : value).replace(/'/g, "''");
-    }
-
-    function managerReplaceArgsTemplate(template, tokens) {
-        var result = (typeof template === 'string' && template !== '') ? template : '{configPath}';
-        for (var k in tokens) { result = result.split('{' + k + '}').join(tokens[k]); }
-        return result;
-    }
-
-    function managerGetScriptDirectory(scriptPath, deviceOs) {
-        scriptPath = String(scriptPath || '').trim();
-        if (scriptPath === '') return deviceOs === 'windows' ? 'C:\\' : '/';
-        var normalized = deviceOs === 'windows' ? scriptPath.replace(/\//g, '\\') : scriptPath;
-        var index = deviceOs === 'windows' ? normalized.lastIndexOf('\\') : normalized.lastIndexOf('/');
-        if (index <= 0) return deviceOs === 'windows' ? 'C:\\' : '.';
-        return normalized.substring(0, index);
-    }
-
-    function managerGetScriptProjectRoot(scriptPath, deviceOs) {
-        var scriptDir = managerGetScriptDirectory(scriptPath, deviceOs);
-        var normalized = String(scriptDir || '');
-        if (deviceOs === 'windows') {
-            normalized = normalized.replace(/\//g, '\\');
-            if (/\\scripts(?:-mac)?$/i.test(normalized)) return normalized.replace(/\\scripts(?:-mac)?$/i, '');
-        } else {
-            normalized = normalized.replace(/\\/g, '/');
-            if (/\/scripts(?:-mac)?$/.test(normalized)) return normalized.replace(/\/scripts(?:-mac)?$/, '');
-        }
-        return scriptDir;
-    }
-
-    function managerGetRuntimeDir(projectRoot, deviceOs, prefix) {
-        var folder = prefix === 'flow' ? 'flow-configs' : 'collect-configs';
-        if (deviceOs === 'windows') return String(projectRoot || '').replace(/[\\\/]+$/, '') + '\\runtime\\' + folder;
-        return String(projectRoot || '').replace(/\/+$/, '') + '/runtime/' + folder;
-    }
-
-    function managerGetScriptArgsTemplate(scriptPath, flowOrCollectType, isPublish) {
-        return (/\.ps1$/i.test(String(scriptPath || ''))) ? '-ConfigPath "{configPath}"' : '{configPath}';
-    }
-
-    function managerBuildShellCommand(projectRoot, scriptPath, argsText, configText, recordId, prefix, background) {
-        var runtimeDir = managerGetRuntimeDir(projectRoot, 'linux', prefix);
-        var configPath = runtimeDir + '/' + prefix + '-' + recordId + '.json';
-        var outputPath = runtimeDir + '/' + prefix + '-' + recordId + '.log';
-        var configB64 = Buffer.from(configText, 'utf8').toString('base64');
-        var invocation = ((scriptPath.toLowerCase().endsWith('.sh')) ? ('sh "' + managerShellEscape(scriptPath) + '"') : ('"' + managerShellEscape(scriptPath) + '"')) + (argsText ? (' ' + argsText) : '');
-        var lines = [];
-        lines.push('MC_CONFIG_PATH="' + managerShellEscape(configPath) + '"');
-        lines.push('MC_OUTPUT_PATH="' + managerShellEscape(outputPath) + '"');
-        lines.push('mkdir -p "' + managerShellEscape(runtimeDir) + '"');
-        lines.push("python3 - <<'PY'\nimport base64\nopen(r'''" + configPath + "''','wb').write(base64.b64decode('" + configB64 + "'))\nPY");
-        lines.push('cd "' + managerShellEscape(projectRoot) + '"');
-        if (background === true) {
-            lines.push('nohup ' + invocation + ' > "$MC_OUTPUT_PATH" 2>&1 &');
-            lines.push('MC_PID=$!');
-            lines.push('printf "__MC_PROCESS_ID__:%s\\n" "$MC_PID"');
-            lines.push('printf "__MC_EXIT_CODE__:0\\n"');
-        } else {
-            lines.push(invocation + ' > "$MC_OUTPUT_PATH" 2>&1');
-            lines.push('MC_EXIT_CODE=$?');
-            lines.push('printf "__MC_EXIT_CODE__:%s\\n" "$MC_EXIT_CODE"');
-            lines.push('printf "__MC_OUTPUT_START__\\n"');
-            lines.push('if [ -f "$MC_OUTPUT_PATH" ]; then cat "$MC_OUTPUT_PATH"; fi');
-            lines.push('printf "\\n__MC_OUTPUT_END__\\n"');
-            lines.push('rm -f "$MC_OUTPUT_PATH"');
-        }
-        return { commandType: 3, cmds: lines.join('\n'), configPath: configPath, outputPath: outputPath, scriptPath: scriptPath, arguments: argsText ? [configPath] : [] };
-    }
-
-    function managerBuildPowerShellCommand(projectRoot, scriptPath, argsText, configText, recordId, prefix, background) {
-        var runtimeDir = managerGetRuntimeDir(projectRoot, 'windows', prefix);
-        var configPath = runtimeDir + '\\' + prefix + '-' + recordId + '.json';
-        var outputPath = runtimeDir + '\\' + prefix + '-' + recordId + '.log';
-        var configB64 = Buffer.from(configText, 'utf8').toString('base64');
-        var psProjectRoot = projectRoot.replace(/\//g, '\\');
-        var psScriptPath = scriptPath.replace(/\//g, '\\');
-        if (/^[A-Za-z]:\\/.test(psScriptPath) === false && psScriptPath.indexOf('\\\\') !== 0) {
-            psScriptPath = psProjectRoot.replace(/\\+$/, '') + '\\' + psScriptPath.replace(/^\\+/, '');
-        }
-        var lines = [];
-        lines.push("$ErrorActionPreference = 'Continue'");
-        lines.push("[Console]::OutputEncoding = [System.Text.Encoding]::UTF8");
-        lines.push("$OutputEncoding = [System.Text.Encoding]::UTF8");
-        lines.push("$ConfigPath = '" + managerPowerShellEscape(configPath) + "'");
-        lines.push("$OutputPath = '" + managerPowerShellEscape(outputPath) + "'");
-        lines.push("$ProjectRoot = '" + managerPowerShellEscape(psProjectRoot) + "'");
-        lines.push("$ScriptPath = '" + managerPowerShellEscape(psScriptPath) + "'");
-        lines.push("$ScriptArgs = @('-ConfigPath', $ConfigPath)");
-        lines.push("New-Item -ItemType Directory -Force -Path (Split-Path -Parent $ConfigPath) | Out-Null");
-        lines.push("[System.IO.File]::WriteAllText($ConfigPath, [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('" + configB64 + "')))");
-        lines.push("Set-Location -Path $ProjectRoot");
-        if (background === true) {
-            lines.push("$proc = Start-Process -FilePath 'powershell.exe' -WorkingDirectory $ProjectRoot -ArgumentList (@('-NoProfile','-ExecutionPolicy','Bypass','-File',$ScriptPath) + $ScriptArgs) -PassThru -WindowStyle Hidden");
-            lines.push('Write-Output ("__MC_PROCESS_ID__:" + $proc.Id)');
-            lines.push('Write-Output "__MC_EXIT_CODE__:0"');
-        } else {
-            lines.push("$StdoutPath = $OutputPath + '.stdout'");
-            lines.push("$StderrPath = $OutputPath + '.stderr'");
-            lines.push("$proc = Start-Process -FilePath 'powershell.exe' -WorkingDirectory $ProjectRoot -ArgumentList (@('-NoProfile','-ExecutionPolicy','Bypass','-File',$ScriptPath) + $ScriptArgs) -RedirectStandardOutput $StdoutPath -RedirectStandardError $StderrPath -Wait -PassThru -WindowStyle Hidden");
-            lines.push("$MCExitCode = if ($null -ne $proc.ExitCode) { [int]$proc.ExitCode } else { -1 }");
-            lines.push("$stdoutText = if (Test-Path $StdoutPath) { Get-Content -LiteralPath $StdoutPath -Raw -Encoding UTF8 } else { '' }");
-            lines.push("$stderrText = if (Test-Path $StderrPath) { Get-Content -LiteralPath $StderrPath -Raw -Encoding UTF8 } else { '' }");
-            lines.push("$combinedText = $stdoutText + $(if ($stderrText.Trim()) { \"`r`n[stderr]`r`n\" + $stderrText } else { '' })");
-            lines.push("[System.IO.File]::WriteAllText($OutputPath, $combinedText, [System.Text.UTF8Encoding]::new($false))");
-            lines.push('Write-Output ("__MC_EXIT_CODE__:" + $MCExitCode)');
-            lines.push('Write-Output "__MC_OUTPUT_B64_START__"');
-            lines.push('if (Test-Path $OutputPath) { [Convert]::ToBase64String([System.IO.File]::ReadAllBytes($OutputPath)) }');
-            lines.push('Write-Output "__MC_OUTPUT_B64_END__"');
-            lines.push('Remove-Item -Force -ErrorAction SilentlyContinue $OutputPath, $StdoutPath, $StderrPath');
-        }
-        return { commandType: 2, cmds: lines.join("\r\n"), configPath: configPath, outputPath: outputPath, scriptPath: psScriptPath, arguments: argsText ? [configPath] : [] };
-    }
-
-    function managerBuildRemoteCommand(deviceOs, scriptPath, configObject, recordId, prefix, options) {
-        scriptPath = (typeof scriptPath === 'string') ? scriptPath.trim() : '';
-        if (scriptPath === '') throw new Error('脚本路径不能为空。');
-        if ((deviceOs === 'windows') && /(^|[\\\/])run-publish-product\.sh$/i.test(scriptPath)) {
-            scriptPath = scriptPath.replace(/run-publish-product\.sh$/i, 'run-publish-product.ps1');
-        }
-        var projectRoot = managerGetScriptProjectRoot(scriptPath, deviceOs);
-        var configText = JSON.stringify(configObject || {}, null, 2);
-        var runtimeDir = managerGetRuntimeDir(projectRoot, deviceOs, prefix);
-        var configPathToken = runtimeDir + (deviceOs === 'windows' ? '\\' : '/') + prefix + '-' + recordId + '.json';
-        var argsTemplate = managerGetScriptArgsTemplate(scriptPath, options && options.taskType, options && options.useScriptDefaults === true);
-        var replacedArgs = managerReplaceArgsTemplate(argsTemplate, { configPath: configPathToken, projectRoot: projectRoot || '' });
-        if (deviceOs === 'windows') { return managerBuildPowerShellCommand(projectRoot, scriptPath, replacedArgs, configText, recordId, prefix, options && options.background === true); }
-        return managerBuildShellCommand(projectRoot, scriptPath, replacedArgs, configText, recordId, prefix, options && options.background === true);
-    }
-
-    function managerExtractBetween(text, startMarker, endMarker) {
-        if (typeof text !== 'string') return '';
-        var start = text.indexOf(startMarker);
-        if (start < 0) return '';
-        start += startMarker.length;
-        var end = text.indexOf(endMarker, start);
-        if (end < 0) return text.substring(start).trim();
-        return text.substring(start, end).trim();
-    }
-
     function managerBuildResultSummary(stdout, status, exitCode) {
         if (status === 'running') return '流程已启动，等待停止或心跳更新。';
         if (status === 'success') return '执行成功，退出码 ' + String(exitCode == null ? 0 : exitCode) + '。';
@@ -8305,26 +8160,12 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
             var runId = commandRunId || flow.active_run_id || flow.running_run_id || '';
             if (!runId) throw new Error('当前没有运行中的流程。');
             var run = await managerDbPromise('GetFlowRun', runId);
-            if (!run.process_id) {
-                return { flow: flow, run: run, finalizeOnly: true };
-            }
-            var deviceOs = flow.device_os || flow.deviceOs;
-            var cmds = '';
-            if (deviceOs === 'windows') {
-                cmds = "$ErrorActionPreference = 'Continue'\r\ntry { Stop-Process -Id " + String(run.process_id) + " -Force; $mcCode = 0 } catch { Write-Output $_.Exception.Message; $mcCode = 1 }\r\nWrite-Output (\"__MC_EXIT_CODE__:\" + $mcCode)";
-            } else {
-                cmds = 'kill ' + String(run.process_id) + ' >/dev/null 2>&1\nMC_EXIT_CODE=$?\nprintf "__MC_EXIT_CODE__:%s\\n" "$MC_EXIT_CODE"';
-            }
-            return { flow: flow, run: run, cmds: cmds, commandType: (deviceOs === 'windows') ? 2 : 3 };
+            return { flow: flow, run: run };
         })().then(function (prepared) {
-            if (prepared.finalizeOnly === true) {
-                db.FinalizeFlowRun(prepared.run.id, { status: 'stopped', stdout: prepared.run.stdout || '', stderr: prepared.run.stderr || '', exitCode: null, resultSummary: '流程未拿到进程标识，已手动停止。', resultJson: prepared.run.result_json || null, processId: null, sessionId: prepared.run.session_id || null, stopReason: 'manual-stop-no-process' }, function (err, runRow) {
-                    if (err != null) { obj.send({ action: 'flowpreparestop', result: err.message ? err.message : '无法停止流程。' }); return; }
-                    obj.send({ action: 'flowfinalizeexecute', success: true, runId: prepared.run.id, row: runRow });
-                });
-                return;
-            }
-            obj.send({ action: 'flowpreparestop', success: true, flowId: prepared.flow.id, runId: prepared.run.id, nodeId: prepared.flow.device_id || prepared.flow.deviceId, commandType: prepared.commandType, cmds: prepared.cmds, responseid: 'flowstop_' + prepared.run.id });
+            db.FinalizeFlowRun(prepared.run.id, { status: 'stopped', stdout: prepared.run.stdout || '', stderr: prepared.run.stderr || '', exitCode: null, resultSummary: '流程已标记停止；节点任务会在租约过期后自动恢复或失败。', resultJson: prepared.run.result_json || null, processId: null, sessionId: prepared.run.session_id || null, stopReason: 'manual-stop-node-job' }, function (err, runRow) {
+                if (err != null) { obj.send({ action: 'flowpreparestop', result: err.message ? err.message : '无法停止流程。' }); return; }
+                obj.send({ action: 'flowfinalizeexecute', success: true, runId: prepared.run.id, row: runRow });
+            });
         }).catch(function (err) {
             obj.send({ action: 'flowpreparestop', result: err.message ? err.message : '无法准备停止流程。' });
         });

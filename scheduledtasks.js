@@ -6,7 +6,6 @@
 module.exports.CreateScheduledTaskManager = function (parent, db) {
     const crypto = require('crypto');
     const obj = {};
-    obj.pending = {};
     obj.running = {};
     obj.scanTimer = null;
     obj.recoveryTimer = null;
@@ -39,110 +38,6 @@ module.exports.CreateScheduledTaskManager = function (parent, db) {
         if (value == null || value === '') return null;
         const n = Number(value);
         return Number.isFinite(n) ? n : null;
-    }
-    function scriptProjectRoot(scriptPath, deviceOs) {
-        scriptPath = String(scriptPath || '').replace(/\\/g, '/');
-        const marker = deviceOs === 'windows' ? '/scripts/' : '/scripts-mac/';
-        const idx = scriptPath.toLowerCase().indexOf(marker);
-        if (idx >= 0) return scriptPath.substring(0, idx).replace(/\//g, deviceOs === 'windows' ? '\\' : '/');
-        const slash = scriptPath.lastIndexOf('/');
-        return slash >= 0 ? scriptPath.substring(0, slash).replace(/\//g, deviceOs === 'windows' ? '\\' : '/') : '.';
-    }
-    function runtimeDir(projectRoot, deviceOs, prefix) {
-        const folder = prefix === 'flow' ? 'flow-configs' : 'collect-configs';
-        if (deviceOs === 'windows') return String(projectRoot || '').replace(/[\\\/]+$/, '') + '\\runtime\\' + folder;
-        return String(projectRoot || '').replace(/\/+$/, '') + '/runtime/' + folder;
-    }
-    function scriptArgsTemplate(scriptPath) { return (/\.ps1$/i.test(String(scriptPath || ''))) ? '-ConfigPath "{configPath}"' : '{configPath}'; }
-    function replaceArgsTemplate(template, values) {
-        return String(template || '').replace(/\{configPath\}/g, values.configPath || '').replace(/\{projectRoot\}/g, values.projectRoot || '');
-    }
-    function shellEscape(value) { return String(value || '').replace(/"/g, '\\"'); }
-    function psSingle(value) { return String(value || '').replace(/'/g, "''"); }
-    function buildShellCommand(projectRoot, scriptPath, argsText, configText, recordId, prefix, background) {
-        const rd = runtimeDir(projectRoot, 'linux', prefix);
-        const configPath = rd + '/' + prefix + '-' + recordId + '.json';
-        const outputPath = rd + '/' + prefix + '-' + recordId + '.log';
-        const configB64 = Buffer.from(configText, 'utf8').toString('base64');
-        const invocation = ((scriptPath.toLowerCase().endsWith('.sh')) ? ('sh "' + shellEscape(scriptPath) + '"') : ('"' + shellEscape(scriptPath) + '"')) + (argsText ? (' ' + argsText) : '');
-        const lines = [];
-        lines.push('MC_CONFIG_PATH="' + shellEscape(configPath) + '"');
-        lines.push('MC_OUTPUT_PATH="' + shellEscape(outputPath) + '"');
-        lines.push('mkdir -p "' + shellEscape(rd) + '"');
-        lines.push("python3 - <<'PY'\nimport base64\nopen(r'''" + configPath + "''','wb').write(base64.b64decode('" + configB64 + "'))\nPY");
-        lines.push('cd "' + shellEscape(projectRoot) + '"');
-        if (background === true) {
-            lines.push('nohup ' + invocation + ' > "$MC_OUTPUT_PATH" 2>&1 &');
-            lines.push('MC_PID=$!');
-            lines.push('printf "__MC_PROCESS_ID__:%s\\n" "$MC_PID"');
-            lines.push('printf "__MC_EXIT_CODE__:0\\n"');
-        } else {
-            lines.push(invocation + ' > "$MC_OUTPUT_PATH" 2>&1');
-            lines.push('MC_EXIT_CODE=$?');
-            lines.push('printf "__MC_EXIT_CODE__:%s\\n" "$MC_EXIT_CODE"');
-            lines.push('printf "__MC_OUTPUT_START__\\n"');
-            lines.push('if [ -f "$MC_OUTPUT_PATH" ]; then cat "$MC_OUTPUT_PATH"; fi');
-            lines.push('printf "\\n__MC_OUTPUT_END__\\n"');
-            lines.push('rm -f "$MC_OUTPUT_PATH"');
-        }
-        return { commandType: 3, cmds: lines.join('\n'), configPath: configPath, outputPath: outputPath, scriptPath: scriptPath, arguments: argsText ? [configPath] : [] };
-    }
-    function buildPowerShellCommand(projectRoot, scriptPath, argsText, configText, recordId, prefix, background) {
-        const rd = runtimeDir(projectRoot, 'windows', prefix);
-        const configPath = rd + '\\' + prefix + '-' + recordId + '.json';
-        const outputPath = rd + '\\' + prefix + '-' + recordId + '.log';
-        const configB64 = Buffer.from(configText, 'utf8').toString('base64');
-        const psProjectRoot = String(projectRoot || '').replace(/\//g, '\\');
-        const psScriptPath = String(scriptPath || '').replace(/\//g, '\\');
-        const invocation = "& '" + psSingle(psScriptPath) + "'" + (argsText ? (' ' + argsText) : '');
-        const lines = [];
-        lines.push("$ErrorActionPreference = 'Continue'");
-        lines.push("$mcConfigPath = '" + psSingle(configPath) + "'");
-        lines.push("$mcOutputPath = '" + psSingle(outputPath) + "'");
-        lines.push("New-Item -ItemType Directory -Force -Path '" + psSingle(rd) + "' | Out-Null");
-        lines.push("[IO.File]::WriteAllBytes($mcConfigPath, [Convert]::FromBase64String('" + configB64 + "'))");
-        lines.push("Set-Location -LiteralPath '" + psSingle(psProjectRoot) + "'");
-        if (background === true) {
-            lines.push("$mcProcess = Start-Process -FilePath 'powershell.exe' -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-Command', " + JSON.stringify(invocation + " *> '" + psSingle(outputPath) + "'") + ") -PassThru -WindowStyle Hidden");
-            lines.push("Write-Output ('__MC_PROCESS_ID__:' + $mcProcess.Id)");
-            lines.push("Write-Output '__MC_EXIT_CODE__:0'");
-        } else {
-            lines.push("& { " + invocation + " } *> $mcOutputPath");
-            lines.push("$mcExitCode = if ($LASTEXITCODE -ne $null) { $LASTEXITCODE } else { 0 }");
-            lines.push("Write-Output ('__MC_EXIT_CODE__:' + $mcExitCode)");
-            lines.push("Write-Output '__MC_OUTPUT_START__'");
-            lines.push("if (Test-Path -LiteralPath $mcOutputPath) { Get-Content -LiteralPath $mcOutputPath -Raw }");
-            lines.push("Write-Output '__MC_OUTPUT_END__'");
-            lines.push("Remove-Item -LiteralPath $mcOutputPath -Force -ErrorAction SilentlyContinue");
-        }
-        return { commandType: 2, cmds: lines.join('\r\n'), configPath: configPath, outputPath: outputPath, scriptPath: psScriptPath, arguments: argsText ? [configPath] : [] };
-    }
-    function buildRemoteCommand(deviceOs, scriptPath, configObject, recordId, prefix, options) {
-        scriptPath = text(scriptPath, 2048);
-        if (scriptPath === '') throw new Error('脚本路径不能为空。');
-        if ((deviceOs === 'windows') && /(^|[\\\/])run-publish-product\.sh$/i.test(scriptPath)) scriptPath = scriptPath.replace(/run-publish-product\.sh$/i, 'run-publish-product.ps1');
-        const projectRoot = scriptProjectRoot(scriptPath, deviceOs);
-        const configText = JSON.stringify(configObject || {}, null, 2);
-        const rd = runtimeDir(projectRoot, deviceOs, prefix);
-        const configPathToken = rd + (deviceOs === 'windows' ? '\\' : '/') + prefix + '-' + recordId + '.json';
-        const argsText = replaceArgsTemplate(scriptArgsTemplate(scriptPath), { configPath: configPathToken, projectRoot: projectRoot || '' });
-        if (deviceOs === 'windows') return buildPowerShellCommand(projectRoot, scriptPath, argsText, configText, recordId, prefix, options && options.background === true);
-        return buildShellCommand(projectRoot, scriptPath, argsText, configText, recordId, prefix, options && options.background === true);
-    }
-    function extractBetween(raw, startMarker, endMarker) {
-        raw = String(raw || '');
-        let start = raw.indexOf(startMarker);
-        if (start < 0) return '';
-        start += startMarker.length;
-        const end = raw.indexOf(endMarker, start);
-        return (end < 0 ? raw.substring(start) : raw.substring(start, end)).trim();
-    }
-    function parseCommandEnvelope(raw) {
-        raw = String(raw || '');
-        const exitMatch = raw.match(/__MC_EXIT_CODE__:(-?\d+)/);
-        const pidMatch = raw.match(/__MC_PROCESS_ID__:(\d+)/);
-        const output = extractBetween(raw, '__MC_OUTPUT_START__', '__MC_OUTPUT_END__') || raw.replace(/__MC_EXIT_CODE__:-?\d+/g, '').replace(/__MC_PROCESS_ID__:\d+/g, '').trim();
-        return { raw: raw, exitCode: exitMatch ? parseInt(exitMatch[1]) : null, processId: pidMatch ? pidMatch[1] : null, output: output };
     }
     function parseCollectData(output) {
         const trimmed = String(output || '').trim();
@@ -180,33 +75,6 @@ module.exports.CreateScheduledTaskManager = function (parent, db) {
         for (let i = 0; i < parts.length; i++) map[parts[i].type] = parts[i].value;
         return { date: map.year + '-' + map.month + '-' + map.day, time: map.hour + ':' + map.minute };
     }
-    function sendAgentCommand(nodeId, commandType, cmds, responseid) {
-        return new Promise(function (resolve, reject) {
-            const agent = parent.wsagents[nodeId];
-            if ((agent == null) || (agent.authenticated !== 2) || (agent.agentInfo == null)) { reject(new Error('Agent not connected')); return; }
-            const timer = setTimeout(function () {
-                delete obj.pending[responseid];
-                reject(new Error('远程命令执行超时。'));
-            }, 2 * 60 * 60 * 1000);
-            obj.pending[responseid] = { resolve: resolve, reject: reject, timer: timer };
-            try {
-                agent.send(JSON.stringify({ action: 'runcommands', type: commandType, cmds: cmds, runAsUser: 0, reply: true, responseid: responseid }));
-            } catch (ex) {
-                clearTimeout(timer);
-                delete obj.pending[responseid];
-                reject(ex);
-            }
-        });
-    }
-    obj.handleAgentRunCommandMessage = function (command) {
-        if (!command || command.type !== 'runcommands' || command.responseid == null) return false;
-        const pending = obj.pending[command.responseid];
-        if (pending == null) return false;
-        clearTimeout(pending.timer);
-        delete obj.pending[command.responseid];
-        pending.resolve(String(command.result || ''));
-        return true;
-    };
     async function resolveCollectResult(reference, collectType, options) {
         options = options || {};
         let result = null;

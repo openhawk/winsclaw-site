@@ -10110,7 +10110,6 @@ module.exports.CreateWebServer = function (parent, db, args, certificates, doneF
 
     // Route a command from a agent. domainid, nodeid and meshid are the values of the source agent.
     obj.routeAgentCommand = function (command, domainid, nodeid, meshid) {
-        if ((obj.scheduledTaskManager != null) && (obj.scheduledTaskManager.handleAgentRunCommandMessage(command) === true)) { return; }
         // Route a message.
         // If this command has a sessionid, that is the target.
         if (command.sessionid != null) {
