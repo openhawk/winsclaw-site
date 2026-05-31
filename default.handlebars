@@ -20735,6 +20735,12 @@
         }
 
         function getNodeWorkerDisplayName(nodeId) {
+            if ((lastNodeWorkerStatus != null) && Array.isArray(lastNodeWorkerStatus.workers)) {
+                for (var i = 0; i < lastNodeWorkerStatus.workers.length; i++) {
+                    var worker = lastNodeWorkerStatus.workers[i];
+                    if ((worker.nodeId === nodeId) && (typeof worker.name == 'string') && (worker.name != '')) return worker.name;
+                }
+            }
             var node = getNodeFromId(nodeId);
             if (node != null) return node.name;
             return nodeId;

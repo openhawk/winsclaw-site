@@ -7269,7 +7269,23 @@ module.exports.CreateWebServer = function (parent, db, args, certificates, doneF
                     lastSeen: heartbeat ? heartbeat.lastSeen : null
                 });
             }
-            res.json({ success: true, workers: workers });
+            obj.db.GetAllType('node', function (err, nodes) {
+                if ((err == null) && Array.isArray(nodes)) {
+                    var nodeNames = {};
+                    for (var nodeIndex in nodes) {
+                        var node = nodes[nodeIndex];
+                        if ((node != null) && (typeof node._id == 'string') && (typeof node.name == 'string') && (node.name != '')) {
+                            nodeNames[node._id.toLowerCase()] = node.name;
+                        }
+                    }
+                    for (var workerIndex in workers) {
+                        var worker = workers[workerIndex];
+                        var nodeName = nodeNames[String(worker.nodeId || '').toLowerCase()];
+                        if (nodeName != null) { worker.name = nodeName; }
+                    }
+                }
+                res.json({ success: true, workers: workers });
+            });
         }
 
         obj.getNodeWorkerWarningStates = function () {
