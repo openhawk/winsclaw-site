@@ -7272,6 +7272,22 @@ module.exports.CreateWebServer = function (parent, db, args, certificates, doneF
             res.json({ success: true, workers: workers });
         }
 
+        obj.getNodeWorkerWarnings = function () {
+            var nodeIds = getConfiguredNodeJobNodeIds();
+            var now = Date.now();
+            var warnings = [];
+            for (var i in nodeIds) {
+                var nodeId = nodeIds[i];
+                var heartbeat = obj.nodeWorkerHeartbeats[String(nodeId || '').toLowerCase()] || null;
+                var leaseSeconds = heartbeat ? heartbeat.leaseSeconds : 600;
+                var online = heartbeat != null && ((now - heartbeat.lastSeen) <= Math.max(90000, leaseSeconds * 1000));
+                if (online !== true) {
+                    warnings.push('设备节点 ' + nodeId + ' 未运行 D:\\winsclaw-work\\aibot\\scripts\\start-node-worker.ps1，节点任务不会自动执行。');
+                }
+            }
+            return warnings;
+        };
+
         function handleNodeJobPollRequest(req, res) {
             var request = validateNodeJobRequest(req, res);
             if (request == null) return;

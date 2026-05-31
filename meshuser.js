@@ -663,6 +663,9 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
 
                 // Send any server warnings if any
                 var serverWarnings = parent.parent.getServerWarnings();
+                if (typeof parent.getNodeWorkerWarnings == 'function') {
+                    serverWarnings = serverWarnings.concat(parent.getNodeWorkerWarnings());
+                }
                 if (serverWarnings.length > 0) { try { ws.send(JSON.stringify({ action: 'serverwarnings', warnings: serverWarnings })); } catch (ex) { } }
             }
 
