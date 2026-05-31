@@ -4536,6 +4536,7 @@
         function flowStop(id, runId) { meshserver.send({ action: 'flowpreparestop', id: id, runId: runId }); }
         function flowHandlePrepareExecute(message) {
             if (message.success !== true) { flowShowToast(message.result || '无法准备流程执行。', true); return; }
+            if (message.queued === true) { flowShowToast('流程已提交到节点任务队列。', false); flowRefreshList(flowState.page); return; }
             managerExecutionMap[message.responseid] = { kind: 'flow', runId: message.runId, flowId: message.flowId, runMode: message.runMode, collectBindings: message.collectBindings || null };
             meshserver.send({ action: 'runcommands', nodeids: [message.nodeId], type: message.commandType, cmds: message.cmds, runAsUser: (typeof message.runAsUser === 'number' ? message.runAsUser : 0), reply: true, responseid: message.responseid });
             managerStartRuncommandsTimeout(message.responseid);
@@ -4809,6 +4810,7 @@
         function collectExecute(id) { meshserver.send({ action: 'collectprepareexecute', id: id }); }
         function collectHandlePrepareExecute(message) {
             if (message.success !== true) { collectShowToast(message.result || '无法准备采集执行。', true); return; }
+            if (message.queued === true) { collectShowToast('采集任务已提交到节点任务队列。', false); collectRefreshList(collectState.page); return; }
             managerExecutionMap[message.responseid] = { kind: 'collect', resultId: message.resultId, taskId: message.taskId };
             meshserver.send({ action: 'runcommands', nodeids: [message.nodeId], type: message.commandType, cmds: message.cmds, runAsUser: 0, reply: true, responseid: message.responseid });
             managerStartRuncommandsTimeout(message.responseid);
@@ -4951,7 +4953,7 @@
         }
         function scheduledConfirmDelete(id) { setDialogMode(2, '删除定时任务', 3, function (button, tag) { if (button === 1) meshserver.send({ action: 'scheduledtaskdelete', id: tag }); }, '确认删除该定时任务吗？历史执行记录会保留。', id); }
         function scheduledExecute(id) { scheduledShowToast('定时任务已提交执行。', false); meshserver.send({ action: 'scheduledtaskexecute', id: id }); }
-        function scheduledHandleExecuteResponse(message) { if (message.success !== true) { scheduledShowToast(message.result || '执行失败。', true); return; } scheduledShowToast('定时任务执行完成。', false); scheduledRefreshList(scheduledState.page); if (scheduledState.currentRunsTaskId) scheduledOpenRuns(scheduledState.currentRunsTaskId, scheduledState.runsPage); }
+        function scheduledHandleExecuteResponse(message) { if (message.success !== true) { scheduledShowToast(message.result || '执行失败。', true); return; } scheduledShowToast('定时任务已提交到节点任务队列。', false); scheduledRefreshList(scheduledState.page); if (scheduledState.currentRunsTaskId) scheduledOpenRuns(scheduledState.currentRunsTaskId, scheduledState.runsPage); }
         function scheduledOpenRuns(taskId, page) { scheduledState.currentRunsTaskId = taskId; scheduledState.runsPage = typeof page === 'number' ? page : 1; QH('scheduledRunsContent', '正在加载执行记录...'); QV('scheduledRunsMask', true); meshserver.send({ action: 'scheduledtaskruns', taskId: taskId, page: scheduledState.runsPage, limit: scheduledState.runsLimit }); }
         function scheduledCloseRuns(event) { if (event && event.target && event.target.id !== 'scheduledRunsMask') return; QV('scheduledRunsMask', false); }
         function scheduledHandleRunsResponse(message) {

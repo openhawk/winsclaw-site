@@ -7187,6 +7187,75 @@ module.exports.CreateWebServer = function (parent, db, args, certificates, doneF
                 }
             }
         }
+
+        function getNodeJobRequestToken(req) {
+            var auth = req.headers.authorization || '';
+            if (auth.toLowerCase().indexOf('bearer ') === 0) return auth.substring(7).trim();
+            return String(req.headers['x-node-token'] || '').trim();
+        }
+
+        function getConfiguredNodeJobToken(nodeId) {
+            var settings = parent.config && parent.config.settings ? parent.config.settings : {};
+            var tokens = settings.nodeJobTokens || settings.nodejobtokens || {};
+            if (tokens && typeof tokens == 'object') {
+                if (typeof tokens[nodeId] == 'string') return tokens[nodeId];
+                var shortId = String(nodeId || '').split('/').pop();
+                if (typeof tokens[shortId] == 'string') return tokens[shortId];
+            }
+            return '';
+        }
+
+        function validateNodeJobRequest(req, res) {
+            var body = req.body || {};
+            var nodeId = String(body.nodeId || body.node_id || '').trim();
+            if (nodeId === '') { res.status(400).json({ success: false, result: 'nodeId is required.' }); return null; }
+            var expectedToken = getConfiguredNodeJobToken(nodeId);
+            if (expectedToken === '') { res.status(403).json({ success: false, result: 'Node job API token is not configured.' }); return null; }
+            if (getNodeJobRequestToken(req) !== expectedToken) { res.status(403).json({ success: false, result: 'Invalid node token.' }); return null; }
+            return { nodeId: nodeId, body: body };
+        }
+
+        function sendNodeJobError(res, err, code) {
+            res.status(code || 400).json({ success: false, result: err && err.message ? err.message : String(err || 'Node job request failed.') });
+        }
+
+        function handleNodeJobPollRequest(req, res) {
+            var request = validateNodeJobRequest(req, res);
+            if (request == null) return;
+            if (obj.scheduledTaskManager == null) { res.status(503).json({ success: false, result: 'Node job manager is not running.' }); return; }
+            obj.scheduledTaskManager.claimNodeJob(request.nodeId, request.body.leaseSeconds || request.body.lease_seconds || 600).then(function (job) {
+                if (job == null) { res.json({ success: true, job: null }); return; }
+                res.json({ success: true, job: { id: job.id, jobType: job.job_type, status: job.status, leaseToken: job.lease_token, leaseUntil: job.lease_until, attemptCount: job.attempt_count, payload: job.payload } });
+            }).catch(function (err) { sendNodeJobError(res, err); });
+        }
+
+        function handleNodeJobHeartbeatRequest(req, res) {
+            var request = validateNodeJobRequest(req, res);
+            if (request == null) return;
+            if (obj.scheduledTaskManager == null) { res.status(503).json({ success: false, result: 'Node job manager is not running.' }); return; }
+            obj.scheduledTaskManager.heartbeatNodeJob(req.params.id, request.nodeId, String(request.body.leaseToken || request.body.lease_token || ''), request.body.leaseSeconds || request.body.lease_seconds || 600, request.body.progress || '').then(function () {
+                res.json({ success: true });
+            }).catch(function (err) { sendNodeJobError(res, err); });
+        }
+
+        function handleNodeJobCompleteRequest(req, res) {
+            var request = validateNodeJobRequest(req, res);
+            if (request == null) return;
+            if (obj.scheduledTaskManager == null) { res.status(503).json({ success: false, result: 'Node job manager is not running.' }); return; }
+            obj.scheduledTaskManager.completeNodeJob(req.params.id, request.nodeId, String(request.body.leaseToken || request.body.lease_token || ''), 'success', typeof request.body.exitCode == 'number' ? request.body.exitCode : 0, String(request.body.stdout || ''), String(request.body.stderr || ''), request.body.resultJson || request.body.result_json || {}).then(function (job) {
+                res.json({ success: true, jobId: job.id, status: job.status });
+            }).catch(function (err) { sendNodeJobError(res, err); });
+        }
+
+        function handleNodeJobFailRequest(req, res) {
+            var request = validateNodeJobRequest(req, res);
+            if (request == null) return;
+            if (obj.scheduledTaskManager == null) { res.status(503).json({ success: false, result: 'Node job manager is not running.' }); return; }
+            obj.scheduledTaskManager.completeNodeJob(req.params.id, request.nodeId, String(request.body.leaseToken || request.body.lease_token || ''), 'failed', typeof request.body.exitCode == 'number' ? request.body.exitCode : -1, String(request.body.stdout || ''), String(request.body.stderr || request.body.error || ''), request.body.resultJson || request.body.result_json || {}).then(function (job) {
+                res.json({ success: true, jobId: job.id, status: job.status });
+            }).catch(function (err) { sendNodeJobError(res, err); });
+        }
+
         function setupHTTPHandlers() {
             // Setup all HTTP handlers
             if (parent.pluginHandler != null) {
@@ -7206,6 +7275,10 @@ module.exports.CreateWebServer = function (parent, db, args, certificates, doneF
                     obj.app.post(url, obj.bodyParser.urlencoded({ extended: false }), handleRootPostRequest);
                 }
                 obj.app.get(url + 'refresh.ashx', function (req, res) { res.sendStatus(200); });
+                obj.app.post(url + 'api/node-jobs/poll', obj.bodyParser.json({ limit: '2mb' }), handleNodeJobPollRequest);
+                obj.app.post(url + 'api/node-jobs/:id/heartbeat', obj.bodyParser.json({ limit: '2mb' }), handleNodeJobHeartbeatRequest);
+                obj.app.post(url + 'api/node-jobs/:id/complete', obj.bodyParser.json({ limit: '10mb' }), handleNodeJobCompleteRequest);
+                obj.app.post(url + 'api/node-jobs/:id/fail', obj.bodyParser.json({ limit: '10mb' }), handleNodeJobFailRequest);
                 if ((domain.myserver !== false) && ((domain.myserver == null) || (domain.myserver.backup === true))) { obj.app.get(url + 'backup.zip', handleBackupRequest); }
                 if ((domain.myserver !== false) && ((domain.myserver == null) || (domain.myserver.restore === true))) { obj.app.post(url + 'restoreserver.ashx', obj.bodyParser.urlencoded({ extended: false }), handleRestoreRequest); }
                 obj.app.get(url + 'terms', handleTermsRequest);

@@ -8076,18 +8076,9 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
     function serverCommandCollectPrepareExecute(command) {
         var taskId = managerGetTextField(command.id || '', 128, false);
         if (taskId == null) { obj.send({ action: 'collectprepareexecute', result: '无效的采集任务编号。' }); return; }
-        (async function () {
-            var task = await managerDbPromise('GetCollectTask', taskId);
-            var preparedResultId = managerMakeId('collectresult');
-            task.preparedResultId = preparedResultId;
-            var collectType = task.collect_type || task.collectType;
-            var config = managerGetJsonField(task.config, {});
-            config._meshCollect = { taskId: task.id, collectType: collectType, requestedAt: new Date().toISOString() };
-            var remote = managerBuildRemoteCommand(task.device_os || task.deviceOs, task.script_path || task.scriptPath, config, preparedResultId, 'collect', { background: false, taskType: task.collect_type || task.collectType });
-            var runRow = await managerDbPromise('StartCollectRun', task, remote.cmds);
-            return { task: task, runRow: runRow, remote: remote };
-        })().then(function (prepared) {
-            obj.send({ action: 'collectprepareexecute', success: true, taskId: prepared.task.id, resultId: prepared.runRow.id, nodeId: prepared.task.device_id || prepared.task.deviceId, commandType: prepared.remote.commandType, cmds: prepared.remote.cmds, commandMeta: { configPath: prepared.remote.configPath, outputPath: prepared.remote.outputPath, scriptPath: prepared.remote.scriptPath }, responseid: 'collectexec_' + prepared.runRow.id });
+        if (parent.scheduledTaskManager == null) { obj.send({ action: 'collectprepareexecute', result: '节点任务执行器未启动。' }); return; }
+        parent.scheduledTaskManager.enqueueCollectTask(taskId, { idempotencyKey: 'manual-collect:' + managerMakeId('job') }).then(function (result) {
+            obj.send({ action: 'collectprepareexecute', success: true, queued: true, taskId: taskId, resultId: result.collectResultId, nodeJobId: result.nodeJobId });
         }).catch(function (err) {
             obj.send({ action: 'collectprepareexecute', result: err.message ? err.message : '无法准备采集执行。' });
         });
@@ -8270,21 +8261,9 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
     function serverCommandFlowPrepareExecute(command) {
         var flowId = managerGetTextField(command.id || '', 128, false);
         if (flowId == null) { obj.send({ action: 'flowprepareexecute', result: '无效的流程编号。' }); return; }
-        (async function () {
-            var flow = await managerDbPromise('GetFlow', flowId);
-            if ((flow.last_run_status || flow.lastRunStatus) === 'running' || flow.active_run_id || flow.running_run_id) {
-                throw new Error('流程正在执行中，请先停止后再执行。');
-            }
-            var nodeId = await managerValidateExecutableNode(flow.device_id || flow.deviceId);
-            flow.device_id = nodeId;
-            var runId = managerMakeId('flowrun');
-            var prepared = await managerPrepareFlowExecution(flow, runId);
-            var remote = managerBuildRemoteCommand(flow.device_os || flow.deviceOs, flow.script_path || flow.scriptPath, prepared.config, runId, 'flow', { background: prepared.background === true, useScriptDefaults: false, taskType: flow.flow_type || flow.flowType });
-            var runRow = await managerDbPromise('StartFlowRun', flow, { id: runId, collectBindings: prepared.bindings, scriptPath: remote.scriptPath, arguments: remote.arguments, resultSummary: prepared.background === true ? '常驻流程启动中。' : '流程执行中。' });
-            return { flow: flow, runRow: runRow, remote: remote, prepared: prepared };
-        })().then(function (prepared) {
-            obj.send({ action: 'flowprepareexecute', success: true, flowId: prepared.flow.id, runId: prepared.runRow.id, nodeId: prepared.flow.device_id || prepared.flow.deviceId, commandType: prepared.remote.commandType, cmds: prepared.remote.cmds, flowType: prepared.flow.flow_type || prepared.flow.flowType, runMode: prepared.prepared.background === true ? 'background' : 'foreground', runAsUser: 0, collectBindings: prepared.prepared.bindings, commandMeta: { configPath: prepared.remote.configPath, outputPath: prepared.remote.outputPath, scriptPath: prepared.remote.scriptPath }, responseid: 'flowexec_' + prepared.runRow.id });
-            managerScheduleFlowStartWatchdog(prepared.flow, prepared.runRow);
+        if (parent.scheduledTaskManager == null) { obj.send({ action: 'flowprepareexecute', result: '节点任务执行器未启动。' }); return; }
+        parent.scheduledTaskManager.enqueueFlow(flowId, { idempotencyKey: 'manual-flow:' + managerMakeId('job') }).then(function (result) {
+            obj.send({ action: 'flowprepareexecute', success: true, queued: true, flowId: flowId, runId: result.flowRunId, nodeJobId: result.nodeJobId, runMode: 'foreground' });
         }).catch(function (err) {
             obj.send({ action: 'flowprepareexecute', result: err.message ? err.message : '无法准备流程执行。' });
         });

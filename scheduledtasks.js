@@ -9,6 +9,7 @@ module.exports.CreateScheduledTaskManager = function (parent, db) {
     obj.pending = {};
     obj.running = {};
     obj.scanTimer = null;
+    obj.recoveryTimer = null;
 
     function makeId(prefix) { return prefix + '_' + Date.now().toString(36) + '_' + crypto.randomBytes(5).toString('hex'); }
     function dbPromise(name) {
@@ -161,6 +162,12 @@ module.exports.CreateScheduledTaskManager = function (parent, db) {
         }
         return [];
     }
+    function summarizeOutput(stdout, stderr, maxLen) {
+        const joined = [stdout || '', stderr || ''].join('\n').trim();
+        if (joined === '') return '';
+        maxLen = maxLen || 4096;
+        return joined.length > maxLen ? joined.substring(0, maxLen) : joined;
+    }
     function resultSummary(status, exitCode) {
         if (status === 'running') return '流程已启动，等待停止或心跳更新。';
         if (status === 'success') return '执行成功，退出码 ' + String(exitCode == null ? 0 : exitCode) + '。';
@@ -298,59 +305,109 @@ module.exports.CreateScheduledTaskManager = function (parent, db) {
         }
         throw new Error('定时任务暂不支持该流程类型。');
     }
-    async function executeCollectTask(taskId) {
+    async function enqueueCollectTask(taskId, context) {
+        context = context || {};
         const task = await dbPromise('GetCollectTask', taskId);
         const resultId = makeId('collectresult');
         task.preparedResultId = resultId;
         const collectType = task.collect_type || task.collectType;
         const config = jsonField(task.config, {});
         config._meshCollect = { taskId: task.id, collectType: collectType, requestedAt: new Date().toISOString() };
-        const remote = buildRemoteCommand(task.device_os || task.deviceOs, task.script_path || task.scriptPath, config, resultId, 'collect', { background: false, taskType: collectType });
-        const runRow = await dbPromise('StartCollectRun', task, remote.cmds);
-        try {
-            const raw = await sendAgentCommand(task.device_id || task.deviceId, remote.commandType, remote.cmds, 'collectexec_' + runRow.id);
-            const parsed = parseCommandEnvelope(raw);
-            const parsedData = parseCollectData(parsed.output);
-            const status = (parsed.exitCode === 0) ? ((parsedData.length > 0 || parsed.output.trim() === '') ? 'success' : 'manual_required') : 'failed';
-            const finalRow = await dbPromise('FinalizeCollectRun', runRow.id, { status: status, exitCode: parsed.exitCode == null ? -1 : parsed.exitCode, stdout: parsed.output, stderr: '', data: parsedData, resultMeta: {} });
-            if (status !== 'success') throw new Error('采集任务执行失败。');
-            return { status: status, collectResultId: finalRow.id };
-        } catch (ex) {
-            await dbPromise('FinalizeCollectRun', runRow.id, { status: 'failed', exitCode: -1, stdout: '', stderr: ex.message || String(ex), data: [], resultMeta: {} }).catch(function () { });
-            throw ex;
-        }
+        const runRow = await dbPromise('StartCollectRun', task, 'node_job_pending');
+        const nodeJob = await dbPromise('CreateNodeJob', {
+            jobType: collectType,
+            targetNodeId: task.device_id || task.deviceId,
+            idempotencyKey: context.idempotencyKey || ('collect:' + runRow.id),
+            relatedType: context.relatedType || 'collect_result',
+            relatedId: context.relatedId || runRow.id,
+            payload: {
+                kind: 'collect',
+                collectType: collectType,
+                recordId: runRow.id,
+                scriptPath: task.script_path || task.scriptPath,
+                deviceOs: task.device_os || task.deviceOs,
+                config: config,
+                scheduledRunId: context.scheduledRunId || null,
+                scheduledStepRunId: context.scheduledStepRunId || null
+            }
+        });
+        return { status: 'queued', collectResultId: runRow.id, nodeJobId: nodeJob && nodeJob.id };
     }
-    async function executeFlow(flowId) {
+    async function enqueueFlow(flowId, context) {
+        context = context || {};
         const flow = await dbPromise('GetFlow', flowId);
         if ((flow.last_run_status || flow.lastRunStatus) === 'running' || flow.active_run_id || flow.running_run_id) throw new Error('流程正在执行中，请先停止后再执行。');
         const runId = makeId('flowrun');
         const prepared = await prepareFlow(flow);
-        const remote = buildRemoteCommand(flow.device_os || flow.deviceOs, flow.script_path || flow.scriptPath, prepared.config, runId, 'flow', { background: prepared.background === true, taskType: flow.flow_type || flow.flowType });
-        const runRow = await dbPromise('StartFlowRun', flow, { id: runId, collectBindings: prepared.bindings, scriptPath: remote.scriptPath, arguments: remote.arguments, resultSummary: prepared.background === true ? '常驻流程启动中。' : '流程执行中。' });
-        try {
-            const raw = await sendAgentCommand(flow.device_id || flow.deviceId, remote.commandType, remote.cmds, 'flowexec_' + runRow.id);
-            const parsed = parseCommandEnvelope(raw);
-            let flowStatus = 'failed', summary = '', resultJson = {};
-            if (prepared.background === true) {
-                flowStatus = ((parsed.exitCode === 0) && parsed.processId) ? 'running' : 'failed';
-                summary = (flowStatus === 'running') ? ('常驻流程已启动，PID ' + parsed.processId) : '常驻流程启动失败。';
-                resultJson = { processId: parsed.processId || null };
-            } else {
-                flowStatus = (parsed.exitCode === 0) ? 'success' : 'failed';
-                summary = resultSummary(flowStatus, parsed.exitCode);
+        const runRow = await dbPromise('StartFlowRun', flow, { id: runId, collectBindings: prepared.bindings, scriptPath: flow.script_path || flow.scriptPath, arguments: [], resultSummary: '节点任务等待领取。' });
+        const flowType = flow.flow_type || flow.flowType;
+        const nodeJob = await dbPromise('CreateNodeJob', {
+            jobType: flowType === 'publish' ? 'publish_flow' : (flowType === 'pricing' ? 'pricing_flow' : flowType),
+            targetNodeId: flow.device_id || flow.deviceId,
+            idempotencyKey: context.idempotencyKey || ('flow:' + runRow.id),
+            relatedType: context.relatedType || 'flow_run',
+            relatedId: context.relatedId || runRow.id,
+            payload: {
+                kind: 'flow',
+                flowType: flowType,
+                recordId: runRow.id,
+                scriptPath: flow.script_path || flow.scriptPath,
+                deviceOs: flow.device_os || flow.deviceOs,
+                config: prepared.config,
+                collectBindings: prepared.bindings || null,
+                background: prepared.background === true,
+                scheduledRunId: context.scheduledRunId || null,
+                scheduledStepRunId: context.scheduledStepRunId || null
             }
-            const finalRow = await dbPromise('FinalizeFlowRun', runRow.id, { status: flowStatus, exitCode: parsed.exitCode == null ? -1 : parsed.exitCode, stdout: parsed.output, stderr: '', resultSummary: summary, resultJson: resultJson, collectBindings: prepared.bindings || null, processId: parsed.processId || '' });
-            if (flowStatus !== 'success' && flowStatus !== 'running') throw new Error(summary || '流程执行失败。');
-            return { status: flowStatus, flowRunId: finalRow.id };
-        } catch (ex) {
-            await dbPromise('FinalizeFlowRun', runRow.id, { status: 'failed', exitCode: -1, stdout: '', stderr: ex.message || String(ex), resultSummary: ex.message || String(ex), resultJson: {}, collectBindings: prepared.bindings || null }).catch(function () { });
-            throw ex;
-        }
+        });
+        return { status: 'queued', flowRunId: runRow.id, nodeJobId: nodeJob && nodeJob.id };
     }
     async function getStepTarget(step) {
         if (step.type === 'collect_task') { const task = await dbPromise('GetCollectTask', step.targetId); return { name: task.name || step.targetId }; }
         if (step.type === 'publish_flow' || step.type === 'pricing_flow') { const flow = await dbPromise('GetFlow', step.targetId); return { name: flow.name || step.targetId, flowType: flow.flow_type || flow.flowType }; }
         throw new Error('无效的步骤类型。');
+    }
+    async function enqueueScheduledStep(run, step, stepIndex) {
+        const target = await getStepTarget(step);
+        const stepRun = await dbPromise('StartScheduledTaskRunStep', run.id, stepIndex, step, target.name);
+        const context = { scheduledRunId: run.id, scheduledStepRunId: stepRun.id, relatedType: 'scheduled_step', relatedId: stepRun.id, idempotencyKey: 'scheduled:' + stepRun.id };
+        let result = null;
+        if (step.type === 'collect_task') result = await enqueueCollectTask(step.targetId, context);
+        else if (step.type === 'publish_flow' || step.type === 'pricing_flow') result = await enqueueFlow(step.targetId, context);
+        else throw new Error('无效的步骤类型。');
+        return { stepRun: stepRun, result: result };
+    }
+    async function finishScheduledRunIfDone(runId) {
+        const run = await dbPromise('GetScheduledTaskRun', runId);
+        const steps = await dbPromise('GetScheduledTaskRunSteps', runId);
+        const taskSteps = arrayField(run.task_steps);
+        if (steps.filter(function (item) { return item.status === 'running'; }).length > 0) return null;
+        const successCount = steps.filter(function (item) { return item.status === 'success'; }).length;
+        const failedCount = steps.filter(function (item) { return item.status === 'failed'; }).length;
+        const skippedCount = steps.filter(function (item) { return item.status === 'skipped'; }).length + Math.max(0, taskSteps.length - steps.length);
+        const finalStatus = failedCount === 0 ? 'success' : (successCount > 0 ? 'partial' : 'failed');
+        const summary = '成功 ' + successCount + ' 步，失败 ' + failedCount + ' 步' + (skippedCount > 0 ? ('，跳过 ' + skippedCount + ' 步') : '') + '。';
+        return await dbPromise('FinishScheduledTaskRun', run.id, run.scheduled_task_id, finalStatus, summary);
+    }
+    async function advanceScheduledStep(stepRunId, success, updates) {
+        const stepRun = await dbPromise('GetScheduledTaskRunStep', stepRunId);
+        const run = await dbPromise('GetScheduledTaskRun', stepRun.run_id);
+        const taskSteps = arrayField(run.task_steps);
+        const currentStep = taskSteps[stepRun.step_index] || {};
+        await dbPromise('FinishScheduledTaskRunStep', stepRunId, updates || { status: success ? 'success' : 'failed' });
+        const nextIndex = stepRun.step_index + 1;
+        if (success === true || (currentStep.failurePolicy || 'stop') === 'continue') {
+            if (nextIndex < taskSteps.length) {
+                await enqueueScheduledStep(run, taskSteps[nextIndex], nextIndex);
+                return null;
+            }
+        } else {
+            for (let i = nextIndex; i < taskSteps.length; i++) {
+                const skippedStep = await dbPromise('StartScheduledTaskRunStep', run.id, i, taskSteps[i], '');
+                await dbPromise('FinishScheduledTaskRunStep', skippedStep.id, { status: 'skipped', error: '前序步骤失败，已按失败策略停止。' });
+            }
+        }
+        return await finishScheduledRunIfDone(run.id);
     }
     async function executeScheduledTask(taskId, triggerType) {
         const clock = todayParts('Asia/Shanghai');
@@ -361,32 +418,9 @@ module.exports.CreateScheduledTaskManager = function (parent, db) {
             task = await dbPromise('GetScheduledTask', taskId);
             const steps = arrayField(task.steps);
             run = await dbPromise('StartScheduledTaskRun', task, triggerType || 'manual', clock.date);
-            let successCount = 0, failedCount = 0, skippedCount = 0, stopped = false;
-            for (let i = 0; i < steps.length; i++) {
-                const step = steps[i] || {};
-                let stepRun = null;
-                try {
-                    const target = await getStepTarget(step);
-                    stepRun = await dbPromise('StartScheduledTaskRunStep', run.id, i, step, target.name);
-                    let result = null;
-                    if (step.type === 'collect_task') result = await executeCollectTask(step.targetId);
-                    else if (step.type === 'publish_flow' || step.type === 'pricing_flow') result = await executeFlow(step.targetId);
-                    else throw new Error('无效的步骤类型。');
-                    await dbPromise('FinishScheduledTaskRunStep', stepRun.id, { status: result.status || 'success', collectResultId: result.collectResultId, flowRunId: result.flowRunId });
-                    successCount++;
-                } catch (ex) {
-                    failedCount++;
-                    if (stepRun == null) {
-                        stepRun = await dbPromise('StartScheduledTaskRunStep', run.id, i, step, '');
-                    }
-                    await dbPromise('FinishScheduledTaskRunStep', stepRun.id, { status: 'failed', error: ex.message || String(ex) }).catch(function () { });
-                    if ((step.failurePolicy || 'stop') !== 'continue') { stopped = true; skippedCount = Math.max(0, steps.length - i - 1); break; }
-                }
-            }
-            const finalStatus = failedCount === 0 ? 'success' : (successCount > 0 ? 'partial' : 'failed');
-            const summary = '成功 ' + successCount + ' 步，失败 ' + failedCount + ' 步' + (skippedCount > 0 ? ('，跳过 ' + skippedCount + ' 步') : '') + (stopped ? '。已按失败策略停止。' : '。');
-            const finalRun = await dbPromise('FinishScheduledTaskRun', run.id, task.id, finalStatus, summary);
-            return finalRun;
+            if (steps.length === 0) return await dbPromise('FinishScheduledTaskRun', run.id, task.id, 'failed', '没有可派发的定时任务步骤。');
+            const first = await enqueueScheduledStep(run, steps[0], 0);
+            return { run: run, firstStep: first.stepRun, result: first.result };
         } catch (ex) {
             if (run && task) await dbPromise('FinishScheduledTaskRun', run.id, task.id, 'failed', ex.message || String(ex)).catch(function () { });
             throw ex;
@@ -395,6 +429,46 @@ module.exports.CreateScheduledTaskManager = function (parent, db) {
         }
     }
     obj.executeScheduledTask = executeScheduledTask;
+    obj.enqueueCollectTask = enqueueCollectTask;
+    obj.enqueueFlow = enqueueFlow;
+    obj.claimNodeJob = async function (nodeId, leaseSeconds) {
+        return await dbPromise('ClaimNodeJob', nodeId, leaseSeconds || 600);
+    };
+    obj.heartbeatNodeJob = async function (jobId, nodeId, leaseToken, leaseSeconds, progress) {
+        const row = await dbPromise('HeartbeatNodeJob', jobId, nodeId, leaseToken, leaseSeconds || 600, progress || '');
+        if (row == null) throw new Error('任务租约无效或已过期。');
+        return row;
+    };
+    obj.completeNodeJob = async function (jobId, nodeId, leaseToken, status, exitCode, stdout, stderr, resultJson) {
+        const row = await dbPromise('CompleteNodeJob', jobId, nodeId, leaseToken, { status: status || 'success', exitCode: exitCode, stdout: stdout || '', stderr: stderr || '', resultJson: resultJson || {} });
+        if (row == null) throw new Error('任务租约无效或已过期。');
+        await finalizeNodeJob(row);
+        return row;
+    };
+    async function finalizeNodeJob(row) {
+        const payload = jsonField(row.payload, {});
+        const resultJson = jsonField(row.result_json, {});
+        const success = row.status === 'success';
+        if (payload.kind === 'collect') {
+            const data = Array.isArray(resultJson.data) ? resultJson.data : parseCollectData(row.stdout || '');
+            const collectStatus = success ? ((data.length > 0 || String(row.stdout || '').trim() === '') ? 'success' : 'manual_required') : 'failed';
+            await dbPromise('FinalizeCollectRun', payload.recordId, { status: collectStatus, exitCode: row.exit_code == null ? (success ? 0 : -1) : row.exit_code, stdout: row.stdout || '', stderr: row.stderr || '', data: data, resultMeta: resultJson.meta || {} });
+            if (payload.scheduledStepRunId) await advanceScheduledStep(payload.scheduledStepRunId, collectStatus === 'success', { status: collectStatus === 'success' ? 'success' : 'failed', collectResultId: payload.recordId, error: collectStatus === 'success' ? null : summarizeOutput(row.stdout, row.stderr) });
+        } else if (payload.kind === 'flow') {
+            const flowStatus = success ? (payload.background && resultJson.processId ? 'running' : 'success') : 'failed';
+            const summary = resultJson.summary || resultSummary(flowStatus, row.exit_code);
+            await dbPromise('FinalizeFlowRun', payload.recordId, { status: flowStatus, exitCode: row.exit_code == null ? (success ? 0 : -1) : row.exit_code, stdout: row.stdout || '', stderr: row.stderr || '', resultSummary: summary, resultJson: resultJson, collectBindings: payload.collectBindings || null, processId: resultJson.processId || '' });
+            if (payload.scheduledStepRunId) await advanceScheduledStep(payload.scheduledStepRunId, flowStatus === 'success' || flowStatus === 'running', { status: (flowStatus === 'success' || flowStatus === 'running') ? 'success' : 'failed', flowRunId: payload.recordId, error: (flowStatus === 'success' || flowStatus === 'running') ? null : summarizeOutput(row.stdout, row.stderr) });
+        }
+    }
+    obj.recoverExpiredNodeJobs = async function () {
+        const result = await dbPromise('FailExpiredNodeJobs');
+        const failed = result && Array.isArray(result.failed) ? result.failed : [];
+        for (let i = 0; i < failed.length; i++) {
+            try { await finalizeNodeJob(failed[i]); } catch (ex) { parent.parent.debug && parent.parent.debug('nodejobs', ex.message || String(ex)); }
+        }
+        return result;
+    };
     obj.scanDueTasks = async function () {
         const clock = todayParts('Asia/Shanghai');
         let tasks = [];
@@ -407,11 +481,15 @@ module.exports.CreateScheduledTaskManager = function (parent, db) {
     obj.start = function () {
         if (obj.scanTimer != null) return;
         obj.scanTimer = setInterval(obj.scanDueTasks, 60 * 1000);
+        obj.recoveryTimer = setInterval(function () { obj.recoverExpiredNodeJobs().catch(function () { }); }, 60 * 1000);
         setTimeout(obj.scanDueTasks, 15 * 1000);
+        setTimeout(function () { obj.recoverExpiredNodeJobs().catch(function () { }); }, 20 * 1000);
     };
     obj.stop = function () {
         if (obj.scanTimer != null) clearInterval(obj.scanTimer);
+        if (obj.recoveryTimer != null) clearInterval(obj.recoveryTimer);
         obj.scanTimer = null;
+        obj.recoveryTimer = null;
     };
     return obj;
 };

@@ -15,6 +15,9 @@
       "password": "AIops@2088!",
       "database": "postgres",
       "createdatabase": false
+    },
+    "nodeJobTokens": {
+      "node//U$DTPhpa5VapiUKqysvY46zCQFQ0xAZuTjMuacSpuO$JXT$CoU0aqd9GbXoiZhVU": "uWnwuwIG18Oc7ciM5sF6DnhXgZgAmNjTPgeFsBLc"
     }
   },
   "domains": {

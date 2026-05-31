@@ -1494,6 +1494,8 @@ module.exports.CreateDB = function (parent, func) {
             'CREATE TABLE IF NOT EXISTS scheduled_tasks (id VARCHAR(64) PRIMARY KEY, name VARCHAR(256) NOT NULL, enabled BOOLEAN NOT NULL DEFAULT TRUE, schedule_time VARCHAR(5) NOT NULL, timezone VARCHAR(64) NOT NULL DEFAULT \'Asia/Shanghai\', steps JSONB NOT NULL DEFAULT \'[]\'::jsonb, last_run_at TIMESTAMP NULL, last_run_status VARCHAR(32) NOT NULL DEFAULT \'idle\', last_run_summary TEXT NOT NULL DEFAULT \'\', last_run_date DATE NULL, is_deleted BOOLEAN NOT NULL DEFAULT FALSE, deleted_at TIMESTAMP NULL, created_at TIMESTAMP NOT NULL, updated_at TIMESTAMP NOT NULL)',
             'CREATE TABLE IF NOT EXISTS scheduled_task_runs (id VARCHAR(64) PRIMARY KEY, scheduled_task_id VARCHAR(64) NOT NULL REFERENCES scheduled_tasks(id) ON DELETE RESTRICT, status VARCHAR(32) NOT NULL, trigger_type VARCHAR(32) NOT NULL, started_at TIMESTAMP NOT NULL, finished_at TIMESTAMP NULL, summary TEXT NOT NULL DEFAULT \'\')',
             'CREATE TABLE IF NOT EXISTS scheduled_task_run_steps (id VARCHAR(64) PRIMARY KEY, run_id VARCHAR(64) NOT NULL REFERENCES scheduled_task_runs(id) ON DELETE CASCADE, step_index INT NOT NULL, step_type VARCHAR(32) NOT NULL, target_id VARCHAR(128) NOT NULL, target_name VARCHAR(256) NOT NULL DEFAULT \'\', status VARCHAR(32) NOT NULL, collect_result_id VARCHAR(64) NULL, flow_run_id VARCHAR(64) NULL, error TEXT NULL, started_at TIMESTAMP NOT NULL, finished_at TIMESTAMP NULL)',
+            'CREATE TABLE IF NOT EXISTS node_jobs (id VARCHAR(64) PRIMARY KEY, job_type VARCHAR(32) NOT NULL, target_node_id VARCHAR(256) NOT NULL, status VARCHAR(32) NOT NULL DEFAULT \'pending\', payload JSONB NOT NULL DEFAULT \'{}\'::jsonb, idempotency_key VARCHAR(256) NOT NULL, priority INT NOT NULL DEFAULT 0, lease_token VARCHAR(128) NULL, leased_by VARCHAR(256) NULL, lease_until TIMESTAMP NULL, heartbeat_at TIMESTAMP NULL, attempt_count INT NOT NULL DEFAULT 0, max_attempts INT NOT NULL DEFAULT 3, stdout TEXT NOT NULL DEFAULT \'\', stderr TEXT NOT NULL DEFAULT \'\', exit_code INT NULL, result_json JSONB NULL, related_type VARCHAR(64) NULL, related_id VARCHAR(128) NULL, created_at TIMESTAMP NOT NULL, started_at TIMESTAMP NULL, finished_at TIMESTAMP NULL)',
+            'CREATE TABLE IF NOT EXISTS node_job_events (id VARCHAR(64) PRIMARY KEY, job_id VARCHAR(64) NOT NULL REFERENCES node_jobs(id) ON DELETE CASCADE, event_type VARCHAR(32) NOT NULL, message TEXT NOT NULL DEFAULT \'\', meta_json JSONB NOT NULL DEFAULT \'{}\'::jsonb, created_at TIMESTAMP NOT NULL)',
             'CREATE TABLE IF NOT EXISTS meituan_h5_shops (id BIGINT PRIMARY KEY, name TEXT NOT NULL, scheme TEXT NOT NULL, poi_id_str TEXT, source_page_url TEXT NOT NULL DEFAULT \'\', category TEXT NOT NULL DEFAULT \'\', distance_text TEXT NOT NULL DEFAULT \'\', distance_km DOUBLE PRECISION NOT NULL DEFAULT 0, rating_text TEXT NOT NULL DEFAULT \'\', monthly_sales_text TEXT NOT NULL DEFAULT \'\', min_price_tip TEXT NOT NULL DEFAULT \'\', delivery_fee_tip TEXT NOT NULL DEFAULT \'\', delivery_time_tip TEXT NOT NULL DEFAULT \'\', review_highlight TEXT NOT NULL DEFAULT \'\', promo_tags_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, platform_tags_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, phone TEXT NOT NULL DEFAULT \'\', address TEXT NOT NULL DEFAULT \'\', detail_fetched BOOLEAN NOT NULL DEFAULT FALSE, detail_fetched_at TIMESTAMP WITH TIME ZONE, created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(), updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(), detail_status TEXT NOT NULL DEFAULT \'pending\', detail_started_at TIMESTAMP WITH TIME ZONE, detail_last_attempt_at TIMESTAMP WITH TIME ZONE, detail_attempt_count INTEGER NOT NULL DEFAULT 0, detail_error_message TEXT NOT NULL DEFAULT \'\', is_deleted BOOLEAN NOT NULL DEFAULT FALSE, deleted_at TIMESTAMP WITH TIME ZONE)',
             'CREATE TABLE IF NOT EXISTS my_shops (id VARCHAR(64) PRIMARY KEY, name TEXT NOT NULL, scheme TEXT NOT NULL DEFAULT \'\', poi_id_str TEXT, source_page_url TEXT NOT NULL DEFAULT \'\', category TEXT NOT NULL DEFAULT \'\', distance_text TEXT NOT NULL DEFAULT \'\', distance_km DOUBLE PRECISION NOT NULL DEFAULT 0, rating_text TEXT NOT NULL DEFAULT \'\', monthly_sales_text TEXT NOT NULL DEFAULT \'\', min_price_tip TEXT NOT NULL DEFAULT \'\', delivery_fee_tip TEXT NOT NULL DEFAULT \'\', delivery_time_tip TEXT NOT NULL DEFAULT \'\', review_highlight TEXT NOT NULL DEFAULT \'\', promo_tags_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, platform_tags_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, phone TEXT NOT NULL DEFAULT \'\', address TEXT NOT NULL DEFAULT \'\', detail_fetched BOOLEAN NOT NULL DEFAULT FALSE, detail_fetched_at TIMESTAMP WITH TIME ZONE, created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(), updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(), detail_status TEXT NOT NULL DEFAULT \'manual\', detail_started_at TIMESTAMP WITH TIME ZONE, detail_last_attempt_at TIMESTAMP WITH TIME ZONE, detail_attempt_count INTEGER NOT NULL DEFAULT 0, detail_error_message TEXT NOT NULL DEFAULT \'\', is_deleted BOOLEAN NOT NULL DEFAULT FALSE, deleted_at TIMESTAMP WITH TIME ZONE)',
             'CREATE TABLE IF NOT EXISTS meituan_h5_products (id BIGINT PRIMARY KEY, name TEXT NOT NULL, price NUMERIC(10,2), original_price NUMERIC(10,2), description TEXT, inventory INTEGER, image_paths_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, image_urls_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, sku_json JSONB NOT NULL DEFAULT \'{}\'::jsonb, sku_list_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, category_path_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, store_category_path_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, required_attributes_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, entry_url TEXT, use_existing_options_only BOOLEAN DEFAULT FALSE, publish_history_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, source_url TEXT, collect_task_id VARCHAR(64), collect_result_id VARCHAR(64), collect_source_key VARCHAR(256), source_type VARCHAR(32), created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(), updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(), is_deleted BOOLEAN NOT NULL DEFAULT FALSE, deleted_at TIMESTAMP WITH TIME ZONE)',
@@ -1545,6 +1547,10 @@ module.exports.CreateDB = function (parent, func) {
             sqlDbExec('CREATE INDEX IF NOT EXISTS ndx_scheduled_tasks_enabled_time ON scheduled_tasks (enabled, schedule_time)', null, function (err, response) { });
             sqlDbExec('CREATE INDEX IF NOT EXISTS ndx_scheduled_runs_task_time ON scheduled_task_runs (scheduled_task_id, started_at DESC)', null, function (err, response) { });
             sqlDbExec('CREATE INDEX IF NOT EXISTS ndx_scheduled_run_steps_run ON scheduled_task_run_steps (run_id, step_index)', null, function (err, response) { });
+            sqlDbExec('CREATE UNIQUE INDEX IF NOT EXISTS uq_node_jobs_idempotency_key ON node_jobs (idempotency_key)', null, function (err, response) { });
+            sqlDbExec('CREATE INDEX IF NOT EXISTS ndx_node_jobs_claim ON node_jobs (status, target_node_id, priority DESC, created_at ASC)', null, function (err, response) { });
+            sqlDbExec('CREATE INDEX IF NOT EXISTS ndx_node_jobs_lease_until ON node_jobs (status, lease_until)', null, function (err, response) { });
+            sqlDbExec('CREATE INDEX IF NOT EXISTS ndx_node_job_events_job_time ON node_job_events (job_id, created_at ASC)', null, function (err, response) { });
 
             sqlDbExec('CREATE INDEX IF NOT EXISTS ndx_meituan_h5_shops_name ON meituan_h5_shops (name)', null, function (err, response) { });
             sqlDbExec('CREATE INDEX IF NOT EXISTS ndx_my_shops_name ON my_shops (name)', null, function (err, response) { });
@@ -4183,11 +4189,110 @@ module.exports.CreateDB = function (parent, func) {
             });
         };
 
+        obj.GetScheduledTaskRun = function (runId, func) {
+            if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Scheduled task manager requires PostgreSQL.')); return; }
+            Datastore.query('SELECT r.*, st.steps AS task_steps, st.id AS scheduled_task_id FROM scheduled_task_runs r JOIN scheduled_tasks st ON st.id = r.scheduled_task_id WHERE r.id = $1', [runId], function (err, results) {
+                if (err != null) { func(err); return; }
+                if (!results.rows || results.rows.length === 0) { func(new Error('Scheduled task run not found.')); return; }
+                func(null, results.rows[0]);
+            });
+        };
+
+        obj.GetScheduledTaskRunStep = function (stepRunId, func) {
+            if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Scheduled task manager requires PostgreSQL.')); return; }
+            Datastore.query('SELECT s.*, r.scheduled_task_id FROM scheduled_task_run_steps s JOIN scheduled_task_runs r ON r.id = s.run_id WHERE s.id = $1', [stepRunId], function (err, results) {
+                if (err != null) { func(err); return; }
+                if (!results.rows || results.rows.length === 0) { func(new Error('Scheduled task run step not found.')); return; }
+                func(null, results.rows[0]);
+            });
+        };
+
         obj.GetScheduledTaskRunSteps = function (runId, func) {
             if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Scheduled task manager requires PostgreSQL.')); return; }
             Datastore.query('SELECT * FROM scheduled_task_run_steps WHERE run_id = $1 ORDER BY step_index ASC', [runId], function (err, results) {
                 if (err != null) { func(err); return; }
                 func(null, results.rows || []);
+            });
+        };
+
+        function addNodeJobEvent(jobId, eventType, message, meta, func) {
+            const eventId = managerMakeId('nodejobevent');
+            Datastore.query('INSERT INTO node_job_events (id, job_id, event_type, message, meta_json, created_at) VALUES ($1, $2, $3, $4, $5::jsonb, $6)', [eventId, jobId, eventType, message || '', JSON.stringify(meta || {}), new Date()], function (err) {
+                if (func) func(err);
+            });
+        }
+
+        obj.CreateNodeJob = function (job, func) {
+            if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Node job manager requires PostgreSQL.')); return; }
+            const now = new Date();
+            const jobId = job.id || managerMakeId('nodejob');
+            const idempotencyKey = managerCollectText(job.idempotencyKey || job.idempotency_key || jobId, 256);
+            Datastore.query(
+                'INSERT INTO node_jobs (id, job_type, target_node_id, status, payload, idempotency_key, priority, max_attempts, related_type, related_id, created_at) VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9, $10, $11) ON CONFLICT (idempotency_key) DO UPDATE SET idempotency_key = EXCLUDED.idempotency_key RETURNING *',
+                [jobId, job.jobType || job.job_type, job.targetNodeId || job.target_node_id, 'pending', JSON.stringify(job.payload || {}), idempotencyKey, Number(job.priority || 0), Number(job.maxAttempts || job.max_attempts || 3), job.relatedType || job.related_type || null, job.relatedId || job.related_id || null, now],
+                function (err, results) {
+                    if (err != null) { func(err); return; }
+                    const row = results.rows && results.rows[0];
+                    if (row && row.id === jobId) addNodeJobEvent(row.id, 'created', '节点任务已创建。', {}, function () { });
+                    func(null, row);
+                }
+            );
+        };
+
+        obj.ClaimNodeJob = function (nodeId, leaseSeconds, func) {
+            if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Node job manager requires PostgreSQL.')); return; }
+            leaseSeconds = Math.max(60, Math.min(3600, Number(leaseSeconds || 600)));
+            const leaseToken = managerMakeId('lease');
+            const sql =
+                'WITH candidate AS (' +
+                    'SELECT id FROM node_jobs ' +
+                    'WHERE target_node_id = $1 AND (status = $2 OR (status IN ($3, $4) AND lease_until < NOW())) ' +
+                    'ORDER BY priority DESC, created_at ASC ' +
+                    'FOR UPDATE SKIP LOCKED LIMIT 1' +
+                ') ' +
+                'UPDATE node_jobs SET status = $3, leased_by = $1, lease_token = $5, lease_until = NOW() + ($6::text)::interval, heartbeat_at = NOW(), attempt_count = attempt_count + 1, started_at = COALESCE(started_at, NOW()) ' +
+                'WHERE id IN (SELECT id FROM candidate) RETURNING *';
+            Datastore.query(sql, [nodeId, 'pending', 'leased', 'running', leaseToken, leaseSeconds + ' seconds'], function (err, results) {
+                if (err != null) { func(err); return; }
+                const row = results.rows && results.rows[0];
+                if (row) addNodeJobEvent(row.id, 'claimed', '节点任务已领取。', { nodeId: nodeId, leaseSeconds: leaseSeconds }, function () { });
+                func(null, row || null);
+            });
+        };
+
+        obj.HeartbeatNodeJob = function (jobId, nodeId, leaseToken, leaseSeconds, progress, func) {
+            if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Node job manager requires PostgreSQL.')); return; }
+            leaseSeconds = Math.max(60, Math.min(3600, Number(leaseSeconds || 600)));
+            Datastore.query('UPDATE node_jobs SET status = $6, lease_until = NOW() + ($5::text)::interval, heartbeat_at = NOW() WHERE id = $1 AND leased_by = $2 AND lease_token = $3 AND status IN ($4, $6) AND lease_until >= NOW() RETURNING *', [jobId, nodeId, leaseToken, 'leased', leaseSeconds + ' seconds', 'running'], function (err, results) {
+                if (err != null) { func(err); return; }
+                const row = results.rows && results.rows[0];
+                if (row) addNodeJobEvent(row.id, 'heartbeat', managerCollectText(progress, 1024), { nodeId: nodeId }, function () { });
+                func(null, row || null);
+            });
+        };
+
+        obj.CompleteNodeJob = function (jobId, nodeId, leaseToken, updates, func) {
+            if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Node job manager requires PostgreSQL.')); return; }
+            Datastore.query('UPDATE node_jobs SET status = $4, stdout = $5, stderr = $6, exit_code = $7, result_json = $8::jsonb, finished_at = NOW(), lease_until = NULL WHERE id = $1 AND leased_by = $2 AND lease_token = $3 AND status IN ($9, $10) AND lease_until >= NOW() RETURNING *', [jobId, nodeId, leaseToken, updates.status || 'success', updates.stdout || '', updates.stderr || '', updates.exitCode == null ? null : updates.exitCode, JSON.stringify(updates.resultJson || null), 'leased', 'running'], function (err, results) {
+                if (err != null) { func(err); return; }
+                const row = results.rows && results.rows[0];
+                if (row) addNodeJobEvent(row.id, row.status === 'success' ? 'completed' : 'failed', updates.message || '', { nodeId: nodeId, exitCode: updates.exitCode == null ? null : updates.exitCode }, function () { });
+                func(null, row || null);
+            });
+        };
+
+        obj.FailExpiredNodeJobs = function (func) {
+            if (obj.databaseType != DB_POSTGRESQL) { if (func) func(new Error('Node job manager requires PostgreSQL.')); return; }
+            (async function () {
+                const retry = await pgQueryAsync("UPDATE node_jobs SET status = 'pending', lease_token = NULL, leased_by = NULL, lease_until = NULL WHERE status IN ('leased', 'running') AND lease_until < NOW() AND attempt_count < max_attempts RETURNING id", []);
+                const failed = await pgQueryAsync("UPDATE node_jobs SET status = 'failed', finished_at = NOW(), stderr = CASE WHEN stderr = '' THEN '节点任务租约超时，已达到最大重试次数。' ELSE stderr END WHERE status IN ('leased', 'running') AND lease_until < NOW() AND attempt_count >= max_attempts RETURNING *", []);
+                for (let i = 0; i < retry.rows.length; i++) addNodeJobEvent(retry.rows[i].id, 'expired_retry', '节点任务租约超时，等待重新领取。', {}, function () { });
+                for (let j = 0; j < failed.rows.length; j++) addNodeJobEvent(failed.rows[j].id, 'expired_failed', '节点任务租约超时，已失败。', {}, function () { });
+                return { retried: retry.rowCount || 0, failed: failed.rows || [] };
+            })().then(function (result) {
+                if (func) func(null, result);
+            }).catch(function (err) {
+                if (func) func(err);
             });
         };
 
