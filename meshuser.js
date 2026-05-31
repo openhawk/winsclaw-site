@@ -663,10 +663,32 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
 
                 // Send any server warnings if any
                 var serverWarnings = parent.parent.getServerWarnings();
-                if (typeof parent.getNodeWorkerWarnings == 'function') {
-                    serverWarnings = serverWarnings.concat(parent.getNodeWorkerWarnings());
+                if (typeof parent.getNodeWorkerWarningStates == 'function') {
+                    var nodeWorkerStates = parent.getNodeWorkerWarningStates();
+                    if (nodeWorkerStates.length > 0) {
+                        var pendingNodeWorkerLookups = nodeWorkerStates.length;
+                        var sendServerWarnings = function () {
+                            if (serverWarnings.length > 0) { try { ws.send(JSON.stringify({ action: 'serverwarnings', warnings: serverWarnings })); } catch (ex) { } }
+                        };
+                        for (var nodeWorkerStateIndex in nodeWorkerStates) {
+                            (function (nodeId) {
+                                db.Get(nodeId, function (err, docs) {
+                                    var nodeName = nodeId;
+                                    if ((err == null) && docs && docs[0] && (typeof docs[0].name == 'string') && (docs[0].name != '')) {
+                                        nodeName = docs[0].name;
+                                    }
+                                    serverWarnings.push('设备节点 ' + nodeName + ' 未运行 D:\\winsclaw-work\\aibot\\scripts\\start-node-worker.ps1，节点任务不会自动执行。');
+                                    pendingNodeWorkerLookups--;
+                                    if (pendingNodeWorkerLookups === 0) { sendServerWarnings(); }
+                                });
+                            })(nodeWorkerStates[nodeWorkerStateIndex].nodeId);
+                        }
+                    } else if (serverWarnings.length > 0) {
+                        try { ws.send(JSON.stringify({ action: 'serverwarnings', warnings: serverWarnings })); } catch (ex) { }
+                    }
+                } else {
+                    if (serverWarnings.length > 0) { try { ws.send(JSON.stringify({ action: 'serverwarnings', warnings: serverWarnings })); } catch (ex) { } }
                 }
-                if (serverWarnings.length > 0) { try { ws.send(JSON.stringify({ action: 'serverwarnings', warnings: serverWarnings })); } catch (ex) { } }
             }
 
             // See how many times bad login attempts where made since the last login
