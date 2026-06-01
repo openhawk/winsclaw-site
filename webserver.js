@@ -7221,6 +7221,36 @@ module.exports.CreateWebServer = function (parent, db, args, certificates, doneF
             return { nodeId: nodeId, body: body };
         }
 
+        function handleNodeWorkerResolveRequest(req, res) {
+            var body = req.body || {};
+            var deviceName = String(body.deviceName || body.device_name || body.computerName || body.computer_name || '').trim().toLowerCase();
+            if (deviceName === '') { res.status(400).json({ success: false, result: 'deviceName is required.' }); return; }
+            var token = getNodeJobRequestToken(req);
+            if (token === '') { res.status(403).json({ success: false, result: 'Node job API token is required.' }); return; }
+            obj.db.GetAllType('node', function (err, nodes) {
+                if (err != null) { sendNodeJobError(res, err, 500); return; }
+                var matches = [];
+                var configuredNodeIds = getConfiguredNodeJobNodeIds();
+                var configured = {};
+                for (var i in configuredNodeIds) { configured[String(configuredNodeIds[i] || '').toLowerCase()] = 1; }
+                for (var nodeIndex in nodes) {
+                    var node = nodes[nodeIndex];
+                    if ((node == null) || (typeof node._id != 'string') || (configured[node._id.toLowerCase()] !== 1)) continue;
+                    if (getConfiguredNodeJobToken(node._id) !== token) continue;
+                    var names = [node.name, node.rname, node.host];
+                    for (var nameIndex in names) {
+                        if (String(names[nameIndex] || '').trim().toLowerCase() === deviceName) {
+                            matches.push(node);
+                            break;
+                        }
+                    }
+                }
+                if (matches.length === 0) { res.status(404).json({ success: false, result: 'No configured Winsclaw node matches this device name.' }); return; }
+                if (matches.length > 1) { res.status(409).json({ success: false, result: 'Multiple configured Winsclaw nodes match this device name.' }); return; }
+                res.json({ success: true, nodeId: matches[0]._id, name: matches[0].name || matches[0].rname || deviceName });
+            });
+        }
+
         function getConfiguredNodeJobNodeIds() {
             var settings = parent.config && parent.config.settings ? parent.config.settings : {};
             var tokens = settings.nodeJobTokens || settings.nodejobtokens || {};
@@ -7370,6 +7400,7 @@ module.exports.CreateWebServer = function (parent, db, args, certificates, doneF
                 }
                 obj.app.get(url + 'refresh.ashx', function (req, res) { res.sendStatus(200); });
                 obj.app.get(url + 'api/node-workers/status', handleNodeWorkerStatusRequest);
+                obj.app.post(url + 'api/node-workers/resolve', obj.bodyParser.json({ limit: '2mb' }), handleNodeWorkerResolveRequest);
                 obj.app.post(url + 'api/node-workers/heartbeat', obj.bodyParser.json({ limit: '2mb' }), handleNodeWorkerHeartbeatRequest);
                 obj.app.post(url + 'api/node-jobs/poll', obj.bodyParser.json({ limit: '2mb' }), handleNodeJobPollRequest);
                 obj.app.post(url + 'api/node-jobs/:id/heartbeat', obj.bodyParser.json({ limit: '2mb' }), handleNodeJobHeartbeatRequest);
