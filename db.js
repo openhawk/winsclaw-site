@@ -4286,9 +4286,11 @@ module.exports.CreateDB = function (parent, func) {
             (async function () {
                 const retry = await pgQueryAsync("UPDATE node_jobs SET status = 'pending', lease_token = NULL, leased_by = NULL, lease_until = NULL WHERE status IN ('leased', 'running') AND lease_until < NOW() AND attempt_count < max_attempts RETURNING id", []);
                 const failed = await pgQueryAsync("UPDATE node_jobs SET status = 'failed', finished_at = NOW(), stderr = CASE WHEN stderr = '' THEN '节点任务租约超时，已达到最大重试次数。' ELSE stderr END WHERE status IN ('leased', 'running') AND lease_until < NOW() AND attempt_count >= max_attempts RETURNING *", []);
+                const pendingFailed = await pgQueryAsync("UPDATE node_jobs SET status = 'failed', finished_at = NOW(), stderr = CASE WHEN stderr = '' THEN '节点任务等待领取超时。' ELSE stderr END, exit_code = COALESCE(exit_code, -1) WHERE status = 'pending' AND created_at < (NOW() - ($1::text)::interval) RETURNING *", ['20 minutes']);
                 for (let i = 0; i < retry.rows.length; i++) addNodeJobEvent(retry.rows[i].id, 'expired_retry', '节点任务租约超时，等待重新领取。', {}, function () { });
                 for (let j = 0; j < failed.rows.length; j++) addNodeJobEvent(failed.rows[j].id, 'expired_failed', '节点任务租约超时，已失败。', {}, function () { });
-                return { retried: retry.rowCount || 0, failed: failed.rows || [] };
+                for (let k = 0; k < pendingFailed.rows.length; k++) addNodeJobEvent(pendingFailed.rows[k].id, 'pending_timeout', '节点任务等待领取超时，已失败。', {}, function () { });
+                return { retried: retry.rowCount || 0, failed: (failed.rows || []).concat(pendingFailed.rows || []) };
             })().then(function (result) {
                 if (func) func(null, result);
             }).catch(function (err) {
