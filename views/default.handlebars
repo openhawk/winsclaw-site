@@ -2931,7 +2931,7 @@
         var productState = { items: [], total: 0, page: 1, limit: 12, search: '', storeSearch: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, loadTimer: null, loadRetry: 0, pendingAction: null };
         var flowState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, loadTimer: null, loadRetry: 0, pendingAction: null, pendingMyShopId: '', currentRunsFlowId: null, runsPage: 1, runsLimit: 10, runsTimer: null, pricingReference: { nextRowSeq: 1, rows: {} }, pricingTaskMeta: { skuStrategy: 'allActive' }, productBinding: { searchTimer: null, suggestions: [], activeSearch: '' } };
         var collectState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, currentResultsTaskId: null, resultsPage: 1, resultsLimit: 10 };
-        var scheduledState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, currentRunsTaskId: null, runsPage: 1, runsLimit: 10, runSteps: {} };
+        var scheduledState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, listTimer: null, pendingAction: null, currentRunsTaskId: null, runsPage: 1, runsLimit: 10, runSteps: {} };
         var managerExecutionMap = {};
 
         function shopEnterPage() {
@@ -4829,8 +4829,20 @@
             if (scheduledState.loaded !== true) scheduledRefreshList(1); else scheduledRender();
         }
         function scheduledHandleSearchInput() { if (scheduledState.searchTimer != null) clearTimeout(scheduledState.searchTimer); scheduledState.searchTimer = setTimeout(function () { scheduledState.search = Q('scheduledSearchInput').value.trim(); scheduledRefreshList(1); }, 260); }
-        function scheduledRefreshList(page) { if (typeof page === 'number') scheduledState.page = page; scheduledState.loaded = true; scheduledState.loading = true; QV('scheduledLoadingState', true); QV('scheduledEmptyState', false); QH('scheduledCardList', ''); meshserver.send({ action: 'scheduledtasklist', search: scheduledState.search, page: scheduledState.page, limit: scheduledState.limit }); }
+        function scheduledRefreshList(page, isRetry) {
+            if (typeof page === 'number') scheduledState.page = page;
+            scheduledState.loaded = true; scheduledState.loading = true;
+            QV('scheduledLoadingState', true); QV('scheduledEmptyState', false); QH('scheduledCardList', '');
+            if (scheduledState.listTimer != null) clearTimeout(scheduledState.listTimer);
+            meshserver.send({ action: 'scheduledtasklist', search: scheduledState.search, page: scheduledState.page, limit: scheduledState.limit });
+            scheduledState.listTimer = setTimeout(function () {
+                if (scheduledState.loading !== true) return;
+                if (isRetry !== true) { scheduledRefreshList(scheduledState.page, true); return; }
+                scheduledState.loading = false; QV('scheduledLoadingState', false); scheduledShowToast('定时任务加载超时，请刷新页面后重试。', true); scheduledRender();
+            }, 5000);
+        }
         function scheduledHandleListResponse(message) {
+            if (scheduledState.listTimer != null) { clearTimeout(scheduledState.listTimer); scheduledState.listTimer = null; }
             scheduledState.loading = false; QV('scheduledLoadingState', false);
             if (message.result != null) { scheduledState.items = []; scheduledState.total = 0; scheduledShowToast(message.result, true); } else { scheduledState.items = Array.isArray(message.tasks) ? message.tasks : []; scheduledState.total = typeof message.total === 'number' ? message.total : 0; if (typeof message.page === 'number') scheduledState.page = message.page; }
             scheduledRender();
