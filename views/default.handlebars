@@ -3904,7 +3904,6 @@
                     x += '<div class="flow-card-meta"><span>' + (flowType === 'pricing' ? '参考商品关键词' : '商品名称') + '</span><strong>' + EscapeHtml(flow.product_name || flow.productName || '未设置') + '</strong></div>';
                     x += '<div class="flow-card-meta"><span>我的商品名称</span><strong>' + EscapeHtml(flow.my_product_name || flow.myProductName || '未设置') + '</strong></div>';
                 }
-                x += '<div class="flow-card-meta"><span>脚本路径</span><strong>' + EscapeHtml(managerCurrentScriptPath(flow.script_path || flow.scriptPath)) + '</strong></div>';
                 x += '<div class="flow-card-meta"><span>上次执行</span><strong>' + EscapeHtml(flow.last_run_at ? new Date(flow.last_run_at).toLocaleString() : '从未执行') + '</strong></div>';
                 x += '<div class="flow-card-meta"><span>摘要</span><strong>' + EscapeHtml(lastResult.resultSummary || '暂无') + '</strong></div>';
                 x += '<div class="flow-card-footer"><div class="flow-card-hints"><span>' + EscapeHtml(managerFlowTypeLabel(flow.flow_type || flow.flowType)) + '</span></div><div class="flow-card-actions">';
