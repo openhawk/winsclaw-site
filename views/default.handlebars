@@ -4619,7 +4619,6 @@
                 x += '<div class="collect-card-body">';
                 x += '<div class="collect-card-head"><div><h3>' + EscapeHtml(task.name || '') + '</h3><div class="collect-card-category">' + EscapeHtml(collectType || '') + ' · ' + EscapeHtml(managerGetNodeLabel(task.device_id || task.deviceId)) + '</div></div><div class="collect-card-badges">' + managerRenderStatusBadge('collect', task.last_run_status || task.lastRunStatus || 'idle', task.last_sync_status || task.lastSyncStatus || '') + '</div></div>';
                 x += '<div class="collect-card-meta"><span>系统</span><strong>' + EscapeHtml(deviceOs || '未知') + '</strong></div>';
-                x += '<div class="collect-card-meta"><span>脚本路径</span><strong>' + EscapeHtml(managerCurrentScriptPath(task.script_path || task.scriptPath)) + '</strong></div>';
                 x += '<div class="collect-card-meta"><span>上次采集</span><strong>' + EscapeHtml(task.last_run_at ? new Date(task.last_run_at).toLocaleString() : '从未执行') + '</strong></div>';
                 x += '<div class="collect-card-meta"><span>数据条数</span><strong>' + EscapeHtml(String(task.last_data_count || task.lastDataCount || 0)) + '</strong></div>';
                 x += '<div class="collect-card-footer"><div class="collect-card-actions">';
