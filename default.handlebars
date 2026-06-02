@@ -1651,7 +1651,7 @@
                                     <div class="manager-fieldset-title">自动回复配置</div>
                                     <div class="manager-inline-grid">
                                         <label style="display:none"><span>运行模式</span><select id="flowAutoMode"><option value="once">单次执行</option><option value="resident">常驻监控</option></select></label>
-                                        <label><span>固定回复文本</span><input id="flowAutoReplyText" type="text" placeholder="您好" /></label>
+                                        <label><span>固定回复文本</span><input id="flowAutoReplyText" type="text" placeholder="感谢您对本店的信任与支持" /></label>
                                         <label><span>轮询间隔（秒）</span><input id="flowAutoPollInterval" type="number" min="1" step="1" /></label>
                                         <label><span>最大重试次数</span><input id="flowAutoMaxRetries" type="number" min="1" step="1" /></label>
                                         <label style="display:none"><span>CDP 地址</span><input id="flowAutoCdpUrl" type="text" placeholder="http://127.0.0.1:9222" /></label>
@@ -3639,7 +3639,7 @@
         }
         function managerDefaultFlowConfig(flowType) {
             if (flowType === 'pricing') return { globalEnabled: true, myShopId: '', tasks: [{ taskId: 'task_1', enabled: true, referenceProductSelection: 'average', strategy: 'average', priceOffset: 0, duplicateTargetPolicy: 'fail', skuStrategy: 'allActive' }] };
-            if (flowType === 'auto_reply') return { mode: 'once', autoReply: { enabled: true, replyText: '您好', pollIntervalSeconds: 3, maxRetries: 3, cdpUrl: 'http://127.0.0.1:9222', preferredUrl: '', fallbackOpenUrl: '', monitorRecentContacts: true, requirePendingClearForNextRound: false, startChromeDebugIfNeeded: true, statePath: './runtime/resident-auto-reply-state.json' } };
+            if (flowType === 'auto_reply') return { mode: 'once', autoReply: { enabled: true, replyText: '感谢您对本店的信任与支持', pollIntervalSeconds: 3, maxRetries: 3, cdpUrl: 'http://127.0.0.1:9222', preferredUrl: '', fallbackOpenUrl: '', monitorRecentContacts: true, requirePendingClearForNextRound: false, startChromeDebugIfNeeded: true, statePath: './runtime/resident-auto-reply-state.json' } };
             return {};
         }
         function managerFlowTypeLabel(flowType) {
@@ -3956,7 +3956,7 @@
             } else {
                 var reply = (config.autoReply || {});
                 Q('flowAutoMode').value = config.mode || 'once';
-                Q('flowAutoReplyText').value = reply.replyText || '您好';
+                Q('flowAutoReplyText').value = reply.replyText || '感谢您对本店的信任与支持';
                 Q('flowAutoPollInterval').value = reply.pollIntervalSeconds == null ? 3 : reply.pollIntervalSeconds;
                 Q('flowAutoMaxRetries').value = reply.maxRetries == null ? 3 : reply.maxRetries;
                 Q('flowAutoCdpUrl').value = reply.cdpUrl || 'http://127.0.0.1:9222';

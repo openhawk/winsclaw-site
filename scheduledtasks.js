@@ -103,6 +103,14 @@ module.exports.CreateScheduledTaskManager = function (parent, db) {
         config.myProductName = flow.my_product_name || flow.myProductName || '';
         return config;
     }
+    function normalizeAutoReplyConfig(config) {
+        const cloned = cloneJson(config || {});
+        cloned.autoReply = cloned.autoReply || {};
+        if (!cloned.autoReply.replyText || cloned.autoReply.replyText === '您好') {
+            cloned.autoReply.replyText = '感谢您对本店的信任与支持';
+        }
+        return cloned;
+    }
     function normalizePublishCategoryPath(value) { const path = arrayField(value); return path.length === 0 ? ['花卉园艺', '礼品花', '礼品鲜花'] : path; }
     function publishStoreCategoryPath(flow, product) {
         const shopCategory = text(flow.shop_category || flow.shopCategory, 256);
@@ -172,7 +180,7 @@ module.exports.CreateScheduledTaskManager = function (parent, db) {
             return { config: applyFlowContext(cloned, flow), bindings: [{ collectTaskId: resolvedResult.task_id, collectResultId: resolvedResult.id }], background: false };
         }
         if (flowType === 'auto_reply') {
-            const cloned = cloneJson(flowConfig || {});
+            const cloned = normalizeAutoReplyConfig(flowConfig);
             cloned._meshFlow = { flowType: 'auto_reply', requestedAt: new Date().toISOString() };
             return { config: applyFlowContext(cloned, flow), bindings: null, background: true };
         }
