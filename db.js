@@ -4118,6 +4118,15 @@ module.exports.CreateDB = function (parent, func) {
             });
         };
 
+        obj.SetScheduledTaskEnabled = function (taskId, enabled, func) {
+            if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Scheduled task manager requires PostgreSQL.')); return; }
+            Datastore.query('UPDATE scheduled_tasks SET enabled = $2, updated_at = $3 WHERE id = $1 AND is_deleted = FALSE RETURNING *', [taskId, enabled === true, new Date()], function (err, results) {
+                if (err != null) { func(err); return; }
+                if (!results.rows || results.rows.length === 0) { func(new Error('Scheduled task not found.')); return; }
+                func(null, results.rows[0]);
+            });
+        };
+
         obj.DeleteScheduledTask = function (taskId, func) {
             if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Scheduled task manager requires PostgreSQL.')); return; }
             Datastore.query('UPDATE scheduled_tasks SET is_deleted = TRUE, deleted_at = $2, enabled = FALSE, updated_at = $2 WHERE id = $1 AND is_deleted = FALSE RETURNING id', [taskId, new Date()], function (err, results) {

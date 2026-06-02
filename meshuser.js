@@ -5793,6 +5793,7 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         'scheduledtasklist': serverCommandScheduledTaskList,
         'scheduledtaskruns': serverCommandScheduledTaskRuns,
         'scheduledtaskrunsteps': serverCommandScheduledTaskRunSteps,
+        'scheduledtasksetenabled': serverCommandScheduledTaskSetEnabled,
         'scheduledtaskupdate': serverCommandScheduledTaskUpdate,
         'productcreate': serverCommandProductCreate,
         'productdelete': serverCommandProductDelete,
@@ -8027,6 +8028,15 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         db.UpdateScheduledTask(taskId, payload, function (err, task) {
             if (err != null) { obj.send({ action: 'scheduledtaskupdate', result: err.message ? err.message : '保存失败。' }); return; }
             obj.send({ action: 'scheduledtaskupdate', success: true, task: task });
+        });
+    }
+
+    function serverCommandScheduledTaskSetEnabled(command) {
+        var taskId = managerGetTextField(command.id || '', 128, false);
+        if (taskId == null) { obj.send({ action: 'scheduledtasksetenabled', result: '无效的定时任务编号。' }); return; }
+        db.SetScheduledTaskEnabled(taskId, command.enabled === true, function (err, task) {
+            if (err != null) { obj.send({ action: 'scheduledtasksetenabled', result: err.message ? err.message : '更新失败。' }); return; }
+            obj.send({ action: 'scheduledtasksetenabled', success: true, task: task });
         });
     }
 
