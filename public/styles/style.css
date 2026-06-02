@@ -4418,7 +4418,9 @@ a {
 .flow-card-footer { display: grid; gap: 12px; align-items: stretch; margin-top: 16px; }
 .flow-card-actions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; width: 100%; }
 .flow-card-actions .flow-btn { min-width: 0; padding: 10px 12px; white-space: nowrap; }
-.collect-card-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.collect-card-footer { display: grid; gap: 12px; align-items: stretch; margin-top: 16px; }
+.collect-card-actions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; width: 100%; }
+.collect-card-actions .collect-btn { min-width: 0; padding: 10px 12px; white-space: nowrap; }
 .flow-pagination, .collect-pagination { margin-top: 18px; justify-content: center; flex-wrap: wrap; }
 .flow-page-btn, .collect-page-btn { border: 1px solid #c8d8e8; background: #fff; border-radius: 999px; padding: 8px 14px; }
 .flow-page-indicator, .collect-page-indicator { color: #4d637a; }

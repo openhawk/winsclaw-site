@@ -4622,7 +4622,7 @@
                 x += '<div class="collect-card-meta"><span>脚本路径</span><strong>' + EscapeHtml(managerCurrentScriptPath(task.script_path || task.scriptPath)) + '</strong></div>';
                 x += '<div class="collect-card-meta"><span>上次采集</span><strong>' + EscapeHtml(task.last_run_at ? new Date(task.last_run_at).toLocaleString() : '从未执行') + '</strong></div>';
                 x += '<div class="collect-card-meta"><span>数据条数</span><strong>' + EscapeHtml(String(task.last_data_count || task.lastDataCount || 0)) + '</strong></div>';
-                x += '<div class="collect-card-footer"><div class="collect-card-hints"><span>' + EscapeHtml(task.collect_type || task.collectType || '') + '</span></div><div class="collect-card-actions">';
+                x += '<div class="collect-card-footer"><div class="collect-card-actions">';
                 x += '<button type="button" class="collect-btn" onclick="collectOpenEditorById(\'' + EscapeHtml(String(task.id)) + '\')">编辑</button>';
                 x += '<button type="button" class="collect-btn collect-btn-danger" onclick="collectConfirmDelete(\'' + EscapeHtml(String(task.id)) + '\')">删除</button>';
                 x += '<button type="button" class="collect-btn collect-btn-primary" onclick="collectExecute(\'' + EscapeHtml(String(task.id)) + '\')">执行采集</button>';
