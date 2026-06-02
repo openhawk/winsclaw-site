@@ -1843,7 +1843,7 @@
                             <div class="collect-form-grid">
                                 <label class="collect-field"><span>任务名称 <b>*</b></span><input id="scheduledFormName" type="text" maxlength="256" /></label>
                                 <label class="collect-field"><span>每天执行时间 <b>*</b></span><input id="scheduledFormTime" type="time" value="03:00" /></label>
-                                <label class="collect-field"><span>启用状态</span><select id="scheduledFormEnabled"><option value="true">启用</option><option value="false">停用</option></select></label>
+                                <label class="collect-field"><span>任务状态</span><select id="scheduledFormEnabled"><option value="true">开始</option><option value="false">停止</option></select></label>
                                 <label class="collect-field"><span>时区</span><input id="scheduledFormTimezone" type="text" value="Asia/Shanghai" readonly /></label>
                                 <div class="collect-field collect-field-full manager-fieldset">
                                     <div class="manager-section-header"><div class="manager-fieldset-title">执行步骤</div><button type="button" class="collect-btn" onclick="scheduledAddStepRow()">新增步骤</button></div>
@@ -4849,7 +4849,7 @@
             for (var i = 0; i < list.length; i++) {
                 var task = list[i], steps = managerParseJson(typeof task.steps === 'string' ? task.steps : JSON.stringify(task.steps || []), []);
                 x += '<article class="collect-card"><div class="collect-card-body">';
-                x += '<div class="collect-card-head"><div><h3>' + EscapeHtml(task.name || '') + '</h3><div class="collect-card-category">' + (task.enabled ? '已启用' : '已停用') + ' · 每天 ' + EscapeHtml(task.schedule_time || task.scheduleTime || '') + '</div></div><div class="collect-card-badges">' + managerRenderStatusBadge('flow', task.last_run_status || task.lastRunStatus || 'idle', '') + '</div></div>';
+                x += '<div class="collect-card-head"><div><h3>' + EscapeHtml(task.name || '') + '</h3><div class="collect-card-category">' + (task.enabled ? '已开始' : '已停止') + ' · 每天 ' + EscapeHtml(task.schedule_time || task.scheduleTime || '') + '</div></div><div class="collect-card-badges">' + managerRenderStatusBadge('flow', task.last_run_status || task.lastRunStatus || 'idle', '') + '</div></div>';
                 x += '<div class="collect-card-meta"><span>步骤数量</span><strong>' + steps.length + '</strong></div>';
                 x += '<div class="collect-card-meta"><span>上次执行</span><strong>' + EscapeHtml(task.last_run_at ? new Date(task.last_run_at).toLocaleString() : '从未执行') + '</strong></div>';
                 x += '<div class="collect-card-meta"><span>摘要</span><strong>' + EscapeHtml(task.last_run_summary || task.lastRunSummary || '') + '</strong></div>';
