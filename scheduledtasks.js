@@ -171,6 +171,11 @@ module.exports.CreateScheduledTaskManager = function (parent, db) {
             cloned.referenceCollectData = jsonField(resolvedResult.data, []);
             return { config: applyFlowContext(cloned, flow), bindings: [{ collectTaskId: resolvedResult.task_id, collectResultId: resolvedResult.id }], background: false };
         }
+        if (flowType === 'auto_reply') {
+            const cloned = cloneJson(flowConfig || {});
+            cloned._meshFlow = { flowType: 'auto_reply', requestedAt: new Date().toISOString() };
+            return { config: applyFlowContext(cloned, flow), bindings: null, background: true };
+        }
         throw new Error('定时任务暂不支持该流程类型。');
     }
     async function enqueueCollectTask(taskId, context) {
@@ -228,7 +233,33 @@ module.exports.CreateScheduledTaskManager = function (parent, db) {
                 scheduledStepRunId: context.scheduledStepRunId || null
             }
         });
-        return { status: 'queued', flowRunId: runRow.id, nodeJobId: nodeJob && nodeJob.id };
+        return { status: 'queued', flowRunId: runRow.id, nodeJobId: nodeJob && nodeJob.id, background: prepared.background === true };
+    }
+    async function enqueueFlowStop(flowId, runId, context) {
+        context = context || {};
+        const flow = await dbPromise('GetFlow', flowId);
+        const run = await dbPromise('GetFlowRun', runId);
+        const flowType = flow.flow_type || flow.flowType || run.flow_type || run.flowType || '';
+        const processId = text(run.process_id || run.processId || '', 128);
+        if (flowType !== 'auto_reply') throw new Error('当前流程不支持节点任务停止。');
+        if (processId === '') throw new Error('当前客服流程缺少进程编号，无法远程停止。');
+        const nodeJob = await dbPromise('CreateNodeJob', {
+            jobType: 'flow_stop',
+            targetNodeId: run.device_id || run.deviceId || flow.device_id || flow.deviceId,
+            idempotencyKey: context.idempotencyKey || ('flow-stop:' + run.id),
+            relatedType: 'flow_run',
+            relatedId: run.id,
+            payload: {
+                kind: 'flow_stop',
+                flowType: flowType,
+                flowId: flow.id,
+                runId: run.id,
+                recordId: run.id,
+                processId: processId,
+                deviceOs: run.device_os || run.deviceOs || flow.device_os || flow.deviceOs
+            }
+        });
+        return { status: 'queued', flowRunId: run.id, nodeJobId: nodeJob && nodeJob.id };
     }
     async function getStepTarget(step) {
         if (step.type === 'collect_task') { const task = await dbPromise('GetCollectTask', step.targetId); return { name: task.name || step.targetId }; }
@@ -299,6 +330,7 @@ module.exports.CreateScheduledTaskManager = function (parent, db) {
     obj.executeScheduledTask = executeScheduledTask;
     obj.enqueueCollectTask = enqueueCollectTask;
     obj.enqueueFlow = enqueueFlow;
+    obj.enqueueFlowStop = enqueueFlowStop;
     obj.claimNodeJob = async function (nodeId, leaseSeconds) {
         const row = await dbPromise('ClaimNodeJob', nodeId, leaseSeconds || 600);
         if (row != null) {
@@ -346,6 +378,10 @@ module.exports.CreateScheduledTaskManager = function (parent, db) {
             const summary = resultJson.summary || resultSummary(flowStatus, row.exit_code);
             await dbPromise('FinalizeFlowRun', payload.recordId, { status: flowStatus, exitCode: row.exit_code == null ? (success ? 0 : -1) : row.exit_code, stdout: row.stdout || '', stderr: row.stderr || '', resultSummary: summary, resultJson: resultJson, collectBindings: payload.collectBindings || null, processId: resultJson.processId || '' });
             if (payload.scheduledStepRunId) await advanceScheduledStep(payload.scheduledStepRunId, flowStatus === 'success' || flowStatus === 'running', { status: (flowStatus === 'success' || flowStatus === 'running') ? 'success' : 'failed', flowRunId: payload.recordId, error: (flowStatus === 'success' || flowStatus === 'running') ? null : summarizeOutput(row.stdout, row.stderr) });
+        } else if (payload.kind === 'flow_stop') {
+            const stopStatus = success ? 'stopped' : 'running';
+            const summary = resultJson.summary || (success ? '常驻流程已停止。' : '停止失败，请重试。');
+            await dbPromise('FinalizeFlowRun', payload.runId || payload.recordId, { status: stopStatus, exitCode: row.exit_code == null ? (success ? 0 : -1) : row.exit_code, stdout: row.stdout || '', stderr: row.stderr || '', resultSummary: summary, resultJson: resultJson, processId: success ? null : (payload.processId || ''), stopReason: success ? 'node-job-stop' : 'node-job-stop-failed' });
         }
     }
     obj.recoverExpiredNodeJobs = async function () {

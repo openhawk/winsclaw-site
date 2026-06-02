@@ -8172,7 +8172,7 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         if (flowId == null) { obj.send({ action: 'flowprepareexecute', result: '无效的流程编号。' }); return; }
         if (parent.scheduledTaskManager == null) { obj.send({ action: 'flowprepareexecute', result: '节点任务执行器未启动。' }); return; }
         parent.scheduledTaskManager.enqueueFlow(flowId, { idempotencyKey: 'manual-flow:' + managerMakeId('job') }).then(function (result) {
-            obj.send({ action: 'flowprepareexecute', success: true, queued: true, flowId: flowId, runId: result.flowRunId, nodeJobId: result.nodeJobId, runMode: 'foreground' });
+            obj.send({ action: 'flowprepareexecute', success: true, queued: true, flowId: flowId, runId: result.flowRunId, nodeJobId: result.nodeJobId, runMode: result.background === true ? 'background' : 'foreground' });
         }).catch(function (err) {
             obj.send({ action: 'flowprepareexecute', result: err.message ? err.message : '无法准备流程执行。' });
         });
@@ -8209,17 +8209,29 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         var flowId = managerGetTextField(command.id || '', 128, false);
         var commandRunId = managerGetTextField(command.runId || '', 128, true) || '';
         if (flowId == null) { obj.send({ action: 'flowpreparestop', result: '无效的流程编号。' }); return; }
+        if (parent.scheduledTaskManager == null) { obj.send({ action: 'flowpreparestop', result: '节点任务执行器未启动。' }); return; }
         (async function () {
             var flow = await managerDbPromise('GetFlow', flowId);
             var runId = commandRunId || flow.active_run_id || flow.running_run_id || '';
             if (!runId) throw new Error('当前没有运行中的流程。');
             var run = await managerDbPromise('GetFlowRun', runId);
-            return { flow: flow, run: run };
+            var flowType = flow.flow_type || flow.flowType || run.flow_type || run.flowType || '';
+            if (flowType !== 'auto_reply') {
+                return await new Promise(function (resolve, reject) {
+                    db.FinalizeFlowRun(run.id, { status: 'stopped', stdout: run.stdout || '', stderr: run.stderr || '', exitCode: null, resultSummary: '流程已标记停止；节点任务会在租约过期后自动恢复或失败。', resultJson: run.result_json || null, processId: null, sessionId: run.session_id || null, stopReason: 'manual-stop-node-job' }, function (err, runRow) {
+                        if (err) reject(err); else resolve({ mode: 'legacy', runRow: runRow, run: run });
+                    });
+                });
+            }
+            if (!run.process_id) throw new Error('当前客服流程缺少进程编号，无法远程停止。');
+            var result = await parent.scheduledTaskManager.enqueueFlowStop(flow.id, run.id, { idempotencyKey: 'manual-flow-stop:' + managerMakeId('job') });
+            return { mode: 'queued', result: result, run: run };
         })().then(function (prepared) {
-            db.FinalizeFlowRun(prepared.run.id, { status: 'stopped', stdout: prepared.run.stdout || '', stderr: prepared.run.stderr || '', exitCode: null, resultSummary: '流程已标记停止；节点任务会在租约过期后自动恢复或失败。', resultJson: prepared.run.result_json || null, processId: null, sessionId: prepared.run.session_id || null, stopReason: 'manual-stop-node-job' }, function (err, runRow) {
-                if (err != null) { obj.send({ action: 'flowpreparestop', result: err.message ? err.message : '无法停止流程。' }); return; }
-                obj.send({ action: 'flowfinalizeexecute', success: true, runId: prepared.run.id, row: runRow });
-            });
+            if (prepared.mode === 'queued') {
+                obj.send({ action: 'flowpreparestop', success: true, queued: true, runId: prepared.run.id, flowId: flowId, nodeJobId: prepared.result.nodeJobId });
+            } else {
+                obj.send({ action: 'flowfinalizeexecute', success: true, runId: prepared.run.id, row: prepared.runRow });
+            }
         }).catch(function (err) {
             obj.send({ action: 'flowpreparestop', result: err.message ? err.message : '无法准备停止流程。' });
         });

@@ -4083,6 +4083,7 @@
         }
         function flowHandlePrepareStop(message) {
             if (message.success !== true) { flowShowToast(message.result || '无法准备停止流程。', true); return; }
+            if (message.queued === true) { flowShowToast('停止任务已提交到节点任务队列。', false); flowRefreshList(flowState.page); return; }
             managerExecutionMap[message.responseid] = { kind: 'flow', operation: 'stop', runId: message.runId, flowId: message.flowId };
             meshserver.send({ action: 'runcommands', nodeids: [message.nodeId], type: message.commandType, cmds: message.cmds, runAsUser: 0, reply: true, responseid: message.responseid });
             managerStartRuncommandsTimeout(message.responseid);
