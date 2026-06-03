@@ -4842,6 +4842,17 @@ a {
     white-space: nowrap;
 }
 
+.ops-shared-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+    margin-bottom: 16px;
+}
+
+.ops-shared-field-wide {
+    grid-column: span 2;
+}
+
 .ops-editor-table-wrap {
     border: 1px solid #dce7f2;
     border-radius: 18px;
@@ -4955,6 +4966,14 @@ a {
 
     .flow-form-grid, .collect-form-grid, .ops-form-grid {
         grid-template-columns: 1fr;
+    }
+
+    .ops-shared-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .ops-shared-field-wide {
+        grid-column: span 1;
     }
 
     .manager-inline-grid {

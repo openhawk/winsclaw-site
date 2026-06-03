@@ -1936,6 +1936,24 @@
                                 <div class="ops-empty-title">暂无门店</div>
                                 <div class="ops-empty-text">请先在“大明的店铺”里维护门店信息，再回来录入经营日报。</div>
                             </div>
+                            <div id="operationEditorSharedWrap" class="ops-shared-grid" style="display:none">
+                                <label class="ops-field">
+                                    <span>线下订单</span>
+                                    <input id="operationSharedOfflineOrders" type="number" min="0" step="1" />
+                                </label>
+                                <label class="ops-field">
+                                    <span>线下金额</span>
+                                    <input id="operationSharedOfflineAmount" type="number" min="0" step="0.01" />
+                                </label>
+                                <label class="ops-field ops-shared-field-wide">
+                                    <span>支出类别</span>
+                                    <textarea id="operationSharedExpenseCategory" rows="3" maxlength="512" placeholder="例如：包装耗材&#10;跑腿费&#10;花泥辅材"></textarea>
+                                </label>
+                                <label class="ops-field">
+                                    <span>支出费用</span>
+                                    <input id="operationSharedExpenseAmount" type="number" min="0" step="0.01" />
+                                </label>
+                            </div>
                             <div id="operationEditorTableWrap" class="ops-editor-table-wrap" style="display:none">
                                 <table class="ops-editor-table">
                                     <thead>
@@ -1949,10 +1967,6 @@
                                             <th>京东金额</th>
                                             <th>抖音订单</th>
                                             <th>抖音金额</th>
-                                            <th>线下订单</th>
-                                            <th>线下金额</th>
-                                            <th>支出类别</th>
-                                            <th>支出费用</th>
                                         </tr>
                                     </thead>
                                     <tbody id="operationEditorRows"></tbody>
@@ -3029,7 +3043,7 @@
         var flowState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, loadTimer: null, loadRetry: 0, pendingAction: null, pendingMyShopId: '', currentRunsFlowId: null, runsPage: 1, runsLimit: 10, runsTimer: null, pricingReference: { nextRowSeq: 1, rows: {} }, pricingTaskMeta: { skuStrategy: 'allActive' }, productBinding: { searchTimer: null, suggestions: [], activeSearch: '' } };
         var collectState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, currentResultsTaskId: null, resultsPage: 1, resultsLimit: 10 };
         var scheduledState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, listTimer: null, pendingAction: null, currentRunsTaskId: null, runsPage: 1, runsLimit: 10, runSteps: {} };
-        var operationState = { items: [], total: 0, page: 1, limit: 7, storeSearch: '', dateFrom: '', dateTo: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, pendingStoreName: '', editorDate: '', editorLoading: false, editorExistingRecords: [], editorLegacyRecordIds: [], batch: null };
+        var operationState = { items: [], total: 0, page: 1, limit: 7, storeSearch: '', dateFrom: '', dateTo: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, pendingStoreName: '', editorDate: '', editorLoading: false, editorExistingRecords: [], editorLegacyRecordIds: [], editorSharedRecordId: '', batch: null };
         var managerExecutionMap = {};
 
         function shopEnterPage() {
@@ -5034,13 +5048,17 @@
             var x = '';
             for (var j = 0; j < order.length; j++) {
                 var businessDate = order[j];
-                var rows = grouped[businessDate] || [];
+                var rows = grouped[businessDate] || [], visibleRows = [], sharedData = operationGetDaySharedData(rows);
+                for (var k = 0; k < rows.length; k++) {
+                    if (operationIsSharedStoreName(rows[k].store_name || rows[k].storeName || '')) continue;
+                    visibleRows.push(rows[k]);
+                }
                 var summary = operationBuildSummary(rows);
                 x += '<section class="ops-day-card">';
-                x += '<div class="ops-day-head"><div class="ops-day-title">' + EscapeHtml(businessDate) + '</div><div class="ops-day-head-right"><div class="ops-day-summary"><span>门店数 ' + EscapeHtml(String(rows.length)) + '</span><span>总订单量 ' + EscapeHtml(String(summary.totalOrders)) + '</span><span>总收入 ¥' + EscapeHtml(operationFormatAmount(summary.totalIncome)) + '</span></div><div class="ops-day-actions"><button type="button" class="ops-btn" onclick="operationOpenEditorByDate(\'' + EscapeHtml(businessDate) + '\')">编辑当天</button><button type="button" class="ops-btn ops-btn-danger" onclick="operationConfirmDeleteDate(\'' + EscapeHtml(businessDate) + '\')">删除当天</button></div></div></div>';
+                x += '<div class="ops-day-head"><div class="ops-day-title">' + EscapeHtml(businessDate) + '</div><div class="ops-day-head-right"><div class="ops-day-summary"><span>门店数 ' + EscapeHtml(String(visibleRows.length)) + '</span><span>总订单量 ' + EscapeHtml(String(summary.totalOrders)) + '</span><span>总收入 ¥' + EscapeHtml(operationFormatAmount(summary.totalIncome)) + '</span></div><div class="ops-day-actions"><button type="button" class="ops-btn" onclick="operationOpenEditorByDate(\'' + EscapeHtml(businessDate) + '\')">编辑当天</button><button type="button" class="ops-btn ops-btn-danger" onclick="operationConfirmDeleteDate(\'' + EscapeHtml(businessDate) + '\')">删除当天</button></div></div></div>';
                 x += '<div class="ops-day-table"><table class="ops-table"><thead><tr><th rowspan="2">门店</th><th colspan="2">美团</th><th colspan="2">淘宝闪购</th><th colspan="2">京东</th><th colspan="2">抖音</th><th colspan="2">线下</th><th rowspan="2">支出类别</th><th rowspan="2">支出费用</th></tr><tr><th>订单</th><th>金额</th><th>订单</th><th>金额</th><th>订单</th><th>金额</th><th>订单</th><th>金额</th><th>订单</th><th>金额</th></tr></thead><tbody>';
-                for (var k = 0; k < rows.length; k++) {
-                    var row = rows[k];
+                for (var m = 0; m < visibleRows.length; m++) {
+                    var row = visibleRows[m];
                     x += '<tr>';
                     x += '<td class="ops-store-cell">' + EscapeHtml(row.store_name || row.storeName || '') + '</td>';
                     x += '<td>' + EscapeHtml(operationFormatInteger(operationGetRecordValue(row, 'meituan_orders', 'meituanOrders'))) + '</td>';
@@ -5051,10 +5069,13 @@
                     x += '<td>' + EscapeHtml(operationFormatAmountCell(operationGetRecordValue(row, 'jd_amount', 'jdAmount'))) + '</td>';
                     x += '<td>' + EscapeHtml(operationFormatInteger(operationGetRecordValue(row, 'douyin_orders', 'douyinOrders'))) + '</td>';
                     x += '<td>' + EscapeHtml(operationFormatAmountCell(operationGetRecordValue(row, 'douyin_amount', 'douyinAmount'))) + '</td>';
-                    x += '<td>' + EscapeHtml(operationFormatInteger(operationGetRecordValue(row, 'offline_orders', 'offlineOrders'))) + '</td>';
-                    x += '<td>' + EscapeHtml(operationFormatAmountCell(operationGetRecordValue(row, 'offline_amount', 'offlineAmount'))) + '</td>';
-                    x += '<td class="ops-expense-category-cell">' + EscapeHtml((row.expense_category || row.expenseCategory || '').trim() || '-') + '</td>';
-                    x += '<td>' + EscapeHtml(operationFormatAmountCell(operationGetRecordValue(row, 'expense_amount', 'expenseAmount'))) + '</td>';
+                    if (m === 0) {
+                        var sharedRowspan = Math.max(1, visibleRows.length);
+                        x += '<td rowspan="' + sharedRowspan + '">' + EscapeHtml(operationFormatInteger(sharedData.offlineOrders)) + '</td>';
+                        x += '<td rowspan="' + sharedRowspan + '">' + EscapeHtml(operationFormatAmountCell(sharedData.offlineAmount)) + '</td>';
+                        x += '<td class="ops-expense-category-cell" rowspan="' + sharedRowspan + '">' + EscapeHtml(sharedData.expenseCategory || '-') + '</td>';
+                        x += '<td rowspan="' + sharedRowspan + '">' + EscapeHtml(operationFormatAmountCell(sharedData.expenseAmount)) + '</td>';
+                    }
                     x += '</tr>';
                 }
                 x += '<tr class="ops-summary-row"><td class="ops-summary-label">统计分析</td>';
@@ -5117,6 +5138,62 @@
             return '';
         }
 
+        function operationIsSharedStoreName(name) {
+            return operationNormalizeStoreName(name) === '线下';
+        }
+
+        function operationCollectSharedCategoryText(records) {
+            var textList = [], added = {};
+            for (var i = 0; i < records.length; i++) {
+                var text = String(records[i] || '').trim();
+                if (text === '' || added[text]) continue;
+                added[text] = true;
+                textList.push(text);
+            }
+            return textList.join('\n');
+        }
+
+        function operationGetDaySharedData(records) {
+            var sharedRecord = null, offlineOrders = 0, offlineAmount = 0, expenseAmount = 0, categoryTexts = [];
+            records = Array.isArray(records) ? records : [];
+            for (var i = 0; i < records.length; i++) {
+                var storeName = (records[i].store_name || records[i].storeName || '').trim();
+                if (operationIsSharedStoreName(storeName)) {
+                    if (sharedRecord == null) sharedRecord = records[i];
+                    continue;
+                }
+                offlineOrders += operationToNumber(operationGetRecordValue(records[i], 'offline_orders', 'offlineOrders'));
+                offlineAmount += operationToNumber(operationGetRecordValue(records[i], 'offline_amount', 'offlineAmount'));
+                expenseAmount += operationToNumber(operationGetRecordValue(records[i], 'expense_amount', 'expenseAmount'));
+                var categoryText = String(records[i].expense_category || records[i].expenseCategory || '').trim();
+                if (categoryText !== '') categoryTexts.push(categoryText);
+            }
+            if (sharedRecord != null) {
+                return {
+                    recordId: String(sharedRecord.id || ''),
+                    offlineOrders: operationFormatEditorValue(operationGetRecordValue(sharedRecord, 'offline_orders', 'offlineOrders'), false),
+                    offlineAmount: operationFormatEditorValue(operationGetRecordValue(sharedRecord, 'offline_amount', 'offlineAmount'), true),
+                    expenseCategory: String(sharedRecord.expense_category || sharedRecord.expenseCategory || '').trim(),
+                    expenseAmount: operationFormatEditorValue(operationGetRecordValue(sharedRecord, 'expense_amount', 'expenseAmount'), true)
+                };
+            }
+            return {
+                recordId: '',
+                offlineOrders: operationFormatEditorValue(offlineOrders, false),
+                offlineAmount: operationFormatEditorValue(offlineAmount, true),
+                expenseCategory: operationCollectSharedCategoryText(categoryTexts),
+                expenseAmount: operationFormatEditorValue(expenseAmount, true)
+            };
+        }
+
+        function operationSetSharedInputs(sharedData) {
+            sharedData = sharedData || {};
+            if (Q('operationSharedOfflineOrders') != null) Q('operationSharedOfflineOrders').value = sharedData.offlineOrders || '';
+            if (Q('operationSharedOfflineAmount') != null) Q('operationSharedOfflineAmount').value = sharedData.offlineAmount || '';
+            if (Q('operationSharedExpenseCategory') != null) Q('operationSharedExpenseCategory').value = sharedData.expenseCategory || '';
+            if (Q('operationSharedExpenseAmount') != null) Q('operationSharedExpenseAmount').value = sharedData.expenseAmount || '';
+        }
+
         function operationFormatDate(value) {
             if (typeof value !== 'string') value = String(value || '');
             var match = value.match(/^(\d{4}-\d{2}-\d{2})/);
@@ -5165,8 +5242,12 @@
         function operationBuildEditorRows() {
             var storeNames = managerGetOperationStoreNames(), records = Array.isArray(operationState.editorExistingRecords) ? operationState.editorExistingRecords : [];
             var rows = [], existingMap = {}, normalizedMap = {}, seen = {}, legacyIds = [];
+            var sharedData = operationGetDaySharedData(records);
+            operationState.editorSharedRecordId = sharedData.recordId || '';
+            operationSetSharedInputs(sharedData);
             for (var i = 0; i < records.length; i++) {
                 var recordStoreName = (records[i].store_name || records[i].storeName || '').trim();
+                if (operationIsSharedStoreName(recordStoreName)) continue;
                 var normalizedRecordStoreName = operationNormalizeStoreName(recordStoreName);
                 if (recordStoreName !== '') existingMap[recordStoreName] = records[i];
                 if (normalizedRecordStoreName !== '' && normalizedMap[normalizedRecordStoreName] == null) normalizedMap[normalizedRecordStoreName] = records[i];
@@ -5174,6 +5255,7 @@
             if (storeNames.length === 0 && records.length > 0) {
                 for (var j = 0; j < records.length; j++) {
                     var fallbackStoreName = (records[j].store_name || records[j].storeName || '').trim();
+                    if (operationIsSharedStoreName(fallbackStoreName)) continue;
                     if (fallbackStoreName === '' || seen[fallbackStoreName]) continue;
                     seen[fallbackStoreName] = true;
                     rows.push(operationBuildEditorRowHtml(fallbackStoreName, records[j]));
@@ -5183,6 +5265,7 @@
                 QH('operationEditorMeta', '已载入当天已有数据，正在同步门店列表...');
                 QV('operationEditorLoading', false);
                 QV('operationEditorEmpty', rows.length === 0);
+                QV('operationEditorSharedWrap', true);
                 QV('operationEditorTableWrap', rows.length > 0);
                 return;
             }
@@ -5194,6 +5277,7 @@
             }
             for (var m = 0; m < records.length; m++) {
                 var extraStoreName = (records[m].store_name || records[m].storeName || '').trim();
+                if (operationIsSharedStoreName(extraStoreName)) continue;
                 var normalizedExtraStoreName = operationNormalizeStoreName(extraStoreName);
                 var matchedByNormalize = false;
                 if (normalizedExtraStoreName !== '') {
@@ -5209,6 +5293,7 @@
             QH('operationEditorMeta', '共 ' + rows.length + ' 家门店' + (legacyIds.length > 0 ? ('，待清理历史门店数据 ' + legacyIds.length + ' 条') : ''));
             QV('operationEditorLoading', false);
             QV('operationEditorEmpty', (rows.length === 0) && (legacyIds.length === 0));
+            QV('operationEditorSharedWrap', true);
             QV('operationEditorTableWrap', rows.length > 0);
         }
 
@@ -5224,10 +5309,6 @@
             x += '<td><input data-field="jdAmount" type="number" min="0" step="0.01" value="' + EscapeHtml(operationFormatEditorValue(operationGetRecordValue(record, 'jd_amount', 'jdAmount'), true)) + '" /></td>';
             x += '<td><input data-field="douyinOrders" type="number" min="0" step="1" value="' + EscapeHtml(operationFormatEditorValue(operationGetRecordValue(record, 'douyin_orders', 'douyinOrders'), false)) + '" /></td>';
             x += '<td><input data-field="douyinAmount" type="number" min="0" step="0.01" value="' + EscapeHtml(operationFormatEditorValue(operationGetRecordValue(record, 'douyin_amount', 'douyinAmount'), true)) + '" /></td>';
-            x += '<td><input data-field="offlineOrders" type="number" min="0" step="1" value="' + EscapeHtml(operationFormatEditorValue(operationGetRecordValue(record, 'offline_orders', 'offlineOrders'), false)) + '" /></td>';
-            x += '<td><input data-field="offlineAmount" type="number" min="0" step="0.01" value="' + EscapeHtml(operationFormatEditorValue(operationGetRecordValue(record, 'offline_amount', 'offlineAmount'), true)) + '" /></td>';
-            x += '<td><textarea data-field="expenseCategory" maxlength="512" rows="3" placeholder="例如：包装耗材&#10;跑腿费&#10;花泥辅材">' + EscapeHtml(record ? (record.expense_category || record.expenseCategory || '') : '') + '</textarea></td>';
-            x += '<td><input data-field="expenseAmount" type="number" min="0" step="0.01" value="' + EscapeHtml(operationFormatEditorValue(operationGetRecordValue(record, 'expense_amount', 'expenseAmount'), true)) + '" /></td>';
             x += '</tr>';
             return x;
         }
@@ -5239,7 +5320,10 @@
             operationState.editorLegacyRecordIds = [];
             if (preserveRows !== true) {
                 operationState.editorExistingRecords = [];
+                operationState.editorSharedRecordId = '';
+                operationSetSharedInputs({ offlineOrders: '', offlineAmount: '', expenseCategory: '', expenseAmount: '' });
                 QV('operationEditorEmpty', false);
+                QV('operationEditorSharedWrap', false);
                 QV('operationEditorTableWrap', false);
                 QH('operationEditorRows', '');
             }
@@ -5260,7 +5344,10 @@
             if (message.result != null) {
                 operationState.editorExistingRecords = [];
                 operationState.editorLegacyRecordIds = [];
+                operationState.editorSharedRecordId = '';
+                operationSetSharedInputs({ offlineOrders: '', offlineAmount: '', expenseCategory: '', expenseAmount: '' });
                 QV('operationEditorLoading', false);
+                QV('operationEditorSharedWrap', false);
                 QV('operationEditorTableWrap', false);
                 QV('operationEditorEmpty', true);
                 operationShowToast(message.result, true);
@@ -5286,14 +5373,26 @@
                     jdAmount: row.querySelector('[data-field="jdAmount"]').value.trim(),
                     douyinOrders: row.querySelector('[data-field="douyinOrders"]').value.trim(),
                     douyinAmount: row.querySelector('[data-field="douyinAmount"]').value.trim(),
-                    offlineOrders: row.querySelector('[data-field="offlineOrders"]').value.trim(),
-                    offlineAmount: row.querySelector('[data-field="offlineAmount"]').value.trim(),
-                    expenseCategory: row.querySelector('[data-field="expenseCategory"]').value.trim(),
-                    expenseAmount: row.querySelector('[data-field="expenseAmount"]').value.trim()
+                    offlineOrders: '',
+                    offlineAmount: '',
+                    expenseCategory: '',
+                    expenseAmount: ''
                 };
                 payloads.push(payload);
             }
             return payloads;
+        }
+
+        function operationCollectSharedFields() {
+            return {
+                id: operationState.editorSharedRecordId || '',
+                businessDate: Q('operationFormBusinessDate').value,
+                storeName: '线下',
+                offlineOrders: Q('operationSharedOfflineOrders') != null ? Q('operationSharedOfflineOrders').value.trim() : '',
+                offlineAmount: Q('operationSharedOfflineAmount') != null ? Q('operationSharedOfflineAmount').value.trim() : '',
+                expenseCategory: Q('operationSharedExpenseCategory') != null ? Q('operationSharedExpenseCategory').value.trim() : '',
+                expenseAmount: Q('operationSharedExpenseAmount') != null ? Q('operationSharedExpenseAmount').value.trim() : ''
+            };
         }
 
         function operationNormalizeSaveNumber(value, isAmount) {
@@ -5320,6 +5419,10 @@
                 expenseCategory: (payload.expenseCategory || '').trim(),
                 expenseAmount: operationNormalizeSaveNumber(payload.expenseAmount, true)
             };
+        }
+
+        function operationSharedPayloadHasData(payload) {
+            return (Number(payload.offlineOrders) > 0) || (Number(payload.offlineAmount) > 0) || (payload.expenseCategory !== '') || (Number(payload.expenseAmount) > 0);
         }
 
         function operationStartBatch(actions) {
@@ -5381,6 +5484,8 @@
             operationState.pendingAction = null;
             operationState.editorExistingRecords = cachedRecords;
             operationState.editorLegacyRecordIds = [];
+            operationState.editorSharedRecordId = '';
+            operationSetSharedInputs({ offlineOrders: '', offlineAmount: '', expenseCategory: '', expenseAmount: '' });
             operationState.editorDate = businessDate;
             Q('operationFormBusinessDate').value = businessDate;
             QH('operationModalTitle', record ? ('编辑 ' + businessDate + ' 经营数据') : '新增经营记录');
@@ -5391,6 +5496,7 @@
                 QH('operationEditorMeta', '正在加载门店...');
                 QV('operationEditorLoading', true);
                 QV('operationEditorEmpty', false);
+                QV('operationEditorSharedWrap', false);
                 QV('operationEditorTableWrap', false);
                 QH('operationEditorRows', '');
             }
@@ -5405,6 +5511,7 @@
             operationState.batch = null;
             operationState.pendingAction = null;
             operationState.editorLoading = false;
+            operationState.editorSharedRecordId = '';
             QV('operationModalMask', false);
         }
 
@@ -5415,13 +5522,22 @@
 
         function operationSubmitEditor() {
             var businessDate = Q('operationFormBusinessDate').value;
-            var rows = operationCollectEditorRows(), actions = [];
+            var rows = operationCollectEditorRows(), sharedPayload = operationNormalizeSavePayload(operationCollectSharedFields()), actions = [];
             if (businessDate === '') { operationShowToast('日期不能为空。', true); return; }
             if (rows.length === 0 && operationState.editorLegacyRecordIds.length === 0) { operationShowToast('没有可保存的门店数据。', true); return; }
+            if ((Number(sharedPayload.expenseAmount) > 0) && (sharedPayload.expenseCategory === '')) { operationShowToast('填写支出费用时请同时填写支出类别。', true); return; }
             for (var i = 0; i < rows.length; i++) {
                 var payload = operationNormalizeSavePayload(rows[i]);
-                if ((Number(payload.expenseAmount) > 0) && (payload.expenseCategory === '')) { operationShowToast('门店“' + payload.storeName + '”填写支出费用时请同时填写支出类别。', true); return; }
+                payload.offlineOrders = '0';
+                payload.offlineAmount = '0';
+                payload.expenseCategory = '';
+                payload.expenseAmount = '0';
                 actions.push({ action: (payload.id !== '' ? 'operationrecordupdate' : 'operationrecordcreate'), id: payload.id, businessDate: businessDate, storeName: payload.storeName, meituanOrders: payload.meituanOrders, meituanAmount: payload.meituanAmount, taobaoOrders: payload.taobaoOrders, taobaoAmount: payload.taobaoAmount, jdOrders: payload.jdOrders, jdAmount: payload.jdAmount, douyinOrders: payload.douyinOrders, douyinAmount: payload.douyinAmount, offlineOrders: payload.offlineOrders, offlineAmount: payload.offlineAmount, expenseCategory: payload.expenseCategory, expenseAmount: payload.expenseAmount });
+            }
+            if (operationSharedPayloadHasData(sharedPayload)) {
+                actions.push({ action: (sharedPayload.id !== '' ? 'operationrecordupdate' : 'operationrecordcreate'), id: sharedPayload.id, businessDate: businessDate, storeName: '线下', meituanOrders: '0', meituanAmount: '0', taobaoOrders: '0', taobaoAmount: '0', jdOrders: '0', jdAmount: '0', douyinOrders: '0', douyinAmount: '0', offlineOrders: sharedPayload.offlineOrders, offlineAmount: sharedPayload.offlineAmount, expenseCategory: sharedPayload.expenseCategory, expenseAmount: sharedPayload.expenseAmount });
+            } else if (sharedPayload.id !== '') {
+                actions.push({ action: 'operationrecorddelete', id: sharedPayload.id });
             }
             for (var j = 0; j < operationState.editorLegacyRecordIds.length; j++) {
                 actions.push({ action: 'operationrecorddelete', id: operationState.editorLegacyRecordIds[j] });
