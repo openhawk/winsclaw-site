@@ -5043,18 +5043,18 @@
                     var row = rows[k];
                     x += '<tr>';
                     x += '<td class="ops-store-cell">' + EscapeHtml(row.store_name || row.storeName || '') + '</td>';
-                    x += '<td>' + EscapeHtml(operationFormatInteger(row.meituan_orders || row.meituanOrders)) + '</td>';
-                    x += '<td>' + EscapeHtml(operationFormatAmountCell(row.meituan_amount || row.meituanAmount)) + '</td>';
-                    x += '<td>' + EscapeHtml(operationFormatInteger(row.taobao_orders || row.taobaoOrders)) + '</td>';
-                    x += '<td>' + EscapeHtml(operationFormatAmountCell(row.taobao_amount || row.taobaoAmount)) + '</td>';
-                    x += '<td>' + EscapeHtml(operationFormatInteger(row.jd_orders || row.jdOrders)) + '</td>';
-                    x += '<td>' + EscapeHtml(operationFormatAmountCell(row.jd_amount || row.jdAmount)) + '</td>';
-                    x += '<td>' + EscapeHtml(operationFormatInteger(row.douyin_orders || row.douyinOrders)) + '</td>';
-                    x += '<td>' + EscapeHtml(operationFormatAmountCell(row.douyin_amount || row.douyinAmount)) + '</td>';
-                    x += '<td>' + EscapeHtml(operationFormatInteger(row.offline_orders || row.offlineOrders)) + '</td>';
-                    x += '<td>' + EscapeHtml(operationFormatAmountCell(row.offline_amount || row.offlineAmount)) + '</td>';
+                    x += '<td>' + EscapeHtml(operationFormatInteger(operationGetRecordValue(row, 'meituan_orders', 'meituanOrders'))) + '</td>';
+                    x += '<td>' + EscapeHtml(operationFormatAmountCell(operationGetRecordValue(row, 'meituan_amount', 'meituanAmount'))) + '</td>';
+                    x += '<td>' + EscapeHtml(operationFormatInteger(operationGetRecordValue(row, 'taobao_orders', 'taobaoOrders'))) + '</td>';
+                    x += '<td>' + EscapeHtml(operationFormatAmountCell(operationGetRecordValue(row, 'taobao_amount', 'taobaoAmount'))) + '</td>';
+                    x += '<td>' + EscapeHtml(operationFormatInteger(operationGetRecordValue(row, 'jd_orders', 'jdOrders'))) + '</td>';
+                    x += '<td>' + EscapeHtml(operationFormatAmountCell(operationGetRecordValue(row, 'jd_amount', 'jdAmount'))) + '</td>';
+                    x += '<td>' + EscapeHtml(operationFormatInteger(operationGetRecordValue(row, 'douyin_orders', 'douyinOrders'))) + '</td>';
+                    x += '<td>' + EscapeHtml(operationFormatAmountCell(operationGetRecordValue(row, 'douyin_amount', 'douyinAmount'))) + '</td>';
+                    x += '<td>' + EscapeHtml(operationFormatInteger(operationGetRecordValue(row, 'offline_orders', 'offlineOrders'))) + '</td>';
+                    x += '<td>' + EscapeHtml(operationFormatAmountCell(operationGetRecordValue(row, 'offline_amount', 'offlineAmount'))) + '</td>';
                     x += '<td class="ops-expense-category-cell">' + EscapeHtml((row.expense_category || row.expenseCategory || '').trim() || '-') + '</td>';
-                    x += '<td>' + EscapeHtml(operationFormatAmountCell(row.expense_amount || row.expenseAmount)) + '</td>';
+                    x += '<td>' + EscapeHtml(operationFormatAmountCell(operationGetRecordValue(row, 'expense_amount', 'expenseAmount'))) + '</td>';
                     x += '</tr>';
                 }
                 x += '<tr class="ops-summary-row"><td class="ops-summary-label">统计分析</td>';
@@ -5088,16 +5088,16 @@
         function operationBuildSummary(rows) {
             var summary = { meituanOrders: 0, meituanAmount: 0, taobaoOrders: 0, taobaoAmount: 0, jdOrders: 0, jdAmount: 0, douyinOrders: 0, douyinAmount: 0, offlineOrders: 0, offlineAmount: 0, totalOrders: 0, totalIncome: 0 };
             for (var i = 0; i < rows.length; i++) {
-                summary.meituanOrders += operationToNumber(rows[i].meituan_orders || rows[i].meituanOrders);
-                summary.meituanAmount += operationToNumber(rows[i].meituan_amount || rows[i].meituanAmount);
-                summary.taobaoOrders += operationToNumber(rows[i].taobao_orders || rows[i].taobaoOrders);
-                summary.taobaoAmount += operationToNumber(rows[i].taobao_amount || rows[i].taobaoAmount);
-                summary.jdOrders += operationToNumber(rows[i].jd_orders || rows[i].jdOrders);
-                summary.jdAmount += operationToNumber(rows[i].jd_amount || rows[i].jdAmount);
-                summary.douyinOrders += operationToNumber(rows[i].douyin_orders || rows[i].douyinOrders);
-                summary.douyinAmount += operationToNumber(rows[i].douyin_amount || rows[i].douyinAmount);
-                summary.offlineOrders += operationToNumber(rows[i].offline_orders || rows[i].offlineOrders);
-                summary.offlineAmount += operationToNumber(rows[i].offline_amount || rows[i].offlineAmount);
+                summary.meituanOrders += operationToNumber(operationGetRecordValue(rows[i], 'meituan_orders', 'meituanOrders'));
+                summary.meituanAmount += operationToNumber(operationGetRecordValue(rows[i], 'meituan_amount', 'meituanAmount'));
+                summary.taobaoOrders += operationToNumber(operationGetRecordValue(rows[i], 'taobao_orders', 'taobaoOrders'));
+                summary.taobaoAmount += operationToNumber(operationGetRecordValue(rows[i], 'taobao_amount', 'taobaoAmount'));
+                summary.jdOrders += operationToNumber(operationGetRecordValue(rows[i], 'jd_orders', 'jdOrders'));
+                summary.jdAmount += operationToNumber(operationGetRecordValue(rows[i], 'jd_amount', 'jdAmount'));
+                summary.douyinOrders += operationToNumber(operationGetRecordValue(rows[i], 'douyin_orders', 'douyinOrders'));
+                summary.douyinAmount += operationToNumber(operationGetRecordValue(rows[i], 'douyin_amount', 'douyinAmount'));
+                summary.offlineOrders += operationToNumber(operationGetRecordValue(rows[i], 'offline_orders', 'offlineOrders'));
+                summary.offlineAmount += operationToNumber(operationGetRecordValue(rows[i], 'offline_amount', 'offlineAmount'));
             }
             summary.totalOrders = summary.meituanOrders + summary.taobaoOrders + summary.jdOrders + summary.douyinOrders + summary.offlineOrders;
             summary.totalIncome = summary.meituanAmount + summary.taobaoAmount + summary.jdAmount + summary.douyinAmount + summary.offlineAmount;
@@ -5108,6 +5108,13 @@
             if (value == null || value === '') return 0;
             var num = Number(value);
             return isFinite(num) ? num : 0;
+        }
+
+        function operationGetRecordValue(record, snakeKey, camelKey) {
+            if (record == null) return '';
+            if (record[snakeKey] != null) return record[snakeKey];
+            if (camelKey && record[camelKey] != null) return record[camelKey];
+            return '';
         }
 
         function operationFormatDate(value) {
@@ -5209,18 +5216,18 @@
             var rowId = record ? String(record.id) : '';
             var x = '<tr class="ops-editor-row" data-store-name="' + EscapeHtml(storeName) + '" data-record-id="' + EscapeHtml(rowId) + '">';
             x += '<td class="ops-editor-store-cell"><div class="ops-editor-store-name">' + EscapeHtml(storeName) + '</div></td>';
-            x += '<td><input data-field="meituanOrders" type="number" min="0" step="1" value="' + EscapeHtml(operationFormatEditorValue(record ? (record.meituan_orders || record.meituanOrders) : '', false)) + '" /></td>';
-            x += '<td><input data-field="meituanAmount" type="number" min="0" step="0.01" value="' + EscapeHtml(operationFormatEditorValue(record ? (record.meituan_amount || record.meituanAmount) : '', true)) + '" /></td>';
-            x += '<td><input data-field="taobaoOrders" type="number" min="0" step="1" value="' + EscapeHtml(operationFormatEditorValue(record ? (record.taobao_orders || record.taobaoOrders) : '', false)) + '" /></td>';
-            x += '<td><input data-field="taobaoAmount" type="number" min="0" step="0.01" value="' + EscapeHtml(operationFormatEditorValue(record ? (record.taobao_amount || record.taobaoAmount) : '', true)) + '" /></td>';
-            x += '<td><input data-field="jdOrders" type="number" min="0" step="1" value="' + EscapeHtml(operationFormatEditorValue(record ? (record.jd_orders || record.jdOrders) : '', false)) + '" /></td>';
-            x += '<td><input data-field="jdAmount" type="number" min="0" step="0.01" value="' + EscapeHtml(operationFormatEditorValue(record ? (record.jd_amount || record.jdAmount) : '', true)) + '" /></td>';
-            x += '<td><input data-field="douyinOrders" type="number" min="0" step="1" value="' + EscapeHtml(operationFormatEditorValue(record ? (record.douyin_orders || record.douyinOrders) : '', false)) + '" /></td>';
-            x += '<td><input data-field="douyinAmount" type="number" min="0" step="0.01" value="' + EscapeHtml(operationFormatEditorValue(record ? (record.douyin_amount || record.douyinAmount) : '', true)) + '" /></td>';
-            x += '<td><input data-field="offlineOrders" type="number" min="0" step="1" value="' + EscapeHtml(operationFormatEditorValue(record ? (record.offline_orders || record.offlineOrders) : '', false)) + '" /></td>';
-            x += '<td><input data-field="offlineAmount" type="number" min="0" step="0.01" value="' + EscapeHtml(operationFormatEditorValue(record ? (record.offline_amount || record.offlineAmount) : '', true)) + '" /></td>';
+            x += '<td><input data-field="meituanOrders" type="number" min="0" step="1" value="' + EscapeHtml(operationFormatEditorValue(operationGetRecordValue(record, 'meituan_orders', 'meituanOrders'), false)) + '" /></td>';
+            x += '<td><input data-field="meituanAmount" type="number" min="0" step="0.01" value="' + EscapeHtml(operationFormatEditorValue(operationGetRecordValue(record, 'meituan_amount', 'meituanAmount'), true)) + '" /></td>';
+            x += '<td><input data-field="taobaoOrders" type="number" min="0" step="1" value="' + EscapeHtml(operationFormatEditorValue(operationGetRecordValue(record, 'taobao_orders', 'taobaoOrders'), false)) + '" /></td>';
+            x += '<td><input data-field="taobaoAmount" type="number" min="0" step="0.01" value="' + EscapeHtml(operationFormatEditorValue(operationGetRecordValue(record, 'taobao_amount', 'taobaoAmount'), true)) + '" /></td>';
+            x += '<td><input data-field="jdOrders" type="number" min="0" step="1" value="' + EscapeHtml(operationFormatEditorValue(operationGetRecordValue(record, 'jd_orders', 'jdOrders'), false)) + '" /></td>';
+            x += '<td><input data-field="jdAmount" type="number" min="0" step="0.01" value="' + EscapeHtml(operationFormatEditorValue(operationGetRecordValue(record, 'jd_amount', 'jdAmount'), true)) + '" /></td>';
+            x += '<td><input data-field="douyinOrders" type="number" min="0" step="1" value="' + EscapeHtml(operationFormatEditorValue(operationGetRecordValue(record, 'douyin_orders', 'douyinOrders'), false)) + '" /></td>';
+            x += '<td><input data-field="douyinAmount" type="number" min="0" step="0.01" value="' + EscapeHtml(operationFormatEditorValue(operationGetRecordValue(record, 'douyin_amount', 'douyinAmount'), true)) + '" /></td>';
+            x += '<td><input data-field="offlineOrders" type="number" min="0" step="1" value="' + EscapeHtml(operationFormatEditorValue(operationGetRecordValue(record, 'offline_orders', 'offlineOrders'), false)) + '" /></td>';
+            x += '<td><input data-field="offlineAmount" type="number" min="0" step="0.01" value="' + EscapeHtml(operationFormatEditorValue(operationGetRecordValue(record, 'offline_amount', 'offlineAmount'), true)) + '" /></td>';
             x += '<td><textarea data-field="expenseCategory" maxlength="512" rows="3" placeholder="例如：包装耗材&#10;跑腿费&#10;花泥辅材">' + EscapeHtml(record ? (record.expense_category || record.expenseCategory || '') : '') + '</textarea></td>';
-            x += '<td><input data-field="expenseAmount" type="number" min="0" step="0.01" value="' + EscapeHtml(operationFormatEditorValue(record ? (record.expense_amount || record.expenseAmount) : '', true)) + '" /></td>';
+            x += '<td><input data-field="expenseAmount" type="number" min="0" step="0.01" value="' + EscapeHtml(operationFormatEditorValue(operationGetRecordValue(record, 'expense_amount', 'expenseAmount'), true)) + '" /></td>';
             x += '</tr>';
             return x;
         }
