@@ -5141,22 +5141,61 @@
             return isAmount ? operationFormatAmount(value) : String(Math.round(operationToNumber(value)));
         }
 
+        function operationNormalizeStoreName(name) {
+            name = (typeof name === 'string') ? name : String(name || '');
+            return name.replace(/\s+/g, '').replace(/[()（）]/g, '').trim().toLowerCase();
+        }
+
+        function operationGetLoadedDateRecords(businessDate) {
+            var records = [];
+            for (var i = 0; i < operationState.items.length; i++) {
+                var itemDate = operationFormatDate(operationState.items[i].business_date || operationState.items[i].businessDate || '');
+                if (itemDate === businessDate) records.push(operationState.items[i]);
+            }
+            return records;
+        }
+
         function operationBuildEditorRows() {
             var storeNames = managerGetOperationStoreNames(), records = Array.isArray(operationState.editorExistingRecords) ? operationState.editorExistingRecords : [];
-            var rows = [], existingMap = {}, seen = {}, legacyIds = [];
+            var rows = [], existingMap = {}, normalizedMap = {}, seen = {}, legacyIds = [];
             for (var i = 0; i < records.length; i++) {
                 var recordStoreName = (records[i].store_name || records[i].storeName || '').trim();
+                var normalizedRecordStoreName = operationNormalizeStoreName(recordStoreName);
                 if (recordStoreName !== '') existingMap[recordStoreName] = records[i];
+                if (normalizedRecordStoreName !== '' && normalizedMap[normalizedRecordStoreName] == null) normalizedMap[normalizedRecordStoreName] = records[i];
             }
-            for (var j = 0; j < storeNames.length; j++) {
-                var shopName = storeNames[j], record = existingMap[shopName] || null;
+            if (storeNames.length === 0 && records.length > 0) {
+                for (var j = 0; j < records.length; j++) {
+                    var fallbackStoreName = (records[j].store_name || records[j].storeName || '').trim();
+                    if (fallbackStoreName === '' || seen[fallbackStoreName]) continue;
+                    seen[fallbackStoreName] = true;
+                    rows.push(operationBuildEditorRowHtml(fallbackStoreName, records[j]));
+                }
+                operationState.editorLegacyRecordIds = [];
+                QH('operationEditorRows', rows.join(''));
+                QH('operationEditorMeta', '已载入当天已有数据，正在同步门店列表...');
+                QV('operationEditorLoading', false);
+                QV('operationEditorEmpty', rows.length === 0);
+                QV('operationEditorTableWrap', rows.length > 0);
+                return;
+            }
+            seen = {};
+            for (var k = 0; k < storeNames.length; k++) {
+                var shopName = storeNames[k], record = existingMap[shopName] || normalizedMap[operationNormalizeStoreName(shopName)] || null;
                 seen[shopName] = true;
                 rows.push(operationBuildEditorRowHtml(shopName, record));
             }
-            for (var k = 0; k < records.length; k++) {
-                var extraStoreName = (records[k].store_name || records[k].storeName || '').trim();
-                if (extraStoreName === '' || seen[extraStoreName]) continue;
-                if (records[k].id != null) legacyIds.push(records[k].id);
+            for (var m = 0; m < records.length; m++) {
+                var extraStoreName = (records[m].store_name || records[m].storeName || '').trim();
+                var normalizedExtraStoreName = operationNormalizeStoreName(extraStoreName);
+                var matchedByNormalize = false;
+                if (normalizedExtraStoreName !== '') {
+                    for (var n = 0; n < storeNames.length; n++) {
+                        if (operationNormalizeStoreName(storeNames[n]) === normalizedExtraStoreName) { matchedByNormalize = true; break; }
+                    }
+                }
+                if (extraStoreName === '' || seen[extraStoreName] || matchedByNormalize) continue;
+                if (records[m].id != null) legacyIds.push(records[m].id);
             }
             operationState.editorLegacyRecordIds = legacyIds;
             QH('operationEditorRows', rows.join(''));
@@ -5186,17 +5225,19 @@
             return x;
         }
 
-        function operationLoadDateRecords(businessDate) {
+        function operationLoadDateRecords(businessDate, preserveRows) {
             if (!businessDate) return;
             operationState.editorDate = businessDate;
             operationState.editorLoading = true;
-            operationState.editorExistingRecords = [];
             operationState.editorLegacyRecordIds = [];
-            QH('operationEditorMeta', '正在加载门店...');
+            if (preserveRows !== true) {
+                operationState.editorExistingRecords = [];
+                QV('operationEditorEmpty', false);
+                QV('operationEditorTableWrap', false);
+                QH('operationEditorRows', '');
+            }
+            QH('operationEditorMeta', preserveRows === true ? '正在加载最新数据...' : '正在加载门店...');
             QV('operationEditorLoading', true);
-            QV('operationEditorEmpty', false);
-            QV('operationEditorTableWrap', false);
-            QH('operationEditorRows', '');
             meshserver.send({ action: 'operationrecorddate', businessDate: businessDate });
         }
 
@@ -5302,20 +5343,25 @@
         function operationOpenEditor(record) {
             var today = new Date(), todayValue = today.getFullYear() + '-' + ('0' + (today.getMonth() + 1)).slice(-2) + '-' + ('0' + today.getDate()).slice(-2);
             var businessDate = record ? operationFormatDate(record.business_date || record.businessDate || todayValue) : todayValue;
+            var cachedRecords = record ? operationGetLoadedDateRecords(businessDate) : [];
             operationState.batch = null;
             operationState.pendingAction = null;
-            operationState.editorExistingRecords = [];
+            operationState.editorExistingRecords = cachedRecords;
             operationState.editorLegacyRecordIds = [];
             operationState.editorDate = businessDate;
             Q('operationFormBusinessDate').value = businessDate;
             QH('operationModalTitle', record ? ('编辑 ' + businessDate + ' 经营数据') : '新增经营记录');
-            QH('operationEditorMeta', '正在加载门店...');
-            QV('operationEditorLoading', true);
-            QV('operationEditorEmpty', false);
-            QV('operationEditorTableWrap', false);
-            QH('operationEditorRows', '');
             managerEnsureOperationStoreOptions();
-            operationLoadDateRecords(businessDate);
+            if (cachedRecords.length > 0) {
+                operationBuildEditorRows();
+            } else {
+                QH('operationEditorMeta', '正在加载门店...');
+                QV('operationEditorLoading', true);
+                QV('operationEditorEmpty', false);
+                QV('operationEditorTableWrap', false);
+                QH('operationEditorRows', '');
+            }
+            operationLoadDateRecords(businessDate, cachedRecords.length > 0);
             operationSetSubmitBusy(false);
             QV('operationModalMask', true);
         }
