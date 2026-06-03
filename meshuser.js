@@ -7668,7 +7668,7 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         if (common.validateInt(command.limit, 1, 60) == true) { limit = command.limit; }
         db.GetFlowerOperationRecordList({ storeSearch: storeSearch, dateFrom: dateFrom, dateTo: dateTo }, page, limit, function (err, result) {
             if (err != null) { obj.send({ action: 'operationrecordlist', result: err.message ? err.message : 'Unable to load operation records.' }); return; }
-            obj.send({ action: 'operationrecordlist', page: page, limit: limit, total: result.total, dates: result.dates || [], records: result.records || [], storeSearch: storeSearch, dateFrom: dateFrom, dateTo: dateTo });
+            obj.send({ action: 'operationrecordlist', page: page, limit: limit, total: result.total, dates: result.dates || [], records: result.records || [], monthIncome: result.monthIncome || 0, monthExpense: result.monthExpense || 0, storeSearch: storeSearch, dateFrom: dateFrom, dateTo: dateTo });
         });
     }
 

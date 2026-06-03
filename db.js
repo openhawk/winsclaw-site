@@ -3652,6 +3652,10 @@ module.exports.CreateDB = function (parent, func) {
             if (typeof limit != 'number' || limit < 1) { limit = 7; }
             filters = (filters && typeof filters === 'object') ? filters : {};
             const args = [], where = ['is_deleted = FALSE'];
+            const now = new Date();
+            const monthStart = now.getFullYear() + '-' + ('0' + (now.getMonth() + 1)).slice(-2) + '-01';
+            const nextMonthDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+            const monthEndExclusive = nextMonthDate.getFullYear() + '-' + ('0' + (nextMonthDate.getMonth() + 1)).slice(-2) + '-01';
             const storeSearch = (typeof filters.storeSearch === 'string') ? filters.storeSearch.trim() : '';
             const dateFrom = (typeof filters.dateFrom === 'string') ? filters.dateFrom.trim() : '';
             const dateTo = (typeof filters.dateTo === 'string') ? filters.dateTo.trim() : '';
@@ -3662,22 +3666,28 @@ module.exports.CreateDB = function (parent, func) {
             Datastore.query('SELECT COUNT(*) AS count FROM (SELECT business_date FROM flower_operation_records' + whereSql + ' GROUP BY business_date) t', args, function (err, countResults) {
                 if (err != null) { func(err); return; }
                 const total = parseInt(countResults.rows[0].count);
-                const dateArgs = args.slice(0);
-                dateArgs.push(limit);
-                dateArgs.push((page - 1) * limit);
-                Datastore.query('SELECT business_date FROM flower_operation_records' + whereSql + ' GROUP BY business_date ORDER BY business_date DESC LIMIT $' + (args.length + 1) + ' OFFSET $' + (args.length + 2), dateArgs, function (dateErr, dateResults) {
-                    if (dateErr != null) { func(dateErr); return; }
-                    const businessDates = (dateResults.rows || []).map(function (row) { return row.business_date; });
-                    if (businessDates.length === 0) { func(null, { total: total, records: [], dates: [] }); return; }
-                    const listArgs = args.slice(0);
-                    const placeholders = [];
-                    for (let i = 0; i < businessDates.length; i++) {
-                        listArgs.push(businessDates[i]);
-                        placeholders.push('$' + listArgs.length);
-                    }
-                    Datastore.query('SELECT id, business_date::text AS business_date, store_name, meituan_orders, meituan_amount, taobao_orders, taobao_amount, jd_orders, jd_amount, douyin_orders, douyin_amount, offline_orders, offline_amount, expense_category, expense_amount, is_deleted, deleted_at, created_at, updated_at FROM flower_operation_records' + whereSql + ' AND business_date IN (' + placeholders.join(', ') + ') ORDER BY business_date DESC, store_name ASC, id ASC', listArgs, function (listErr, listResults) {
-                        if (listErr != null) { func(listErr); return; }
-                        func(null, { total: total, dates: businessDates, records: listResults.rows || [] });
+                Datastore.query('SELECT COALESCE(SUM(COALESCE(meituan_amount, 0) + COALESCE(taobao_amount, 0) + COALESCE(jd_amount, 0) + COALESCE(douyin_amount, 0) + COALESCE(offline_amount, 0)), 0) AS month_income, COALESCE(SUM(COALESCE(expense_amount, 0)), 0) AS month_expense FROM flower_operation_records WHERE is_deleted = FALSE AND business_date >= $1 AND business_date < $2', [monthStart, monthEndExclusive], function (summaryErr, summaryResults) {
+                    if (summaryErr != null) { func(summaryErr); return; }
+                    const summaryRow = (summaryResults.rows && summaryResults.rows[0]) ? summaryResults.rows[0] : {};
+                    const monthIncome = parseFloat(summaryRow.month_income || 0) || 0;
+                    const monthExpense = parseFloat(summaryRow.month_expense || 0) || 0;
+                    const dateArgs = args.slice(0);
+                    dateArgs.push(limit);
+                    dateArgs.push((page - 1) * limit);
+                    Datastore.query('SELECT business_date FROM flower_operation_records' + whereSql + ' GROUP BY business_date ORDER BY business_date DESC LIMIT $' + (args.length + 1) + ' OFFSET $' + (args.length + 2), dateArgs, function (dateErr, dateResults) {
+                        if (dateErr != null) { func(dateErr); return; }
+                        const businessDates = (dateResults.rows || []).map(function (row) { return row.business_date; });
+                        if (businessDates.length === 0) { func(null, { total: total, records: [], dates: [], monthIncome: monthIncome, monthExpense: monthExpense }); return; }
+                        const listArgs = args.slice(0);
+                        const placeholders = [];
+                        for (let i = 0; i < businessDates.length; i++) {
+                            listArgs.push(businessDates[i]);
+                            placeholders.push('$' + listArgs.length);
+                        }
+                        Datastore.query('SELECT id, business_date::text AS business_date, store_name, meituan_orders, meituan_amount, taobao_orders, taobao_amount, jd_orders, jd_amount, douyin_orders, douyin_amount, offline_orders, offline_amount, expense_category, expense_amount, is_deleted, deleted_at, created_at, updated_at FROM flower_operation_records' + whereSql + ' AND business_date IN (' + placeholders.join(', ') + ') ORDER BY business_date DESC, store_name ASC, id ASC', listArgs, function (listErr, listResults) {
+                            if (listErr != null) { func(listErr); return; }
+                            func(null, { total: total, dates: businessDates, records: listResults.rows || [], monthIncome: monthIncome, monthExpense: monthExpense });
+                        });
                     });
                 });
             });
