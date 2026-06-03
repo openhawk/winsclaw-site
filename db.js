@@ -3675,7 +3675,7 @@ module.exports.CreateDB = function (parent, func) {
                         listArgs.push(businessDates[i]);
                         placeholders.push('$' + listArgs.length);
                     }
-                    Datastore.query('SELECT * FROM flower_operation_records' + whereSql + ' AND business_date IN (' + placeholders.join(', ') + ') ORDER BY business_date DESC, store_name ASC, id ASC', listArgs, function (listErr, listResults) {
+                    Datastore.query('SELECT id, business_date::text AS business_date, store_name, meituan_orders, meituan_amount, taobao_orders, taobao_amount, jd_orders, jd_amount, douyin_orders, douyin_amount, offline_orders, offline_amount, expense_category, expense_amount, is_deleted, deleted_at, created_at, updated_at FROM flower_operation_records' + whereSql + ' AND business_date IN (' + placeholders.join(', ') + ') ORDER BY business_date DESC, store_name ASC, id ASC', listArgs, function (listErr, listResults) {
                         if (listErr != null) { func(listErr); return; }
                         func(null, { total: total, dates: businessDates, records: listResults.rows || [] });
                     });
@@ -3685,7 +3685,7 @@ module.exports.CreateDB = function (parent, func) {
 
         obj.GetFlowerOperationRecordsByDate = function (businessDate, func) {
             if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Operation manager requires PostgreSQL.')); return; }
-            Datastore.query('SELECT * FROM flower_operation_records WHERE business_date = $1 AND is_deleted = FALSE ORDER BY store_name ASC, id ASC', [businessDate], function (err, results) {
+            Datastore.query('SELECT id, business_date::text AS business_date, store_name, meituan_orders, meituan_amount, taobao_orders, taobao_amount, jd_orders, jd_amount, douyin_orders, douyin_amount, offline_orders, offline_amount, expense_category, expense_amount, is_deleted, deleted_at, created_at, updated_at FROM flower_operation_records WHERE business_date = $1 AND is_deleted = FALSE ORDER BY store_name ASC, id ASC', [businessDate], function (err, results) {
                 if (err != null) { func(err); return; }
                 func(null, results.rows || []);
             });
@@ -3712,7 +3712,7 @@ module.exports.CreateDB = function (parent, func) {
                 now,
                 now
             ];
-            Datastore.query('INSERT INTO flower_operation_records (business_date, store_name, meituan_orders, meituan_amount, taobao_orders, taobao_amount, jd_orders, jd_amount, douyin_orders, douyin_amount, offline_orders, offline_amount, expense_category, expense_amount, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING *', values, function (err, results) {
+            Datastore.query('INSERT INTO flower_operation_records (business_date, store_name, meituan_orders, meituan_amount, taobao_orders, taobao_amount, jd_orders, jd_amount, douyin_orders, douyin_amount, offline_orders, offline_amount, expense_category, expense_amount, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING id, business_date::text AS business_date, store_name, meituan_orders, meituan_amount, taobao_orders, taobao_amount, jd_orders, jd_amount, douyin_orders, douyin_amount, offline_orders, offline_amount, expense_category, expense_amount, is_deleted, deleted_at, created_at, updated_at', values, function (err, results) {
                 if (err != null) { func(err); return; }
                 func(null, results.rows[0]);
             });
@@ -3738,7 +3738,7 @@ module.exports.CreateDB = function (parent, func) {
                 record.expenseAmount,
                 new Date()
             ];
-            Datastore.query('UPDATE flower_operation_records SET business_date = $2, store_name = $3, meituan_orders = $4, meituan_amount = $5, taobao_orders = $6, taobao_amount = $7, jd_orders = $8, jd_amount = $9, douyin_orders = $10, douyin_amount = $11, offline_orders = $12, offline_amount = $13, expense_category = $14, expense_amount = $15, updated_at = $16 WHERE id = $1 AND is_deleted = FALSE RETURNING *', values, function (err, results) {
+            Datastore.query('UPDATE flower_operation_records SET business_date = $2, store_name = $3, meituan_orders = $4, meituan_amount = $5, taobao_orders = $6, taobao_amount = $7, jd_orders = $8, jd_amount = $9, douyin_orders = $10, douyin_amount = $11, offline_orders = $12, offline_amount = $13, expense_category = $14, expense_amount = $15, updated_at = $16 WHERE id = $1 AND is_deleted = FALSE RETURNING id, business_date::text AS business_date, store_name, meituan_orders, meituan_amount, taobao_orders, taobao_amount, jd_orders, jd_amount, douyin_orders, douyin_amount, offline_orders, offline_amount, expense_category, expense_amount, is_deleted, deleted_at, created_at, updated_at', values, function (err, results) {
                 if (err != null) { func(err); return; }
                 if ((results.rows == null) || (results.rows.length === 0)) { func(new Error('Operation record not found.')); return; }
                 func(null, results.rows[0]);
