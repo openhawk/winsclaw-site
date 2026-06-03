@@ -4874,13 +4874,21 @@ a {
     white-space: nowrap;
 }
 
-.ops-editor-table td input {
+.ops-editor-table td input,
+.ops-editor-table td textarea {
     width: 100%;
     border: 1px solid #d3e0ed;
     border-radius: 10px;
     padding: 9px 10px;
     box-sizing: border-box;
     background: #fbfdff;
+}
+
+.ops-editor-table td textarea {
+    min-height: 84px;
+    line-height: 1.45;
+    resize: vertical;
+    font: inherit;
 }
 
 .ops-editor-store-cell {
@@ -4907,6 +4915,11 @@ a {
     color: #8a5a00;
     font-size: 12px;
     font-weight: 700;
+}
+
+.ops-expense-category-cell {
+    white-space: pre-line;
+    line-height: 1.5;
 }
 
 #p106 {

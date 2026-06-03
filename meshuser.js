@@ -7626,7 +7626,7 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
     function getOperationRecordPayload(command) {
         var businessDate = getOperationDateField(command.businessDate);
         var storeName = getShopTextField(command.storeName, 256);
-        var expenseCategory = getShopTextField(command.expenseCategory || '', 128);
+        var expenseCategory = getShopTextField(command.expenseCategory || '', 512);
         var payload = {
             businessDate: businessDate,
             storeName: storeName,

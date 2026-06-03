@@ -5053,7 +5053,7 @@
                     x += '<td>' + EscapeHtml(operationFormatAmountCell(row.douyin_amount || row.douyinAmount)) + '</td>';
                     x += '<td>' + EscapeHtml(operationFormatInteger(row.offline_orders || row.offlineOrders)) + '</td>';
                     x += '<td>' + EscapeHtml(operationFormatAmountCell(row.offline_amount || row.offlineAmount)) + '</td>';
-                    x += '<td>' + EscapeHtml((row.expense_category || row.expenseCategory || '').trim() || '-') + '</td>';
+                    x += '<td class="ops-expense-category-cell">' + EscapeHtml((row.expense_category || row.expenseCategory || '').trim() || '-') + '</td>';
                     x += '<td>' + EscapeHtml(operationFormatAmountCell(row.expense_amount || row.expenseAmount)) + '</td>';
                     x += '</tr>';
                 }
@@ -5180,7 +5180,7 @@
             x += '<td><input data-field="douyinAmount" type="number" min="0" step="0.01" value="' + EscapeHtml(operationFormatEditorValue(record ? (record.douyin_amount || record.douyinAmount) : '', true)) + '" /></td>';
             x += '<td><input data-field="offlineOrders" type="number" min="0" step="1" value="' + EscapeHtml(operationFormatEditorValue(record ? (record.offline_orders || record.offlineOrders) : '', false)) + '" /></td>';
             x += '<td><input data-field="offlineAmount" type="number" min="0" step="0.01" value="' + EscapeHtml(operationFormatEditorValue(record ? (record.offline_amount || record.offlineAmount) : '', true)) + '" /></td>';
-            x += '<td><input data-field="expenseCategory" type="text" maxlength="128" value="' + EscapeHtml(record ? (record.expense_category || record.expenseCategory || '') : '') + '" placeholder="例如：包装耗材" /></td>';
+            x += '<td><textarea data-field="expenseCategory" maxlength="512" rows="3" placeholder="例如：包装耗材&#10;跑腿费&#10;花泥辅材">' + EscapeHtml(record ? (record.expense_category || record.expenseCategory || '') : '') + '</textarea></td>';
             x += '<td><input data-field="expenseAmount" type="number" min="0" step="0.01" value="' + EscapeHtml(operationFormatEditorValue(record ? (record.expense_amount || record.expenseAmount) : '', true)) + '" /></td>';
             x += '</tr>';
             return x;
