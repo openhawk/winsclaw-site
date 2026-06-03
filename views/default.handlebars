@@ -1932,7 +1932,9 @@
                                 </label>
                                 <label class="ops-field">
                                     <span>门店 <b>*</b></span>
-                                    <input id="operationFormStoreName" type="text" maxlength="256" placeholder="例如：酷木" />
+                                    <select id="operationFormStoreName">
+                                        <option value="">请选择大明的店铺</option>
+                                    </select>
                                 </label>
                                 <label class="ops-field"><span>美团订单</span><input id="operationFormMeituanOrders" type="number" min="0" step="1" /></label>
                                 <label class="ops-field"><span>美团金额</span><input id="operationFormMeituanAmount" type="number" min="0" step="0.01" /></label>
@@ -3018,7 +3020,7 @@
         var flowState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, loadTimer: null, loadRetry: 0, pendingAction: null, pendingMyShopId: '', currentRunsFlowId: null, runsPage: 1, runsLimit: 10, runsTimer: null, pricingReference: { nextRowSeq: 1, rows: {} }, pricingTaskMeta: { skuStrategy: 'allActive' }, productBinding: { searchTimer: null, suggestions: [], activeSearch: '' } };
         var collectState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, currentResultsTaskId: null, resultsPage: 1, resultsLimit: 10 };
         var scheduledState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, listTimer: null, pendingAction: null, currentRunsTaskId: null, runsPage: 1, runsLimit: 10, runSteps: {} };
-        var operationState = { items: [], total: 0, page: 1, limit: 7, storeSearch: '', dateFrom: '', dateTo: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null };
+        var operationState = { items: [], total: 0, page: 1, limit: 7, storeSearch: '', dateFrom: '', dateTo: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, pendingStoreName: '' };
         var managerExecutionMap = {};
 
         function shopEnterPage() {
@@ -3818,6 +3820,25 @@
             if (Q('flowPricingMyShopId') != null) managerPopulateMyShopSelect('flowPricingMyShopId', selectedId || Q('flowPricingMyShopId').value);
             if ((myShopState.loaded !== true) || ((myShopState.items || []).length < myShopState.total)) {
                 meshserver.send({ action: 'myshoplist', search: '', page: 1, limit: 200 });
+            }
+        }
+        function managerPopulateOperationStoreSelect(selectedName) {
+            var options = '<option value="">请选择大明的店铺</option>', list = myShopState.items || [], selected = String(selectedName || ''), found = false, addedNames = {};
+            for (var i = 0; i < list.length; i++) {
+                var shopName = (list[i].name || '').trim();
+                if (shopName === '' || addedNames[shopName]) continue;
+                addedNames[shopName] = true;
+                if (selected !== '' && shopName === selected) found = true;
+                options += '<option value="' + EscapeHtml(shopName) + '"' + ((selected !== '' && shopName === selected) ? ' selected="selected"' : '') + '>' + EscapeHtml(shopName) + '</option>';
+            }
+            if (selected !== '' && found === false) options += '<option value="' + EscapeHtml(selected) + '" selected="selected">已选门店（可能已删除）：' + EscapeHtml(selected) + '</option>';
+            QH('operationFormStoreName', options);
+        }
+        function managerEnsureOperationStoreOptions(selectedName) {
+            operationState.pendingStoreName = (selectedName != null) ? String(selectedName) : (Q('operationFormStoreName') != null ? Q('operationFormStoreName').value : '');
+            if (Q('operationFormStoreName') != null) managerPopulateOperationStoreSelect(operationState.pendingStoreName);
+            if ((myShopState.loaded !== true) || ((myShopState.items || []).length < myShopState.total)) {
+                meshserver.send({ action: 'myshoplist', search: '', page: 1, limit: Math.max(200, myShopState.total || 0) });
             }
         }
         function managerTryParseCollectData(output) {
@@ -5110,10 +5131,10 @@
         }
 
         function operationOpenEditor(record) {
-            var today = new Date(), todayValue = today.getFullYear() + '-' + ('0' + (today.getMonth() + 1)).slice(-2) + '-' + ('0' + today.getDate()).slice(-2);
+            var today = new Date(), todayValue = today.getFullYear() + '-' + ('0' + (today.getMonth() + 1)).slice(-2) + '-' + ('0' + today.getDate()).slice(-2), storeName = record ? (record.store_name || record.storeName || '') : '';
             Q('operationFormId').value = record ? record.id : '';
             Q('operationFormBusinessDate').value = record ? operationFormatDate(record.business_date || record.businessDate || todayValue) : todayValue;
-            Q('operationFormStoreName').value = record ? (record.store_name || record.storeName || '') : '';
+            managerEnsureOperationStoreOptions(storeName);
             Q('operationFormMeituanOrders').value = record ? (record.meituan_orders == null ? '' : record.meituan_orders) : '';
             Q('operationFormMeituanAmount').value = record ? (record.meituan_amount == null ? '' : record.meituan_amount) : '';
             Q('operationFormTaobaoOrders').value = record ? (record.taobao_orders == null ? '' : record.taobao_orders) : '';
@@ -6225,6 +6246,7 @@
                     if (Q('flowModalMask') != null && Q('flowModalMask').style.display !== 'none' && Q('flowFormMyShopId') != null) managerPopulateMyShopSelect('flowFormMyShopId', Q('flowFormMyShopId').value || flowState.pendingMyShopId);
                     if (Q('flowModalMask') != null && Q('flowModalMask').style.display !== 'none' && Q('flowPricingMyShopId') != null) managerPopulateMyShopSelect('flowPricingMyShopId', Q('flowPricingMyShopId').value || flowState.pendingMyShopId);
                     if (Q('flowModalMask') != null && Q('flowModalMask').style.display !== 'none') flowSyncShopCategoryFromShop(false);
+                    if (Q('operationModalMask') != null && Q('operationModalMask').style.display !== 'none' && Q('operationFormStoreName') != null) managerPopulateOperationStoreSelect(Q('operationFormStoreName').value || operationState.pendingStoreName);
                     break;
                 }
                 case 'myshopcreate': {

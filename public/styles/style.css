@@ -4570,7 +4570,7 @@ a {
     font-weight: 600;
 }
 
-.ops-filter-field input, .ops-field input {
+.ops-filter-field input, .ops-field input, .ops-filter-field select, .ops-field select {
     width: 100%;
     border: 1px solid #cddded;
     border-radius: 12px;
