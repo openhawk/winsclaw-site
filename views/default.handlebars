@@ -1894,6 +1894,10 @@
                                     <span class="ops-month-label">当月总支出</span>
                                     <strong id="operationMonthExpense">¥0.00</strong>
                                 </div>
+                                <div class="ops-month-card">
+                                    <span class="ops-month-label">当月毛利</span>
+                                    <strong id="operationMonthGrossProfit">¥0.00</strong>
+                                </div>
                             </div>
                             <button type="button" class="ops-btn ops-btn-primary" onclick="operationOpenEditor()">新增记录</button>
                         </div>
@@ -5044,9 +5048,11 @@
         }
 
         function operationRender() {
+            var monthGrossProfit = operationToNumber(operationState.monthIncome) - operationToNumber(operationState.monthExpense);
             if (Q('operationToolbarMeta') != null) QH('operationToolbarMeta', '共 ' + operationState.total + ' 天经营数据');
             if (Q('operationMonthIncome') != null) QH('operationMonthIncome', '¥' + operationFormatAmount(operationState.monthIncome));
             if (Q('operationMonthExpense') != null) QH('operationMonthExpense', '¥' + operationFormatAmount(operationState.monthExpense));
+            if (Q('operationMonthGrossProfit') != null) QH('operationMonthGrossProfit', '¥' + operationFormatAmount(monthGrossProfit));
             if ((operationState.items || []).length === 0) {
                 QH('operationTableWrap', '');
                 QV('operationEmptyState', !operationState.loading);
