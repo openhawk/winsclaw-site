@@ -5037,8 +5037,8 @@
                 var rows = grouped[businessDate] || [];
                 var summary = operationBuildSummary(rows);
                 x += '<section class="ops-day-card">';
-                x += '<div class="ops-day-head"><div class="ops-day-title">' + EscapeHtml(businessDate) + '</div><div class="ops-day-summary"><span>门店数 ' + EscapeHtml(String(rows.length)) + '</span><span>总订单量 ' + EscapeHtml(String(summary.totalOrders)) + '</span><span>总收入 ¥' + EscapeHtml(operationFormatAmount(summary.totalIncome)) + '</span></div></div>';
-                x += '<div class="ops-day-table"><table class="ops-table"><thead><tr><th rowspan="2">门店</th><th colspan="2">美团</th><th colspan="2">淘宝闪购</th><th colspan="2">京东</th><th colspan="2">抖音</th><th colspan="2">线下</th><th rowspan="2">支出类别</th><th rowspan="2">支出费用</th><th rowspan="2">操作</th></tr><tr><th>订单</th><th>金额</th><th>订单</th><th>金额</th><th>订单</th><th>金额</th><th>订单</th><th>金额</th><th>订单</th><th>金额</th></tr></thead><tbody>';
+                x += '<div class="ops-day-head"><div class="ops-day-title">' + EscapeHtml(businessDate) + '</div><div class="ops-day-head-right"><div class="ops-day-summary"><span>门店数 ' + EscapeHtml(String(rows.length)) + '</span><span>总订单量 ' + EscapeHtml(String(summary.totalOrders)) + '</span><span>总收入 ¥' + EscapeHtml(operationFormatAmount(summary.totalIncome)) + '</span></div><div class="ops-day-actions"><button type="button" class="ops-btn" onclick="operationOpenEditorByDate(\'' + EscapeHtml(businessDate) + '\')">编辑当天</button><button type="button" class="ops-btn ops-btn-danger" onclick="operationConfirmDeleteDate(\'' + EscapeHtml(businessDate) + '\')">删除当天</button></div></div></div>';
+                x += '<div class="ops-day-table"><table class="ops-table"><thead><tr><th rowspan="2">门店</th><th colspan="2">美团</th><th colspan="2">淘宝闪购</th><th colspan="2">京东</th><th colspan="2">抖音</th><th colspan="2">线下</th><th rowspan="2">支出类别</th><th rowspan="2">支出费用</th></tr><tr><th>订单</th><th>金额</th><th>订单</th><th>金额</th><th>订单</th><th>金额</th><th>订单</th><th>金额</th><th>订单</th><th>金额</th></tr></thead><tbody>';
                 for (var k = 0; k < rows.length; k++) {
                     var row = rows[k];
                     x += '<tr>';
@@ -5055,7 +5055,6 @@
                     x += '<td>' + EscapeHtml(operationFormatAmountCell(row.offline_amount || row.offlineAmount)) + '</td>';
                     x += '<td>' + EscapeHtml((row.expense_category || row.expenseCategory || '').trim() || '-') + '</td>';
                     x += '<td>' + EscapeHtml(operationFormatAmountCell(row.expense_amount || row.expenseAmount)) + '</td>';
-                    x += '<td><div class="ops-row-actions"><button type="button" class="ops-btn" onclick="operationOpenEditorById(\'' + EscapeHtml(String(row.id)) + '\')">编辑当天</button><button type="button" class="ops-btn ops-btn-danger" onclick="operationConfirmDelete(\'' + EscapeHtml(String(row.id)) + '\')">删除</button></div></td>';
                     x += '</tr>';
                 }
                 x += '<tr class="ops-summary-row"><td class="ops-summary-label">统计分析</td>';
@@ -5064,7 +5063,7 @@
                 x += '<td>' + EscapeHtml(String(summary.jdOrders)) + '</td><td>' + EscapeHtml(operationFormatAmount(summary.jdAmount)) + '</td>';
                 x += '<td>' + EscapeHtml(String(summary.douyinOrders)) + '</td><td>' + EscapeHtml(operationFormatAmount(summary.douyinAmount)) + '</td>';
                 x += '<td>' + EscapeHtml(String(summary.offlineOrders)) + '</td><td>' + EscapeHtml(operationFormatAmount(summary.offlineAmount)) + '</td>';
-                x += '<td class="ops-summary-total">总订单量 ' + EscapeHtml(String(summary.totalOrders)) + '</td><td class="ops-summary-total">总收入 ¥' + EscapeHtml(operationFormatAmount(summary.totalIncome)) + '</td><td class="ops-summary-hint">准确记录当天数据</td></tr>';
+                x += '<td class="ops-summary-total">总订单量 ' + EscapeHtml(String(summary.totalOrders)) + '</td><td class="ops-summary-total">总收入 ¥' + EscapeHtml(operationFormatAmount(summary.totalIncome)) + '</td></tr>';
                 x += '</tbody></table></div></section>';
             }
             QH('operationTableWrap', x);
@@ -5249,7 +5248,13 @@
         }
 
         function operationStartBatch(actions) {
-            operationState.batch = { actions: actions, index: 0 };
+            operationState.batch = { actions: actions, index: 0, mode: 'save' };
+            operationState.pendingAction = actions[0].action;
+            meshserver.send(actions[0]);
+        }
+
+        function operationStartDeleteBatch(actions) {
+            operationState.batch = { actions: actions, index: 0, mode: 'deleteDate' };
             operationState.pendingAction = actions[0].action;
             meshserver.send(actions[0]);
         }
@@ -5264,12 +5269,18 @@
             }
             operationState.batch.index++;
             if (operationState.batch.index >= operationState.batch.actions.length) {
+                var batchMode = operationState.batch.mode;
                 operationState.batch = null;
                 operationState.pendingAction = null;
                 operationSetSubmitBusy(false);
-                operationCloseEditor();
-                operationShowToast('当天经营数据已保存。', false);
-                operationRefreshList(1);
+                if (batchMode === 'deleteDate') {
+                    operationShowToast('当天经营数据已删除。', false);
+                    operationRefreshList(1);
+                } else {
+                    operationCloseEditor();
+                    operationShowToast('当天经营数据已保存。', false);
+                    operationRefreshList(1);
+                }
                 return;
             }
             var nextAction = operationState.batch.actions[operationState.batch.index];
@@ -5281,6 +5292,10 @@
             for (var i = 0; i < operationState.items.length; i++) {
                 if (String(operationState.items[i].id) === String(id)) { operationOpenEditor(operationState.items[i]); return; }
             }
+        }
+
+        function operationOpenEditorByDate(businessDate) {
+            operationOpenEditor({ business_date: businessDate });
         }
 
         function operationOpenEditor(record) {
@@ -5350,6 +5365,20 @@
                 if (button !== 1) return;
                 meshserver.send({ action: 'operationrecorddelete', id: tag });
             }, '确认删除经营记录“' + EscapeHtml(label) + '”吗？删除后将立即刷新列表。', id);
+        }
+
+        function operationConfirmDeleteDate(businessDate) {
+            var actions = [];
+            for (var i = 0; i < operationState.items.length; i++) {
+                var itemDate = operationFormatDate(operationState.items[i].business_date || operationState.items[i].businessDate || '');
+                if (itemDate === businessDate) actions.push({ action: 'operationrecorddelete', id: operationState.items[i].id });
+            }
+            if (actions.length === 0) { operationShowToast('当天没有可删除的数据。', true); return; }
+            setDialogMode(2, '删除当天经营数据', 3, function (button) {
+                if (button !== 1) return;
+                operationSetSubmitBusy(true);
+                operationStartDeleteBatch(actions);
+            }, '确认删除 ' + EscapeHtml(businessDate) + ' 的全部经营数据吗？', businessDate);
         }
 
         function operationShowToast(text, isError) {

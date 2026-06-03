@@ -4643,6 +4643,15 @@ a {
     color: #17324d;
 }
 
+.ops-day-head-right,
+.ops-day-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
 .ops-day-summary {
     display: flex;
     flex-wrap: wrap;
@@ -4926,7 +4935,7 @@ a {
     .flow-page-top, .flow-toolbar, .flow-card-footer, .flow-modal-footer,
     .collect-page-top, .collect-toolbar, .collect-card-footer, .collect-modal-footer,
     .ops-editor-top,
-    .ops-page-top, .ops-toolbar, .ops-modal-footer, .ops-day-head {
+    .ops-page-top, .ops-toolbar, .ops-modal-footer, .ops-day-head, .ops-day-head-right {
         flex-direction: column;
         align-items: stretch;
     }
