@@ -1936,24 +1936,6 @@
                                 <div class="ops-empty-title">暂无门店</div>
                                 <div class="ops-empty-text">请先在“大明的店铺”里维护门店信息，再回来录入经营日报。</div>
                             </div>
-                            <div id="operationEditorSharedWrap" class="ops-shared-grid" style="display:none">
-                                <label class="ops-field">
-                                    <span>线下订单</span>
-                                    <input id="operationSharedOfflineOrders" type="number" min="0" step="1" />
-                                </label>
-                                <label class="ops-field">
-                                    <span>线下金额</span>
-                                    <input id="operationSharedOfflineAmount" type="number" min="0" step="0.01" />
-                                </label>
-                                <label class="ops-field ops-shared-field-wide">
-                                    <span>支出类别</span>
-                                    <textarea id="operationSharedExpenseCategory" rows="3" maxlength="512" placeholder="例如：包装耗材&#10;跑腿费&#10;花泥辅材"></textarea>
-                                </label>
-                                <label class="ops-field">
-                                    <span>支出费用</span>
-                                    <input id="operationSharedExpenseAmount" type="number" min="0" step="0.01" />
-                                </label>
-                            </div>
                             <div id="operationEditorTableWrap" class="ops-editor-table-wrap" style="display:none">
                                 <table class="ops-editor-table">
                                     <thead>
@@ -1971,6 +1953,24 @@
                                     </thead>
                                     <tbody id="operationEditorRows"></tbody>
                                 </table>
+                            </div>
+                            <div id="operationEditorSharedWrap" class="ops-shared-grid" style="display:none">
+                                <label class="ops-field">
+                                    <span>线下订单</span>
+                                    <input id="operationSharedOfflineOrders" type="number" min="0" step="1" />
+                                </label>
+                                <label class="ops-field">
+                                    <span>线下金额</span>
+                                    <input id="operationSharedOfflineAmount" type="number" min="0" step="0.01" />
+                                </label>
+                                <label class="ops-field ops-shared-field-wide">
+                                    <span>支出类别</span>
+                                    <textarea id="operationSharedExpenseCategory" rows="2" maxlength="512" placeholder="例如：包装耗材&#10;跑腿费&#10;花泥辅材"></textarea>
+                                </label>
+                                <label class="ops-field">
+                                    <span>支出费用</span>
+                                    <input id="operationSharedExpenseAmount" type="number" min="0" step="0.01" />
+                                </label>
                             </div>
                         </div>
                         <div class="ops-modal-footer">
