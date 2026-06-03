@@ -3683,6 +3683,14 @@ module.exports.CreateDB = function (parent, func) {
             });
         };
 
+        obj.GetFlowerOperationRecordsByDate = function (businessDate, func) {
+            if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Operation manager requires PostgreSQL.')); return; }
+            Datastore.query('SELECT * FROM flower_operation_records WHERE business_date = $1 AND is_deleted = FALSE ORDER BY store_name ASC, id ASC', [businessDate], function (err, results) {
+                if (err != null) { func(err); return; }
+                func(null, results.rows || []);
+            });
+        };
+
         obj.CreateFlowerOperationRecord = function (record, func) {
             if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Operation manager requires PostgreSQL.')); return; }
             const now = new Date();

@@ -5776,6 +5776,7 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         'pricingreferenceproducts': serverCommandPricingReferenceProductList,
         'pricingreferenceshops': serverCommandPricingReferenceShopList,
         'myshopupdate': serverCommandMyShopUpdate,
+        'operationrecorddate': serverCommandOperationRecordDate,
         'operationrecordcreate': serverCommandOperationRecordCreate,
         'operationrecorddelete': serverCommandOperationRecordDelete,
         'operationrecordlist': serverCommandOperationRecordList,
@@ -7672,6 +7673,15 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         db.GetFlowerOperationRecordList({ storeSearch: storeSearch, dateFrom: dateFrom, dateTo: dateTo }, page, limit, function (err, result) {
             if (err != null) { obj.send({ action: 'operationrecordlist', result: err.message ? err.message : 'Unable to load operation records.' }); return; }
             obj.send({ action: 'operationrecordlist', page: page, limit: limit, total: result.total, dates: result.dates || [], records: result.records || [], storeSearch: storeSearch, dateFrom: dateFrom, dateTo: dateTo });
+        });
+    }
+
+    function serverCommandOperationRecordDate(command) {
+        var businessDate = getOperationDateField(command.businessDate);
+        if (businessDate == null) { obj.send({ action: 'operationrecorddate', result: '日期格式无效，请使用 YYYY-MM-DD。' }); return; }
+        db.GetFlowerOperationRecordsByDate(businessDate, function (err, records) {
+            if (err != null) { obj.send({ action: 'operationrecorddate', businessDate: businessDate, result: err.message ? err.message : 'Unable to load operation records.' }); return; }
+            obj.send({ action: 'operationrecorddate', businessDate: businessDate, records: records || [] });
         });
     }
 

@@ -4777,7 +4777,7 @@ a {
 }
 
 .ops-modal {
-    width: min(1080px, 100%);
+    width: min(1680px, 100%);
     max-height: calc(100vh - 48px);
     overflow: auto;
     margin: 0 auto;
@@ -4814,6 +4814,92 @@ a {
     gap: 14px;
 }
 
+.ops-editor-top {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 18px;
+}
+
+.ops-editor-date-field {
+    min-width: 240px;
+    max-width: 320px;
+}
+
+.ops-editor-meta {
+    color: #496683;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.ops-editor-table-wrap {
+    border: 1px solid #dce7f2;
+    border-radius: 18px;
+    overflow: auto;
+    background: #fff;
+}
+
+.ops-editor-table {
+    width: 100%;
+    min-width: 1620px;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.ops-editor-table th,
+.ops-editor-table td {
+    border: 1px solid #e0e8f1;
+    padding: 8px;
+    background: #fff;
+}
+
+.ops-editor-table th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #eef4fb;
+    color: #153450;
+    font-size: 13px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.ops-editor-table td input {
+    width: 100%;
+    border: 1px solid #d3e0ed;
+    border-radius: 10px;
+    padding: 9px 10px;
+    box-sizing: border-box;
+    background: #fbfdff;
+}
+
+.ops-editor-store-cell {
+    min-width: 220px;
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: #f9fbff !important;
+}
+
+.ops-editor-store-name {
+    font-weight: 800;
+    color: #17324d;
+    line-height: 1.35;
+}
+
+.ops-editor-store-tag {
+    margin-top: 6px;
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: #fff2cc;
+    color: #8a5a00;
+    font-size: 12px;
+    font-weight: 700;
+}
+
 #p106 {
     overflow-y: auto;
     height: calc(100vh - 145px);
@@ -4839,6 +4925,7 @@ a {
 @media (max-width: 920px) {
     .flow-page-top, .flow-toolbar, .flow-card-footer, .flow-modal-footer,
     .collect-page-top, .collect-toolbar, .collect-card-footer, .collect-modal-footer,
+    .ops-editor-top,
     .ops-page-top, .ops-toolbar, .ops-modal-footer, .ops-day-head {
         flex-direction: column;
         align-items: stretch;

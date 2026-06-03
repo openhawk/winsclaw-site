@@ -1882,7 +1882,7 @@
                     <div class="ops-page-top">
                         <div>
                             <h1 class="ops-page-title">经营日报</h1>
-                            <div class="ops-page-subtitle">按日期归档各门店平台订单、收入与支出，支持表格式查看和基础增删改查。</div>
+                            <div class="ops-page-subtitle">按日期归档各门店平台订单、收入与支出，支持按天批量录入和表格式查看。</div>
                         </div>
                         <div class="ops-toolbar-actions">
                             <button type="button" class="ops-btn ops-btn-primary" onclick="operationOpenEditor()">新增记录</button>
@@ -1919,35 +1919,44 @@
                         <div class="ops-modal-header">
                             <div>
                                 <div id="operationModalTitle" class="ops-modal-title">新增经营记录</div>
-                                <div class="ops-modal-subtitle">维护单日、单门店的各平台订单金额和支出信息。</div>
+                                <div class="ops-modal-subtitle">一个日期对应全部门店，每个门店占一行，横向填写当天经营数据。</div>
                             </div>
                             <button type="button" class="ops-modal-close" onclick="operationCloseEditor()">×</button>
                         </div>
                         <div class="ops-modal-body">
-                            <input id="operationFormId" type="hidden" />
-                            <div class="ops-form-grid">
-                                <label class="ops-field">
+                            <div class="ops-editor-top">
+                                <label class="ops-field ops-editor-date-field">
                                     <span>日期 <b>*</b></span>
-                                    <input id="operationFormBusinessDate" type="date" />
+                                    <input id="operationFormBusinessDate" type="date" onchange="operationHandleEditorDateChange()" />
                                 </label>
-                                <label class="ops-field">
-                                    <span>门店 <b>*</b></span>
-                                    <select id="operationFormStoreName">
-                                        <option value="">请选择大明的店铺</option>
-                                    </select>
-                                </label>
-                                <label class="ops-field"><span>美团订单</span><input id="operationFormMeituanOrders" type="number" min="0" step="1" /></label>
-                                <label class="ops-field"><span>美团金额</span><input id="operationFormMeituanAmount" type="number" min="0" step="0.01" /></label>
-                                <label class="ops-field"><span>淘宝闪购订单</span><input id="operationFormTaobaoOrders" type="number" min="0" step="1" /></label>
-                                <label class="ops-field"><span>淘宝闪购金额</span><input id="operationFormTaobaoAmount" type="number" min="0" step="0.01" /></label>
-                                <label class="ops-field"><span>京东订单</span><input id="operationFormJdOrders" type="number" min="0" step="1" /></label>
-                                <label class="ops-field"><span>京东金额</span><input id="operationFormJdAmount" type="number" min="0" step="0.01" /></label>
-                                <label class="ops-field"><span>抖音订单</span><input id="operationFormDouyinOrders" type="number" min="0" step="1" /></label>
-                                <label class="ops-field"><span>抖音金额</span><input id="operationFormDouyinAmount" type="number" min="0" step="0.01" /></label>
-                                <label class="ops-field"><span>线下订单</span><input id="operationFormOfflineOrders" type="number" min="0" step="1" /></label>
-                                <label class="ops-field"><span>线下金额</span><input id="operationFormOfflineAmount" type="number" min="0" step="0.01" /></label>
-                                <label class="ops-field"><span>支出类别</span><input id="operationFormExpenseCategory" type="text" maxlength="128" placeholder="例如：包装耗材" /></label>
-                                <label class="ops-field"><span>支出费用</span><input id="operationFormExpenseAmount" type="number" min="0" step="0.01" /></label>
+                                <div id="operationEditorMeta" class="ops-editor-meta">共 0 家门店</div>
+                            </div>
+                            <div id="operationEditorLoading" class="ops-state ops-state-loading" style="display:none">正在加载当天门店数据...</div>
+                            <div id="operationEditorEmpty" class="ops-state ops-empty" style="display:none">
+                                <div class="ops-empty-title">暂无门店</div>
+                                <div class="ops-empty-text">请先在“大明的店铺”里维护门店信息，再回来录入经营日报。</div>
+                            </div>
+                            <div id="operationEditorTableWrap" class="ops-editor-table-wrap" style="display:none">
+                                <table class="ops-editor-table">
+                                    <thead>
+                                        <tr>
+                                            <th>门店</th>
+                                            <th>美团订单</th>
+                                            <th>美团金额</th>
+                                            <th>淘宝闪购订单</th>
+                                            <th>淘宝闪购金额</th>
+                                            <th>京东订单</th>
+                                            <th>京东金额</th>
+                                            <th>抖音订单</th>
+                                            <th>抖音金额</th>
+                                            <th>线下订单</th>
+                                            <th>线下金额</th>
+                                            <th>支出类别</th>
+                                            <th>支出费用</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="operationEditorRows"></tbody>
+                                </table>
                             </div>
                         </div>
                         <div class="ops-modal-footer">
@@ -3020,7 +3029,7 @@
         var flowState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, loadTimer: null, loadRetry: 0, pendingAction: null, pendingMyShopId: '', currentRunsFlowId: null, runsPage: 1, runsLimit: 10, runsTimer: null, pricingReference: { nextRowSeq: 1, rows: {} }, pricingTaskMeta: { skuStrategy: 'allActive' }, productBinding: { searchTimer: null, suggestions: [], activeSearch: '' } };
         var collectState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, currentResultsTaskId: null, resultsPage: 1, resultsLimit: 10 };
         var scheduledState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, listTimer: null, pendingAction: null, currentRunsTaskId: null, runsPage: 1, runsLimit: 10, runSteps: {} };
-        var operationState = { items: [], total: 0, page: 1, limit: 7, storeSearch: '', dateFrom: '', dateTo: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, pendingStoreName: '' };
+        var operationState = { items: [], total: 0, page: 1, limit: 7, storeSearch: '', dateFrom: '', dateTo: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, pendingStoreName: '', editorDate: '', editorLoading: false, editorExistingRecords: [], batch: null };
         var managerExecutionMap = {};
 
         function shopEnterPage() {
@@ -3822,21 +3831,18 @@
                 meshserver.send({ action: 'myshoplist', search: '', page: 1, limit: 200 });
             }
         }
-        function managerPopulateOperationStoreSelect(selectedName) {
-            var options = '<option value="">请选择大明的店铺</option>', list = myShopState.items || [], selected = String(selectedName || ''), found = false, addedNames = {};
+        function managerGetOperationStoreNames() {
+            var list = myShopState.items || [], names = [], added = {};
             for (var i = 0; i < list.length; i++) {
                 var shopName = (list[i].name || '').trim();
-                if (shopName === '' || addedNames[shopName]) continue;
-                addedNames[shopName] = true;
-                if (selected !== '' && shopName === selected) found = true;
-                options += '<option value="' + EscapeHtml(shopName) + '"' + ((selected !== '' && shopName === selected) ? ' selected="selected"' : '') + '>' + EscapeHtml(shopName) + '</option>';
+                if (shopName === '' || added[shopName]) continue;
+                added[shopName] = true;
+                names.push(shopName);
             }
-            if (selected !== '' && found === false) options += '<option value="' + EscapeHtml(selected) + '" selected="selected">已选门店（可能已删除）：' + EscapeHtml(selected) + '</option>';
-            QH('operationFormStoreName', options);
+            return names;
         }
         function managerEnsureOperationStoreOptions(selectedName) {
-            operationState.pendingStoreName = (selectedName != null) ? String(selectedName) : (Q('operationFormStoreName') != null ? Q('operationFormStoreName').value : '');
-            if (Q('operationFormStoreName') != null) managerPopulateOperationStoreSelect(operationState.pendingStoreName);
+            operationState.pendingStoreName = (selectedName != null) ? String(selectedName) : operationState.pendingStoreName;
             if ((myShopState.loaded !== true) || ((myShopState.items || []).length < myShopState.total)) {
                 meshserver.send({ action: 'myshoplist', search: '', page: 1, limit: Math.max(200, myShopState.total || 0) });
             }
@@ -4996,6 +5002,7 @@
         }
 
         function operationHandleMutationResponse(kind, message) {
+            if (operationState.batch != null) { operationAdvanceBatch(kind, message); return; }
             operationState.pendingAction = null;
             operationSetSubmitBusy(false);
             if (message.success !== true) {
@@ -5048,7 +5055,7 @@
                     x += '<td>' + EscapeHtml(operationFormatAmountCell(row.offline_amount || row.offlineAmount)) + '</td>';
                     x += '<td>' + EscapeHtml((row.expense_category || row.expenseCategory || '').trim() || '-') + '</td>';
                     x += '<td>' + EscapeHtml(operationFormatAmountCell(row.expense_amount || row.expenseAmount)) + '</td>';
-                    x += '<td><div class="ops-row-actions"><button type="button" class="ops-btn" onclick="operationOpenEditorById(\'' + EscapeHtml(String(row.id)) + '\')">编辑</button><button type="button" class="ops-btn ops-btn-danger" onclick="operationConfirmDelete(\'' + EscapeHtml(String(row.id)) + '\')">删除</button></div></td>';
+                    x += '<td><div class="ops-row-actions"><button type="button" class="ops-btn" onclick="operationOpenEditorById(\'' + EscapeHtml(String(row.id)) + '\')">编辑当天</button><button type="button" class="ops-btn ops-btn-danger" onclick="operationConfirmDelete(\'' + EscapeHtml(String(row.id)) + '\')">删除</button></div></td>';
                     x += '</tr>';
                 }
                 x += '<tr class="ops-summary-row"><td class="ops-summary-label">统计分析</td>';
@@ -5124,6 +5131,152 @@
             return operationFormatAmount(value);
         }
 
+        function operationHasPayloadData(payload) {
+            var keys = ['meituanOrders', 'meituanAmount', 'taobaoOrders', 'taobaoAmount', 'jdOrders', 'jdAmount', 'douyinOrders', 'douyinAmount', 'offlineOrders', 'offlineAmount', 'expenseAmount'];
+            for (var i = 0; i < keys.length; i++) { if (payload[keys[i]] !== '') return true; }
+            return false;
+        }
+
+        function operationFormatEditorValue(value, isAmount) {
+            if (value == null || value === '') return '';
+            return isAmount ? operationFormatAmount(value) : String(Math.round(operationToNumber(value)));
+        }
+
+        function operationBuildEditorRows() {
+            var storeNames = managerGetOperationStoreNames(), records = Array.isArray(operationState.editorExistingRecords) ? operationState.editorExistingRecords : [];
+            var rows = [], existingMap = {}, seen = {};
+            for (var i = 0; i < records.length; i++) {
+                var recordStoreName = (records[i].store_name || records[i].storeName || '').trim();
+                if (recordStoreName !== '') existingMap[recordStoreName] = records[i];
+            }
+            for (var j = 0; j < storeNames.length; j++) {
+                var shopName = storeNames[j], record = existingMap[shopName] || null;
+                seen[shopName] = true;
+                rows.push(operationBuildEditorRowHtml(shopName, record));
+            }
+            for (var k = 0; k < records.length; k++) {
+                var extraStoreName = (records[k].store_name || records[k].storeName || '').trim();
+                if (extraStoreName === '' || seen[extraStoreName]) continue;
+                seen[extraStoreName] = true;
+                rows.push(operationBuildEditorRowHtml(extraStoreName, records[k], true));
+            }
+            QH('operationEditorRows', rows.join(''));
+            QH('operationEditorMeta', '共 ' + rows.length + ' 家门店');
+            QV('operationEditorLoading', false);
+            QV('operationEditorEmpty', rows.length === 0);
+            QV('operationEditorTableWrap', rows.length > 0);
+        }
+
+        function operationBuildEditorRowHtml(storeName, record, isLegacyStore) {
+            var legacyBadge = isLegacyStore ? '<div class="ops-editor-store-tag">历史门店</div>' : '';
+            var rowId = record ? String(record.id) : '';
+            var x = '<tr class="ops-editor-row" data-store-name="' + EscapeHtml(storeName) + '" data-record-id="' + EscapeHtml(rowId) + '">';
+            x += '<td class="ops-editor-store-cell"><div class="ops-editor-store-name">' + EscapeHtml(storeName) + '</div>' + legacyBadge + '</td>';
+            x += '<td><input data-field="meituanOrders" type="number" min="0" step="1" value="' + EscapeHtml(operationFormatEditorValue(record ? (record.meituan_orders || record.meituanOrders) : '', false)) + '" /></td>';
+            x += '<td><input data-field="meituanAmount" type="number" min="0" step="0.01" value="' + EscapeHtml(operationFormatEditorValue(record ? (record.meituan_amount || record.meituanAmount) : '', true)) + '" /></td>';
+            x += '<td><input data-field="taobaoOrders" type="number" min="0" step="1" value="' + EscapeHtml(operationFormatEditorValue(record ? (record.taobao_orders || record.taobaoOrders) : '', false)) + '" /></td>';
+            x += '<td><input data-field="taobaoAmount" type="number" min="0" step="0.01" value="' + EscapeHtml(operationFormatEditorValue(record ? (record.taobao_amount || record.taobaoAmount) : '', true)) + '" /></td>';
+            x += '<td><input data-field="jdOrders" type="number" min="0" step="1" value="' + EscapeHtml(operationFormatEditorValue(record ? (record.jd_orders || record.jdOrders) : '', false)) + '" /></td>';
+            x += '<td><input data-field="jdAmount" type="number" min="0" step="0.01" value="' + EscapeHtml(operationFormatEditorValue(record ? (record.jd_amount || record.jdAmount) : '', true)) + '" /></td>';
+            x += '<td><input data-field="douyinOrders" type="number" min="0" step="1" value="' + EscapeHtml(operationFormatEditorValue(record ? (record.douyin_orders || record.douyinOrders) : '', false)) + '" /></td>';
+            x += '<td><input data-field="douyinAmount" type="number" min="0" step="0.01" value="' + EscapeHtml(operationFormatEditorValue(record ? (record.douyin_amount || record.douyinAmount) : '', true)) + '" /></td>';
+            x += '<td><input data-field="offlineOrders" type="number" min="0" step="1" value="' + EscapeHtml(operationFormatEditorValue(record ? (record.offline_orders || record.offlineOrders) : '', false)) + '" /></td>';
+            x += '<td><input data-field="offlineAmount" type="number" min="0" step="0.01" value="' + EscapeHtml(operationFormatEditorValue(record ? (record.offline_amount || record.offlineAmount) : '', true)) + '" /></td>';
+            x += '<td><input data-field="expenseCategory" type="text" maxlength="128" value="' + EscapeHtml(record ? (record.expense_category || record.expenseCategory || '') : '') + '" placeholder="例如：包装耗材" /></td>';
+            x += '<td><input data-field="expenseAmount" type="number" min="0" step="0.01" value="' + EscapeHtml(operationFormatEditorValue(record ? (record.expense_amount || record.expenseAmount) : '', true)) + '" /></td>';
+            x += '</tr>';
+            return x;
+        }
+
+        function operationLoadDateRecords(businessDate) {
+            if (!businessDate) return;
+            operationState.editorDate = businessDate;
+            operationState.editorLoading = true;
+            operationState.editorExistingRecords = [];
+            QH('operationEditorMeta', '正在加载门店...');
+            QV('operationEditorLoading', true);
+            QV('operationEditorEmpty', false);
+            QV('operationEditorTableWrap', false);
+            QH('operationEditorRows', '');
+            meshserver.send({ action: 'operationrecorddate', businessDate: businessDate });
+        }
+
+        function operationHandleEditorDateChange() {
+            var businessDate = Q('operationFormBusinessDate').value;
+            if (businessDate === '') return;
+            operationLoadDateRecords(businessDate);
+        }
+
+        function operationHandleDateResponse(message) {
+            if ((message.businessDate || '') !== operationState.editorDate) return;
+            operationState.editorLoading = false;
+            if (message.result != null) {
+                operationState.editorExistingRecords = [];
+                QV('operationEditorLoading', false);
+                QV('operationEditorTableWrap', false);
+                QV('operationEditorEmpty', true);
+                operationShowToast(message.result, true);
+                return;
+            }
+            operationState.editorExistingRecords = Array.isArray(message.records) ? message.records : [];
+            operationBuildEditorRows();
+        }
+
+        function operationCollectEditorRows() {
+            var rowNodes = Q('operationEditorRows').querySelectorAll('.ops-editor-row'), payloads = [], businessDate = Q('operationFormBusinessDate').value;
+            for (var i = 0; i < rowNodes.length; i++) {
+                var row = rowNodes[i];
+                var payload = {
+                    id: row.getAttribute('data-record-id') || '',
+                    businessDate: businessDate,
+                    storeName: row.getAttribute('data-store-name') || '',
+                    meituanOrders: row.querySelector('[data-field="meituanOrders"]').value.trim(),
+                    meituanAmount: row.querySelector('[data-field="meituanAmount"]').value.trim(),
+                    taobaoOrders: row.querySelector('[data-field="taobaoOrders"]').value.trim(),
+                    taobaoAmount: row.querySelector('[data-field="taobaoAmount"]').value.trim(),
+                    jdOrders: row.querySelector('[data-field="jdOrders"]').value.trim(),
+                    jdAmount: row.querySelector('[data-field="jdAmount"]').value.trim(),
+                    douyinOrders: row.querySelector('[data-field="douyinOrders"]').value.trim(),
+                    douyinAmount: row.querySelector('[data-field="douyinAmount"]').value.trim(),
+                    offlineOrders: row.querySelector('[data-field="offlineOrders"]').value.trim(),
+                    offlineAmount: row.querySelector('[data-field="offlineAmount"]').value.trim(),
+                    expenseCategory: row.querySelector('[data-field="expenseCategory"]').value.trim(),
+                    expenseAmount: row.querySelector('[data-field="expenseAmount"]').value.trim()
+                };
+                payloads.push(payload);
+            }
+            return payloads;
+        }
+
+        function operationStartBatch(actions) {
+            operationState.batch = { actions: actions, index: 0 };
+            operationState.pendingAction = actions[0].action;
+            meshserver.send(actions[0]);
+        }
+
+        function operationAdvanceBatch(kind, message) {
+            if (message.success !== true) {
+                operationState.batch = null;
+                operationState.pendingAction = null;
+                operationSetSubmitBusy(false);
+                operationShowToast(message.result || '批量保存失败。', true);
+                return;
+            }
+            operationState.batch.index++;
+            if (operationState.batch.index >= operationState.batch.actions.length) {
+                operationState.batch = null;
+                operationState.pendingAction = null;
+                operationSetSubmitBusy(false);
+                operationCloseEditor();
+                operationShowToast('当天经营数据已保存。', false);
+                operationRefreshList(1);
+                return;
+            }
+            var nextAction = operationState.batch.actions[operationState.batch.index];
+            operationState.pendingAction = nextAction.action;
+            meshserver.send(nextAction);
+        }
+
         function operationOpenEditorById(id) {
             for (var i = 0; i < operationState.items.length; i++) {
                 if (String(operationState.items[i].id) === String(id)) { operationOpenEditor(operationState.items[i]); return; }
@@ -5131,29 +5284,31 @@
         }
 
         function operationOpenEditor(record) {
-            var today = new Date(), todayValue = today.getFullYear() + '-' + ('0' + (today.getMonth() + 1)).slice(-2) + '-' + ('0' + today.getDate()).slice(-2), storeName = record ? (record.store_name || record.storeName || '') : '';
-            Q('operationFormId').value = record ? record.id : '';
-            Q('operationFormBusinessDate').value = record ? operationFormatDate(record.business_date || record.businessDate || todayValue) : todayValue;
-            managerEnsureOperationStoreOptions(storeName);
-            Q('operationFormMeituanOrders').value = record ? (record.meituan_orders == null ? '' : record.meituan_orders) : '';
-            Q('operationFormMeituanAmount').value = record ? (record.meituan_amount == null ? '' : record.meituan_amount) : '';
-            Q('operationFormTaobaoOrders').value = record ? (record.taobao_orders == null ? '' : record.taobao_orders) : '';
-            Q('operationFormTaobaoAmount').value = record ? (record.taobao_amount == null ? '' : record.taobao_amount) : '';
-            Q('operationFormJdOrders').value = record ? (record.jd_orders == null ? '' : record.jd_orders) : '';
-            Q('operationFormJdAmount').value = record ? (record.jd_amount == null ? '' : record.jd_amount) : '';
-            Q('operationFormDouyinOrders').value = record ? (record.douyin_orders == null ? '' : record.douyin_orders) : '';
-            Q('operationFormDouyinAmount').value = record ? (record.douyin_amount == null ? '' : record.douyin_amount) : '';
-            Q('operationFormOfflineOrders').value = record ? (record.offline_orders == null ? '' : record.offline_orders) : '';
-            Q('operationFormOfflineAmount').value = record ? (record.offline_amount == null ? '' : record.offline_amount) : '';
-            Q('operationFormExpenseCategory').value = record ? (record.expense_category || record.expenseCategory || '') : '';
-            Q('operationFormExpenseAmount').value = record ? (record.expense_amount == null ? '' : record.expense_amount) : '';
-            QH('operationModalTitle', record ? '编辑经营记录' : '新增经营记录');
+            var today = new Date(), todayValue = today.getFullYear() + '-' + ('0' + (today.getMonth() + 1)).slice(-2) + '-' + ('0' + today.getDate()).slice(-2);
+            var businessDate = record ? operationFormatDate(record.business_date || record.businessDate || todayValue) : todayValue;
+            operationState.batch = null;
+            operationState.pendingAction = null;
+            operationState.editorExistingRecords = [];
+            operationState.editorDate = businessDate;
+            Q('operationFormBusinessDate').value = businessDate;
+            QH('operationModalTitle', record ? ('编辑 ' + businessDate + ' 经营数据') : '新增经营记录');
+            QH('operationEditorMeta', '正在加载门店...');
+            QV('operationEditorLoading', true);
+            QV('operationEditorEmpty', false);
+            QV('operationEditorTableWrap', false);
+            QH('operationEditorRows', '');
+            managerEnsureOperationStoreOptions();
+            operationLoadDateRecords(businessDate);
             operationSetSubmitBusy(false);
             QV('operationModalMask', true);
         }
 
         function operationCloseEditor(event) {
             if (event && !managerCanCloseModalMask(event, 'operationModalMask')) return;
+            if (operationState.batch != null) return;
+            operationState.batch = null;
+            operationState.pendingAction = null;
+            operationState.editorLoading = false;
             QV('operationModalMask', false);
         }
 
@@ -5163,28 +5318,24 @@
         }
 
         function operationSubmitEditor() {
-            var payload = {
-                id: Q('operationFormId').value,
-                businessDate: Q('operationFormBusinessDate').value,
-                storeName: Q('operationFormStoreName').value.trim(),
-                meituanOrders: Q('operationFormMeituanOrders').value,
-                meituanAmount: Q('operationFormMeituanAmount').value,
-                taobaoOrders: Q('operationFormTaobaoOrders').value,
-                taobaoAmount: Q('operationFormTaobaoAmount').value,
-                jdOrders: Q('operationFormJdOrders').value,
-                jdAmount: Q('operationFormJdAmount').value,
-                douyinOrders: Q('operationFormDouyinOrders').value,
-                douyinAmount: Q('operationFormDouyinAmount').value,
-                offlineOrders: Q('operationFormOfflineOrders').value,
-                offlineAmount: Q('operationFormOfflineAmount').value,
-                expenseCategory: Q('operationFormExpenseCategory').value.trim(),
-                expenseAmount: Q('operationFormExpenseAmount').value
-            };
-            if (payload.businessDate === '') { operationShowToast('日期不能为空。', true); return; }
-            if (payload.storeName === '') { operationShowToast('门店名称不能为空。', true); return; }
+            var businessDate = Q('operationFormBusinessDate').value;
+            var rows = operationCollectEditorRows(), actions = [];
+            if (businessDate === '') { operationShowToast('日期不能为空。', true); return; }
+            if (rows.length === 0) { operationShowToast('没有可保存的门店数据。', true); return; }
+            for (var i = 0; i < rows.length; i++) {
+                var payload = rows[i];
+                var hasData = operationHasPayloadData(payload);
+                if (payload.expenseAmount !== '' && payload.expenseCategory === '') { operationShowToast('门店“' + payload.storeName + '”填写支出费用时请同时填写支出类别。', true); return; }
+                if (payload.expenseCategory !== '' && hasData !== true && payload.expenseAmount === '') { operationShowToast('门店“' + payload.storeName + '”仅填写支出类别还不够，请补充费用或经营数据。', true); return; }
+                if (hasData === true) {
+                    actions.push({ action: (payload.id !== '' ? 'operationrecordupdate' : 'operationrecordcreate'), id: payload.id, businessDate: businessDate, storeName: payload.storeName, meituanOrders: payload.meituanOrders, meituanAmount: payload.meituanAmount, taobaoOrders: payload.taobaoOrders, taobaoAmount: payload.taobaoAmount, jdOrders: payload.jdOrders, jdAmount: payload.jdAmount, douyinOrders: payload.douyinOrders, douyinAmount: payload.douyinAmount, offlineOrders: payload.offlineOrders, offlineAmount: payload.offlineAmount, expenseCategory: payload.expenseCategory, expenseAmount: payload.expenseAmount });
+                } else if (payload.id !== '') {
+                    actions.push({ action: 'operationrecorddelete', id: payload.id });
+                }
+            }
+            if (actions.length === 0) { operationShowToast('请至少填写一家门店的数据。', true); return; }
             operationSetSubmitBusy(true);
-            operationState.pendingAction = payload.id !== '' ? 'operationrecordupdate' : 'operationrecordcreate';
-            meshserver.send({ action: operationState.pendingAction, id: payload.id, businessDate: payload.businessDate, storeName: payload.storeName, meituanOrders: payload.meituanOrders, meituanAmount: payload.meituanAmount, taobaoOrders: payload.taobaoOrders, taobaoAmount: payload.taobaoAmount, jdOrders: payload.jdOrders, jdAmount: payload.jdAmount, douyinOrders: payload.douyinOrders, douyinAmount: payload.douyinAmount, offlineOrders: payload.offlineOrders, offlineAmount: payload.offlineAmount, expenseCategory: payload.expenseCategory, expenseAmount: payload.expenseAmount });
+            operationStartBatch(actions);
         }
 
         function operationConfirmDelete(id) {
@@ -6246,7 +6397,7 @@
                     if (Q('flowModalMask') != null && Q('flowModalMask').style.display !== 'none' && Q('flowFormMyShopId') != null) managerPopulateMyShopSelect('flowFormMyShopId', Q('flowFormMyShopId').value || flowState.pendingMyShopId);
                     if (Q('flowModalMask') != null && Q('flowModalMask').style.display !== 'none' && Q('flowPricingMyShopId') != null) managerPopulateMyShopSelect('flowPricingMyShopId', Q('flowPricingMyShopId').value || flowState.pendingMyShopId);
                     if (Q('flowModalMask') != null && Q('flowModalMask').style.display !== 'none') flowSyncShopCategoryFromShop(false);
-                    if (Q('operationModalMask') != null && Q('operationModalMask').style.display !== 'none' && Q('operationFormStoreName') != null) managerPopulateOperationStoreSelect(Q('operationFormStoreName').value || operationState.pendingStoreName);
+                    if (Q('operationModalMask') != null && Q('operationModalMask').style.display !== 'none' && operationState.editorLoading !== true) operationBuildEditorRows();
                     break;
                 }
                 case 'myshopcreate': {
@@ -6291,6 +6442,10 @@
                 }
                 case 'operationrecordlist': {
                     operationHandleListResponse(message);
+                    break;
+                }
+                case 'operationrecorddate': {
+                    operationHandleDateResponse(message);
                     break;
                 }
                 case 'operationrecordcreate': {
