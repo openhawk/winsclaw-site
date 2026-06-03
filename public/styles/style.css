@@ -1942,6 +1942,43 @@ a {
     box-shadow: 0 7px 0 #184f9a, 0 14px 0 #184f9a;
 }
 
+.lb-scheduled {
+    background: linear-gradient(180deg, #f6fbff 0%, #68b8ff 100%);
+    border-radius: 18px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.72), 0 8px 18px rgba(0,0,0,0.16);
+    overflow: hidden;
+}
+
+.lb-scheduled:before {
+    content: "";
+    position: absolute;
+    left: 12px;
+    top: 12px;
+    width: 38px;
+    height: 42px;
+    border-radius: 7px;
+    background:
+        linear-gradient(180deg, #0b5f91 0 10px, transparent 10px),
+        repeating-linear-gradient(90deg, transparent 0 9px, rgba(255,255,255,0.42) 9px 11px),
+        linear-gradient(180deg, #dff4ff 0%, #ffffff 100%);
+    border: 3px solid #0a4b76;
+    box-sizing: border-box;
+}
+
+.lb-scheduled:after {
+    content: "";
+    position: absolute;
+    left: 25px;
+    top: 28px;
+    width: 18px;
+    height: 18px;
+    border: 4px solid #0a4b76;
+    border-radius: 50%;
+    background:
+        linear-gradient(90deg, transparent 0 8px, #0a4b76 8px 11px, transparent 11px),
+        linear-gradient(145deg, transparent 0 11px, #0a4b76 11px 14px, transparent 14px);
+}
+
 .m0 {
     background: url(../images/images16.png) -32px 0px;
     height: 16px;
@@ -4410,7 +4447,9 @@ a {
 .flow-card-footer { display: grid; gap: 12px; align-items: stretch; margin-top: 16px; }
 .flow-card-actions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; width: 100%; }
 .flow-card-actions .flow-btn { min-width: 0; padding: 10px 12px; white-space: nowrap; }
-.collect-card-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.collect-card-footer { display: grid; gap: 12px; align-items: stretch; margin-top: 16px; }
+.collect-card-actions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; width: 100%; }
+.collect-card-actions .collect-btn { min-width: 0; padding: 10px 12px; white-space: nowrap; }
 .flow-pagination, .collect-pagination { margin-top: 18px; justify-content: center; flex-wrap: wrap; }
 .flow-page-btn, .collect-page-btn { border: 1px solid #c8d8e8; background: #fff; border-radius: 999px; padding: 8px 14px; }
 .flow-page-indicator, .collect-page-indicator { color: #4d637a; }
@@ -4775,14 +4814,14 @@ a {
     gap: 14px;
 }
 
-#p105 {
+#p106 {
     overflow-y: auto;
     height: calc(100vh - 145px);
     max-height: calc(100vh - 145px);
     box-sizing: border-box;
 }
 
-#p105 .ops-pagination {
+#p106 .ops-pagination {
     position: sticky;
     bottom: 0;
     z-index: 20;
@@ -4793,7 +4832,7 @@ a {
     box-shadow: 0 -10px 24px rgba(17,24,39,0.08);
 }
 
-#p105.ops-page-active .ops-page-shell {
+#p106.ops-page-active .ops-page-shell {
     animation: shopFadeIn 0.26s ease-out;
 }
 

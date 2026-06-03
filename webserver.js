@@ -51,6 +51,7 @@ module.exports.CreateWebServer = function (parent, db, args, certificates, doneF
     obj.meshDesktopMultiplexHandler = require('./meshdesktopmultiplex.js');
     obj.meshIderHandler = require('./amt/amt-ider.js');
     obj.meshUserHandler = require('./meshuser.js');
+    obj.scheduledTaskHandler = require('./scheduledtasks.js');
     obj.interceptor = require('./interceptor');
     obj.uaparser = require('ua-parser-js');
     obj.uaclienthints = require('ua-client-hints-js');
@@ -68,6 +69,7 @@ module.exports.CreateWebServer = function (parent, db, args, certificates, doneF
     obj.parent = parent;
     obj.filespath = parent.filespath;
     obj.db = db;
+    obj.scheduledTaskManager = obj.scheduledTaskHandler.CreateScheduledTaskManager(obj, db);
     obj.app = obj.express();
     if (obj.args.agentport) { obj.agentapp = obj.express(); }
     if (args.compression === true) {
@@ -7185,6 +7187,199 @@ module.exports.CreateWebServer = function (parent, db, args, certificates, doneF
                 }
             }
         }
+
+        function getNodeJobRequestToken(req) {
+            var auth = req.headers.authorization || '';
+            if (auth.toLowerCase().indexOf('bearer ') === 0) return auth.substring(7).trim();
+            return String(req.headers['x-node-token'] || '').trim();
+        }
+
+        function getConfiguredNodeJobToken(nodeId) {
+            var settings = parent.config && parent.config.settings ? parent.config.settings : {};
+            var tokens = settings.nodeJobTokens || settings.nodejobtokens || {};
+            if (tokens && typeof tokens == 'object') {
+                if (typeof tokens[nodeId] == 'string') return tokens[nodeId];
+                var shortId = String(nodeId || '').split('/').pop();
+                if (typeof tokens[shortId] == 'string') return tokens[shortId];
+                var nodeIdLower = String(nodeId || '').toLowerCase();
+                var shortIdLower = shortId.toLowerCase();
+                for (var key in tokens) {
+                    var keyLower = String(key || '').toLowerCase();
+                    if ((keyLower === nodeIdLower) || (keyLower === shortIdLower)) return tokens[key];
+                }
+            }
+            return '';
+        }
+
+        function validateNodeJobRequest(req, res) {
+            var body = req.body || {};
+            var nodeId = String(body.nodeId || body.node_id || '').trim();
+            if (nodeId === '') { res.status(400).json({ success: false, result: 'nodeId is required.' }); return null; }
+            var expectedToken = getConfiguredNodeJobToken(nodeId);
+            if (expectedToken === '') { res.status(403).json({ success: false, result: 'Node job API token is not configured.' }); return null; }
+            if (getNodeJobRequestToken(req) !== expectedToken) { res.status(403).json({ success: false, result: 'Invalid node token.' }); return null; }
+            return { nodeId: nodeId, body: body };
+        }
+
+        function handleNodeWorkerResolveRequest(req, res) {
+            var body = req.body || {};
+            var deviceName = String(body.deviceName || body.device_name || body.computerName || body.computer_name || '').trim().toLowerCase();
+            if (deviceName === '') { res.status(400).json({ success: false, result: 'deviceName is required.' }); return; }
+            var token = getNodeJobRequestToken(req);
+            if (token === '') { res.status(403).json({ success: false, result: 'Node job API token is required.' }); return; }
+            obj.db.GetAllType('node', function (err, nodes) {
+                if (err != null) { sendNodeJobError(res, err, 500); return; }
+                var matches = [];
+                var configuredNodeIds = getConfiguredNodeJobNodeIds();
+                var configured = {};
+                for (var i in configuredNodeIds) { configured[String(configuredNodeIds[i] || '').toLowerCase()] = 1; }
+                for (var nodeIndex in nodes) {
+                    var node = nodes[nodeIndex];
+                    if ((node == null) || (typeof node._id != 'string') || (configured[node._id.toLowerCase()] !== 1)) continue;
+                    if (getConfiguredNodeJobToken(node._id) !== token) continue;
+                    var names = [node.name, node.rname, node.host];
+                    for (var nameIndex in names) {
+                        if (String(names[nameIndex] || '').trim().toLowerCase() === deviceName) {
+                            matches.push(node);
+                            break;
+                        }
+                    }
+                }
+                if (matches.length === 0) { res.status(404).json({ success: false, result: 'No configured Winsclaw node matches this device name.' }); return; }
+                if (matches.length > 1) { res.status(409).json({ success: false, result: 'Multiple configured Winsclaw nodes match this device name.' }); return; }
+                res.json({ success: true, nodeId: matches[0]._id, name: matches[0].name || matches[0].rname || deviceName });
+            });
+        }
+
+        function getConfiguredNodeJobNodeIds() {
+            var settings = parent.config && parent.config.settings ? parent.config.settings : {};
+            var tokens = settings.nodeJobTokens || settings.nodejobtokens || {};
+            var nodeIds = [];
+            if (tokens && typeof tokens == 'object') {
+                for (var key in tokens) {
+                    if (typeof tokens[key] != 'string') continue;
+                    nodeIds.push(String(key));
+                }
+            }
+            return nodeIds;
+        }
+
+        function sendNodeJobError(res, err, code) {
+            res.status(code || 400).json({ success: false, result: err && err.message ? err.message : String(err || 'Node job request failed.') });
+        }
+
+        obj.nodeWorkerHeartbeats = obj.nodeWorkerHeartbeats || {};
+
+        function handleNodeWorkerHeartbeatRequest(req, res) {
+            var request = validateNodeJobRequest(req, res);
+            if (request == null) return;
+            var nodeIdKey = String(request.nodeId || '').toLowerCase();
+            obj.nodeWorkerHeartbeats[nodeIdKey] = {
+                nodeId: request.nodeId,
+                status: String(request.body.status || 'running'),
+                lastSeen: Date.now(),
+                leaseSeconds: Math.max(60, Math.min(3600, Number(request.body.leaseSeconds || request.body.lease_seconds || 600)))
+            };
+            res.json({ success: true });
+        }
+
+        function handleNodeWorkerStatusRequest(req, res) {
+            var nodeIds = getConfiguredNodeJobNodeIds();
+            var now = Date.now();
+            var workers = [];
+            for (var i in nodeIds) {
+                var nodeId = nodeIds[i];
+                var heartbeat = obj.nodeWorkerHeartbeats[String(nodeId || '').toLowerCase()] || null;
+                var leaseSeconds = heartbeat ? heartbeat.leaseSeconds : 600;
+                var online = heartbeat != null && ((now - heartbeat.lastSeen) <= Math.max(90000, leaseSeconds * 1000));
+                workers.push({
+                    nodeId: nodeId,
+                    online: online,
+                    status: heartbeat ? heartbeat.status : 'missing',
+                    lastSeen: heartbeat ? heartbeat.lastSeen : null
+                });
+            }
+            obj.db.GetAllType('node', function (err, nodes) {
+                if ((err == null) && Array.isArray(nodes)) {
+                    var nodeNames = {};
+                    for (var nodeIndex in nodes) {
+                        var node = nodes[nodeIndex];
+                        if ((node != null) && (typeof node._id == 'string') && (typeof node.name == 'string') && (node.name != '')) {
+                            nodeNames[node._id.toLowerCase()] = node.name;
+                        }
+                    }
+                    for (var workerIndex in workers) {
+                        var worker = workers[workerIndex];
+                        var nodeName = nodeNames[String(worker.nodeId || '').toLowerCase()];
+                        if (nodeName != null) { worker.name = nodeName; }
+                    }
+                }
+                res.json({ success: true, workers: workers });
+            });
+        }
+
+        obj.getNodeWorkerWarningStates = function () {
+            var nodeIds = getConfiguredNodeJobNodeIds();
+            var now = Date.now();
+            var states = [];
+            for (var i in nodeIds) {
+                var nodeId = nodeIds[i];
+                var heartbeat = obj.nodeWorkerHeartbeats[String(nodeId || '').toLowerCase()] || null;
+                var leaseSeconds = heartbeat ? heartbeat.leaseSeconds : 600;
+                var online = heartbeat != null && ((now - heartbeat.lastSeen) <= Math.max(90000, leaseSeconds * 1000));
+                if (online !== true) {
+                    states.push({ nodeId: nodeId });
+                }
+            }
+            return states;
+        };
+
+        obj.getNodeWorkerWarnings = function () {
+            var states = obj.getNodeWorkerWarningStates();
+            var warnings = [];
+            for (var i in states) {
+                warnings.push('设备节点 ' + states[i].nodeId + ' 未运行 D:\\winsclaw-work\\aibot\\scripts\\start-node-worker.ps1，节点任务不会自动执行。');
+            }
+            return warnings;
+        };
+
+        function handleNodeJobPollRequest(req, res) {
+            var request = validateNodeJobRequest(req, res);
+            if (request == null) return;
+            if (obj.scheduledTaskManager == null) { res.status(503).json({ success: false, result: 'Node job manager is not running.' }); return; }
+            obj.scheduledTaskManager.claimNodeJob(request.nodeId, request.body.leaseSeconds || request.body.lease_seconds || 600).then(function (job) {
+                if (job == null) { res.json({ success: true, job: null }); return; }
+                res.json({ success: true, job: { id: job.id, jobType: job.job_type, status: job.status, leaseToken: job.lease_token, leaseUntil: job.lease_until, attemptCount: job.attempt_count, payload: job.payload } });
+            }).catch(function (err) { sendNodeJobError(res, err); });
+        }
+
+        function handleNodeJobHeartbeatRequest(req, res) {
+            var request = validateNodeJobRequest(req, res);
+            if (request == null) return;
+            if (obj.scheduledTaskManager == null) { res.status(503).json({ success: false, result: 'Node job manager is not running.' }); return; }
+            obj.scheduledTaskManager.heartbeatNodeJob(req.params.id, request.nodeId, String(request.body.leaseToken || request.body.lease_token || ''), request.body.leaseSeconds || request.body.lease_seconds || 600, request.body.progress || '').then(function () {
+                res.json({ success: true });
+            }).catch(function (err) { sendNodeJobError(res, err); });
+        }
+
+        function handleNodeJobCompleteRequest(req, res) {
+            var request = validateNodeJobRequest(req, res);
+            if (request == null) return;
+            if (obj.scheduledTaskManager == null) { res.status(503).json({ success: false, result: 'Node job manager is not running.' }); return; }
+            obj.scheduledTaskManager.completeNodeJob(req.params.id, request.nodeId, String(request.body.leaseToken || request.body.lease_token || ''), 'success', typeof request.body.exitCode == 'number' ? request.body.exitCode : 0, String(request.body.stdout || ''), String(request.body.stderr || ''), request.body.resultJson || request.body.result_json || {}).then(function (job) {
+                res.json({ success: true, jobId: job.id, status: job.status });
+            }).catch(function (err) { sendNodeJobError(res, err); });
+        }
+
+        function handleNodeJobFailRequest(req, res) {
+            var request = validateNodeJobRequest(req, res);
+            if (request == null) return;
+            if (obj.scheduledTaskManager == null) { res.status(503).json({ success: false, result: 'Node job manager is not running.' }); return; }
+            obj.scheduledTaskManager.completeNodeJob(req.params.id, request.nodeId, String(request.body.leaseToken || request.body.lease_token || ''), 'failed', typeof request.body.exitCode == 'number' ? request.body.exitCode : -1, String(request.body.stdout || ''), String(request.body.stderr || request.body.error || ''), request.body.resultJson || request.body.result_json || {}).then(function (job) {
+                res.json({ success: true, jobId: job.id, status: job.status });
+            }).catch(function (err) { sendNodeJobError(res, err); });
+        }
+
         function setupHTTPHandlers() {
             // Setup all HTTP handlers
             if (parent.pluginHandler != null) {
@@ -7204,6 +7399,13 @@ module.exports.CreateWebServer = function (parent, db, args, certificates, doneF
                     obj.app.post(url, obj.bodyParser.urlencoded({ extended: false }), handleRootPostRequest);
                 }
                 obj.app.get(url + 'refresh.ashx', function (req, res) { res.sendStatus(200); });
+                obj.app.get(url + 'api/node-workers/status', handleNodeWorkerStatusRequest);
+                obj.app.post(url + 'api/node-workers/resolve', obj.bodyParser.json({ limit: '2mb' }), handleNodeWorkerResolveRequest);
+                obj.app.post(url + 'api/node-workers/heartbeat', obj.bodyParser.json({ limit: '2mb' }), handleNodeWorkerHeartbeatRequest);
+                obj.app.post(url + 'api/node-jobs/poll', obj.bodyParser.json({ limit: '2mb' }), handleNodeJobPollRequest);
+                obj.app.post(url + 'api/node-jobs/:id/heartbeat', obj.bodyParser.json({ limit: '2mb' }), handleNodeJobHeartbeatRequest);
+                obj.app.post(url + 'api/node-jobs/:id/complete', obj.bodyParser.json({ limit: '10mb' }), handleNodeJobCompleteRequest);
+                obj.app.post(url + 'api/node-jobs/:id/fail', obj.bodyParser.json({ limit: '10mb' }), handleNodeJobFailRequest);
                 if ((domain.myserver !== false) && ((domain.myserver == null) || (domain.myserver.backup === true))) { obj.app.get(url + 'backup.zip', handleBackupRequest); }
                 if ((domain.myserver !== false) && ((domain.myserver == null) || (domain.myserver.restore === true))) { obj.app.post(url + 'restoreserver.ashx', obj.bodyParser.urlencoded({ extended: false }), handleRestoreRequest); }
                 obj.app.get(url + 'terms', handleTermsRequest);
@@ -7986,6 +8188,7 @@ module.exports.CreateWebServer = function (parent, db, args, certificates, doneF
         function finalizeWebserver() {
             // Setup all HTTP handlers
             setupHTTPHandlers()
+            if (obj.scheduledTaskManager != null) { obj.scheduledTaskManager.start(); }
 
             // Handle 404 error
             if (obj.args.nice404 !== false) {

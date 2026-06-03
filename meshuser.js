@@ -164,6 +164,7 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         // Perform cleanup
         parent.parent.RemoveAllEventDispatch(obj.ws);
         if (obj.serverStatsTimer != null) { clearInterval(obj.serverStatsTimer); delete obj.serverStatsTimer; }
+        if (obj.serverWarningsTimer != null) { clearInterval(obj.serverWarningsTimer); delete obj.serverWarningsTimer; }
         if (req.session && req.session.ws && req.session.ws == obj.ws) { delete req.session.ws; }
         if (parent.wssessions2[ws.sessionId]) { delete parent.wssessions2[ws.sessionId]; }
 
@@ -661,9 +662,52 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
                     try { ws.send(JSON.stringify({ action: 'traceinfo', traceSources: parent.parent.debugRemoteSources })); } catch (ex) { }
                 }
 
-                // Send any server warnings if any
-                var serverWarnings = parent.parent.getServerWarnings();
-                if (serverWarnings.length > 0) { try { ws.send(JSON.stringify({ action: 'serverwarnings', warnings: serverWarnings })); } catch (ex) { } }
+                // Send server warnings now and keep open pages refreshed as node workers come online/offline.
+                var nodeWorkerWarningsRefreshRunning = false;
+                var sendServerWarnings = function () {
+                    if (nodeWorkerWarningsRefreshRunning === true) return;
+                    nodeWorkerWarningsRefreshRunning = true;
+                    var serverWarnings = parent.parent.getServerWarnings().slice();
+                    var sendWarnings = function () {
+                        nodeWorkerWarningsRefreshRunning = false;
+                        try { ws.send(JSON.stringify({ action: 'serverwarnings', warnings: serverWarnings })); } catch (ex) { }
+                    };
+                    if (typeof parent.getNodeWorkerWarningStates != 'function') { sendWarnings(); return; }
+                    var nodeWorkerStates = parent.getNodeWorkerWarningStates();
+                    if (nodeWorkerStates.length === 0) { sendWarnings(); return; }
+                    var pendingNodeWorkerLookups = nodeWorkerStates.length;
+                    for (var nodeWorkerStateIndex in nodeWorkerStates) {
+                        (function (nodeId) {
+                            var finishNodeWorkerLookup = function (nodeName) {
+                                serverWarnings.push('设备节点 ' + nodeName + ' 未运行 D:\\winsclaw-work\\aibot\\scripts\\start-node-worker.ps1，节点任务不会自动执行。');
+                                pendingNodeWorkerLookups--;
+                                if (pendingNodeWorkerLookups === 0) { sendWarnings(); }
+                            };
+                            db.Get(nodeId, function (err, docs) {
+                                var nodeName = nodeId;
+                                if ((err == null) && docs && docs[0] && (typeof docs[0].name == 'string') && (docs[0].name != '')) {
+                                    finishNodeWorkerLookup(docs[0].name);
+                                    return;
+                                }
+                                db.GetAllTypeNoTypeField('node', domain.id, function (err2, nodes) {
+                                    var nodeIdLower = String(nodeId || '').toLowerCase();
+                                    if ((err2 == null) && Array.isArray(nodes)) {
+                                        for (var nodeIndex in nodes) {
+                                            var candidate = nodes[nodeIndex];
+                                            if ((candidate != null) && (String(candidate._id || '').toLowerCase() === nodeIdLower) && (typeof candidate.name == 'string') && (candidate.name != '')) {
+                                                nodeName = candidate.name;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    finishNodeWorkerLookup(nodeName);
+                                });
+                            });
+                        })(nodeWorkerStates[nodeWorkerStateIndex].nodeId);
+                    }
+                };
+                sendServerWarnings();
+                obj.serverWarningsTimer = setInterval(sendServerWarnings, 30000);
             }
 
             // See how many times bad login attempts where made since the last login
@@ -5747,6 +5791,14 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         'collectprepareexecute': serverCommandCollectPrepareExecute,
         'collectresults': serverCommandCollectResults,
         'collectupdate': serverCommandCollectUpdate,
+        'scheduledtaskcreate': serverCommandScheduledTaskCreate,
+        'scheduledtaskdelete': serverCommandScheduledTaskDelete,
+        'scheduledtaskexecute': serverCommandScheduledTaskExecute,
+        'scheduledtasklist': serverCommandScheduledTaskList,
+        'scheduledtaskruns': serverCommandScheduledTaskRuns,
+        'scheduledtaskrunsteps': serverCommandScheduledTaskRunSteps,
+        'scheduledtasksetenabled': serverCommandScheduledTaskSetEnabled,
+        'scheduledtaskupdate': serverCommandScheduledTaskUpdate,
         'productcreate': serverCommandProductCreate,
         'productdelete': serverCommandProductDelete,
         'productlist': serverCommandProductList,
@@ -7685,151 +7737,6 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         });
     }
 
-    function managerShellEscape(value) {
-        return String(value == null ? '' : value).replace(/(["\\$`])/g, '\\$1');
-    }
-
-    function managerPowerShellEscape(value) {
-        return String(value == null ? '' : value).replace(/'/g, "''");
-    }
-
-    function managerReplaceArgsTemplate(template, tokens) {
-        var result = (typeof template === 'string' && template !== '') ? template : '{configPath}';
-        for (var k in tokens) { result = result.split('{' + k + '}').join(tokens[k]); }
-        return result;
-    }
-
-    function managerGetScriptDirectory(scriptPath, deviceOs) {
-        scriptPath = String(scriptPath || '').trim();
-        if (scriptPath === '') return deviceOs === 'windows' ? 'C:\\' : '/';
-        var normalized = deviceOs === 'windows' ? scriptPath.replace(/\//g, '\\') : scriptPath;
-        var index = deviceOs === 'windows' ? normalized.lastIndexOf('\\') : normalized.lastIndexOf('/');
-        if (index <= 0) return deviceOs === 'windows' ? 'C:\\' : '.';
-        return normalized.substring(0, index);
-    }
-
-    function managerGetScriptProjectRoot(scriptPath, deviceOs) {
-        var scriptDir = managerGetScriptDirectory(scriptPath, deviceOs);
-        var normalized = String(scriptDir || '');
-        if (deviceOs === 'windows') {
-            normalized = normalized.replace(/\//g, '\\');
-            if (/\\scripts(?:-mac)?$/i.test(normalized)) return normalized.replace(/\\scripts(?:-mac)?$/i, '');
-        } else {
-            normalized = normalized.replace(/\\/g, '/');
-            if (/\/scripts(?:-mac)?$/.test(normalized)) return normalized.replace(/\/scripts(?:-mac)?$/, '');
-        }
-        return scriptDir;
-    }
-
-    function managerGetRuntimeDir(projectRoot, deviceOs, prefix) {
-        var folder = prefix === 'flow' ? 'flow-configs' : 'collect-configs';
-        if (deviceOs === 'windows') return String(projectRoot || '').replace(/[\\\/]+$/, '') + '\\runtime\\' + folder;
-        return String(projectRoot || '').replace(/\/+$/, '') + '/runtime/' + folder;
-    }
-
-    function managerGetScriptArgsTemplate(scriptPath, flowOrCollectType, isPublish) {
-        return (/\.ps1$/i.test(String(scriptPath || ''))) ? '-ConfigPath "{configPath}"' : '{configPath}';
-    }
-
-    function managerBuildShellCommand(projectRoot, scriptPath, argsText, configText, recordId, prefix, background) {
-        var runtimeDir = managerGetRuntimeDir(projectRoot, 'linux', prefix);
-        var configPath = runtimeDir + '/' + prefix + '-' + recordId + '.json';
-        var outputPath = runtimeDir + '/' + prefix + '-' + recordId + '.log';
-        var configB64 = Buffer.from(configText, 'utf8').toString('base64');
-        var invocation = ((scriptPath.toLowerCase().endsWith('.sh')) ? ('sh "' + managerShellEscape(scriptPath) + '"') : ('"' + managerShellEscape(scriptPath) + '"')) + (argsText ? (' ' + argsText) : '');
-        var lines = [];
-        lines.push('MC_CONFIG_PATH="' + managerShellEscape(configPath) + '"');
-        lines.push('MC_OUTPUT_PATH="' + managerShellEscape(outputPath) + '"');
-        lines.push('mkdir -p "' + managerShellEscape(runtimeDir) + '"');
-        lines.push("python3 - <<'PY'\nimport base64\nopen(r'''" + configPath + "''','wb').write(base64.b64decode('" + configB64 + "'))\nPY");
-        lines.push('cd "' + managerShellEscape(projectRoot) + '"');
-        if (background === true) {
-            lines.push('nohup ' + invocation + ' > "$MC_OUTPUT_PATH" 2>&1 &');
-            lines.push('MC_PID=$!');
-            lines.push('printf "__MC_PROCESS_ID__:%s\\n" "$MC_PID"');
-            lines.push('printf "__MC_EXIT_CODE__:0\\n"');
-        } else {
-            lines.push(invocation + ' > "$MC_OUTPUT_PATH" 2>&1');
-            lines.push('MC_EXIT_CODE=$?');
-            lines.push('printf "__MC_EXIT_CODE__:%s\\n" "$MC_EXIT_CODE"');
-            lines.push('printf "__MC_OUTPUT_START__\\n"');
-            lines.push('if [ -f "$MC_OUTPUT_PATH" ]; then cat "$MC_OUTPUT_PATH"; fi');
-            lines.push('printf "\\n__MC_OUTPUT_END__\\n"');
-            lines.push('rm -f "$MC_OUTPUT_PATH"');
-        }
-        return { commandType: 3, cmds: lines.join('\n'), configPath: configPath, outputPath: outputPath, scriptPath: scriptPath, arguments: argsText ? [configPath] : [] };
-    }
-
-    function managerBuildPowerShellCommand(projectRoot, scriptPath, argsText, configText, recordId, prefix, background) {
-        var runtimeDir = managerGetRuntimeDir(projectRoot, 'windows', prefix);
-        var configPath = runtimeDir + '\\' + prefix + '-' + recordId + '.json';
-        var outputPath = runtimeDir + '\\' + prefix + '-' + recordId + '.log';
-        var configB64 = Buffer.from(configText, 'utf8').toString('base64');
-        var psProjectRoot = projectRoot.replace(/\//g, '\\');
-        var psScriptPath = scriptPath.replace(/\//g, '\\');
-        if (/^[A-Za-z]:\\/.test(psScriptPath) === false && psScriptPath.indexOf('\\\\') !== 0) {
-            psScriptPath = psProjectRoot.replace(/\\+$/, '') + '\\' + psScriptPath.replace(/^\\+/, '');
-        }
-        var lines = [];
-        lines.push("$ErrorActionPreference = 'Continue'");
-        lines.push("[Console]::OutputEncoding = [System.Text.Encoding]::UTF8");
-        lines.push("$OutputEncoding = [System.Text.Encoding]::UTF8");
-        lines.push("$ConfigPath = '" + managerPowerShellEscape(configPath) + "'");
-        lines.push("$OutputPath = '" + managerPowerShellEscape(outputPath) + "'");
-        lines.push("$ProjectRoot = '" + managerPowerShellEscape(psProjectRoot) + "'");
-        lines.push("$ScriptPath = '" + managerPowerShellEscape(psScriptPath) + "'");
-        lines.push("$ScriptArgs = @('-ConfigPath', $ConfigPath)");
-        lines.push("New-Item -ItemType Directory -Force -Path (Split-Path -Parent $ConfigPath) | Out-Null");
-        lines.push("[System.IO.File]::WriteAllText($ConfigPath, [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('" + configB64 + "')))");
-        lines.push("Set-Location -Path $ProjectRoot");
-        if (background === true) {
-            lines.push("$proc = Start-Process -FilePath 'powershell.exe' -WorkingDirectory $ProjectRoot -ArgumentList (@('-NoProfile','-ExecutionPolicy','Bypass','-File',$ScriptPath) + $ScriptArgs) -PassThru -WindowStyle Hidden");
-            lines.push('Write-Output ("__MC_PROCESS_ID__:" + $proc.Id)');
-            lines.push('Write-Output "__MC_EXIT_CODE__:0"');
-        } else {
-            lines.push("$StdoutPath = $OutputPath + '.stdout'");
-            lines.push("$StderrPath = $OutputPath + '.stderr'");
-            lines.push("$proc = Start-Process -FilePath 'powershell.exe' -WorkingDirectory $ProjectRoot -ArgumentList (@('-NoProfile','-ExecutionPolicy','Bypass','-File',$ScriptPath) + $ScriptArgs) -RedirectStandardOutput $StdoutPath -RedirectStandardError $StderrPath -Wait -PassThru -WindowStyle Hidden");
-            lines.push("$MCExitCode = if ($null -ne $proc.ExitCode) { [int]$proc.ExitCode } else { -1 }");
-            lines.push("$stdoutText = if (Test-Path $StdoutPath) { Get-Content -LiteralPath $StdoutPath -Raw -Encoding UTF8 } else { '' }");
-            lines.push("$stderrText = if (Test-Path $StderrPath) { Get-Content -LiteralPath $StderrPath -Raw -Encoding UTF8 } else { '' }");
-            lines.push("$combinedText = $stdoutText + $(if ($stderrText.Trim()) { \"`r`n[stderr]`r`n\" + $stderrText } else { '' })");
-            lines.push("[System.IO.File]::WriteAllText($OutputPath, $combinedText, [System.Text.UTF8Encoding]::new($false))");
-            lines.push('Write-Output ("__MC_EXIT_CODE__:" + $MCExitCode)');
-            lines.push('Write-Output "__MC_OUTPUT_B64_START__"');
-            lines.push('if (Test-Path $OutputPath) { [Convert]::ToBase64String([System.IO.File]::ReadAllBytes($OutputPath)) }');
-            lines.push('Write-Output "__MC_OUTPUT_B64_END__"');
-            lines.push('Remove-Item -Force -ErrorAction SilentlyContinue $OutputPath, $StdoutPath, $StderrPath');
-        }
-        return { commandType: 2, cmds: lines.join("\r\n"), configPath: configPath, outputPath: outputPath, scriptPath: psScriptPath, arguments: argsText ? [configPath] : [] };
-    }
-
-    function managerBuildRemoteCommand(deviceOs, scriptPath, configObject, recordId, prefix, options) {
-        scriptPath = (typeof scriptPath === 'string') ? scriptPath.trim() : '';
-        if (scriptPath === '') throw new Error('脚本路径不能为空。');
-        if ((deviceOs === 'windows') && /(^|[\\\/])run-publish-product\.sh$/i.test(scriptPath)) {
-            scriptPath = scriptPath.replace(/run-publish-product\.sh$/i, 'run-publish-product.ps1');
-        }
-        var projectRoot = managerGetScriptProjectRoot(scriptPath, deviceOs);
-        var configText = JSON.stringify(configObject || {}, null, 2);
-        var runtimeDir = managerGetRuntimeDir(projectRoot, deviceOs, prefix);
-        var configPathToken = runtimeDir + (deviceOs === 'windows' ? '\\' : '/') + prefix + '-' + recordId + '.json';
-        var argsTemplate = managerGetScriptArgsTemplate(scriptPath, options && options.taskType, options && options.useScriptDefaults === true);
-        var replacedArgs = managerReplaceArgsTemplate(argsTemplate, { configPath: configPathToken, projectRoot: projectRoot || '' });
-        if (deviceOs === 'windows') { return managerBuildPowerShellCommand(projectRoot, scriptPath, replacedArgs, configText, recordId, prefix, options && options.background === true); }
-        return managerBuildShellCommand(projectRoot, scriptPath, replacedArgs, configText, recordId, prefix, options && options.background === true);
-    }
-
-    function managerExtractBetween(text, startMarker, endMarker) {
-        if (typeof text !== 'string') return '';
-        var start = text.indexOf(startMarker);
-        if (start < 0) return '';
-        start += startMarker.length;
-        var end = text.indexOf(endMarker, start);
-        if (end < 0) return text.substring(start).trim();
-        return text.substring(start, end).trim();
-    }
-
     function managerBuildResultSummary(stdout, status, exitCode) {
         if (status === 'running') return '流程已启动，等待停止或心跳更新。';
         if (status === 'success') return '执行成功，退出码 ' + String(exitCode == null ? 0 : exitCode) + '。';
@@ -7908,6 +7815,30 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         return { name: name, collectType: collectType, deviceId: deviceId, deviceOs: deviceOs, scriptPath: scriptPath, config: config, remark: remark };
     }
 
+    function getScheduledTaskPayload(command) {
+        var name = managerGetTextField(command.name || '', 256, false);
+        var scheduleTime = managerGetTextField(command.scheduleTime || '', 5, false);
+        var timezone = managerGetTextField(command.timezone || 'Asia/Shanghai', 64, false) || 'Asia/Shanghai';
+        var steps = managerGetJsonField(command.steps || '[]', []);
+        if (name == null) return { error: '定时任务名称不能为空。' };
+        if ((scheduleTime == null) || (/^([01]\d|2[0-3]):[0-5]\d$/.test(scheduleTime) === false)) return { error: '定时时间必须是 HH:mm 格式。' };
+        if (!Array.isArray(steps)) return { error: '定时任务步骤格式无效。' };
+        var normalizedSteps = [];
+        for (var i = 0; i < steps.length; i++) {
+            var step = steps[i];
+            if (step == null || typeof step !== 'object') continue;
+            var type = managerGetTextField(step.type || '', 32, false);
+            var targetId = managerGetTextField(step.targetId || '', 128, false);
+            var failurePolicy = managerGetTextField(step.failurePolicy || 'stop', 16, false) || 'stop';
+            if (['collect_task', 'publish_flow', 'pricing_flow'].indexOf(type) < 0) return { error: '定时任务步骤类型无效。' };
+            if (targetId == null) return { error: '定时任务步骤目标不能为空。' };
+            if (['stop', 'continue'].indexOf(failurePolicy) < 0) failurePolicy = 'stop';
+            normalizedSteps.push({ stepId: managerMakeId('schedulestep'), type: type, targetId: targetId, failurePolicy: failurePolicy });
+        }
+        if (normalizedSteps.length === 0) return { error: '至少需要添加一个定时任务步骤。' };
+        return { name: name, enabled: command.enabled === true, scheduleTime: scheduleTime, timezone: timezone, steps: normalizedSteps };
+    }
+
     function getFlowPayload(command) {
         var flowType = managerGetTextField(command.flowType || '', 32, false);
         var name = managerGetTextField(command.name || '', 256, false);
@@ -7954,9 +7885,10 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         return result;
     }
 
-    function managerApplyFlowContext(config, flow) {
+    function managerApplyFlowContext(config, flow, runId) {
         config._meshFlow = config._meshFlow || {};
         config._meshFlow.flowId = flow.id;
+        if (runId) config._meshFlow.runId = runId;
         config._meshFlow.flowType = flow.flow_type || flow.flowType;
         config._meshFlow.myShopId = flow.my_shop_id || flow.myShopId || '';
         config._meshFlow.myShopName = flow.my_shop_name || flow.myShopName || '';
@@ -8051,7 +7983,7 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         return result;
     }
 
-    async function managerPreparePublishFlowConfig(flowConfig, flow) {
+    async function managerPreparePublishFlowConfig(flowConfig, flow, runId) {
         var cloned = managerCloneJson(flowConfig || {});
         var product = await managerDbPromise('GetProductByExactName', flow.product_name || flow.productName || '');
         var myShop = null;
@@ -8076,21 +8008,12 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
             imageUrls: managerFlowJsonArray(product.image_urls_json)
         };
         cloned._meshFlow = { flowType: 'publish', requestedAt: new Date().toISOString() };
-        return { config: managerApplyFlowContext(cloned, flow), bindings: null };
+        return { config: managerApplyFlowContext(cloned, flow, runId), bindings: null };
     }
 
-    async function managerPreparePricingFlowConfig(flowConfig, flow) {
+    async function managerPreparePricingFlowConfig(flowConfig, flow, runId) {
         var cloned = managerCloneJson(flowConfig || {});
-        var resolvedResult = null;
-        try {
-            resolvedResult = await managerResolveCollectResultReference({ collectTaskId: cloned.collectTaskId, collectResultId: cloned.collectResultId }, 'collect_price', { maxAgeDays: 7, requireSyncSuccess: false, notFoundMessage: '调价流程缺少可用的价格采集结果。' });
-        } catch (ex) {
-            resolvedResult = await managerResolveCollectResultReference({ collectTaskId: cloned.collectTaskId, collectResultId: cloned.collectResultId }, 'collect_shop', { maxAgeDays: 7, requireSyncSuccess: false, notFoundMessage: '调价流程缺少可用的店铺采集价格结果。' });
-        }
-        cloned.referenceCollectResultId = resolvedResult.id;
-        cloned.referenceCollectTaskId = resolvedResult.task_id;
-        cloned.referenceCollectData = managerGetJsonField(resolvedResult.data, []);
-        return { config: managerApplyFlowContext(cloned, flow), bindings: [{ collectTaskId: resolvedResult.task_id, collectResultId: resolvedResult.id }] };
+        return { config: managerApplyFlowContext(cloned, flow, runId), bindings: null };
     }
 
     function managerPrepareAutoReplyFlowConfig(flowConfig) {
@@ -8101,10 +8024,10 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         return { config: cloned, bindings: null, background: background };
     }
 
-    async function managerPrepareFlowExecution(flow) {
+    async function managerPrepareFlowExecution(flow, runId) {
         var flowConfig = managerGetJsonField(flow.config, {});
-        if (flow.flow_type === 'publish') return managerPreparePublishFlowConfig(flowConfig, flow);
-        if (flow.flow_type === 'pricing') return managerPreparePricingFlowConfig(flowConfig, flow);
+        if (flow.flow_type === 'publish') return managerPreparePublishFlowConfig(flowConfig, flow, runId);
+        if (flow.flow_type === 'pricing') return managerPreparePricingFlowConfig(flowConfig, flow, runId);
         return managerPrepareAutoReplyFlowConfig(flowConfig);
     }
 
@@ -8166,18 +8089,9 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
     function serverCommandCollectPrepareExecute(command) {
         var taskId = managerGetTextField(command.id || '', 128, false);
         if (taskId == null) { obj.send({ action: 'collectprepareexecute', result: '无效的采集任务编号。' }); return; }
-        (async function () {
-            var task = await managerDbPromise('GetCollectTask', taskId);
-            var preparedResultId = managerMakeId('collectresult');
-            task.preparedResultId = preparedResultId;
-            var collectType = task.collect_type || task.collectType;
-            var config = managerGetJsonField(task.config, {});
-            config._meshCollect = { taskId: task.id, collectType: collectType, requestedAt: new Date().toISOString() };
-            var remote = managerBuildRemoteCommand(task.device_os || task.deviceOs, task.script_path || task.scriptPath, config, preparedResultId, 'collect', { background: false, taskType: task.collect_type || task.collectType });
-            var runRow = await managerDbPromise('StartCollectRun', task, remote.cmds);
-            return { task: task, runRow: runRow, remote: remote };
-        })().then(function (prepared) {
-            obj.send({ action: 'collectprepareexecute', success: true, taskId: prepared.task.id, resultId: prepared.runRow.id, nodeId: prepared.task.device_id || prepared.task.deviceId, commandType: prepared.remote.commandType, cmds: prepared.remote.cmds, commandMeta: { configPath: prepared.remote.configPath, outputPath: prepared.remote.outputPath, scriptPath: prepared.remote.scriptPath }, responseid: 'collectexec_' + prepared.runRow.id });
+        if (parent.scheduledTaskManager == null) { obj.send({ action: 'collectprepareexecute', result: '节点任务执行器未启动。' }); return; }
+        parent.scheduledTaskManager.enqueueCollectTask(taskId, { idempotencyKey: 'manual-collect:' + managerMakeId('job') }).then(function (result) {
+            obj.send({ action: 'collectprepareexecute', success: true, queued: true, taskId: taskId, resultId: result.collectResultId, nodeJobId: result.nodeJobId });
         }).catch(function (err) {
             obj.send({ action: 'collectprepareexecute', result: err.message ? err.message : '无法准备采集执行。' });
         });
@@ -8193,6 +8107,90 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         db.FinalizeCollectRun(resultId, { status: status, exitCode: (typeof command.exitCode === 'number') ? command.exitCode : null, stdout: typeof command.stdout === 'string' ? command.stdout : '', stderr: typeof command.stderr === 'string' ? command.stderr : '', data: data, resultMeta: managerGetJsonField(command.resultMeta || '{}', {}) || {} }, function (err, resultRow) {
             if (err != null) { obj.send({ action: 'collectfinalizeexecute', result: err.message ? err.message : '无法保存采集结果。' }); return; }
             obj.send({ action: 'collectfinalizeexecute', success: true, resultId: resultId, row: resultRow });
+        });
+    }
+
+    function serverCommandScheduledTaskList(command) {
+        var search = '', page = 1, limit = 10;
+        if (typeof command.search === 'string') {
+            search = command.search.trim();
+            if (search.length > 128) { obj.send({ action: 'scheduledtasklist', result: 'Invalid search.' }); return; }
+        }
+        if (common.validateInt(command.page, 1, 100000) == true) page = command.page;
+        if (common.validateInt(command.limit, 1, 50) == true) limit = command.limit;
+        db.GetScheduledTaskList(search, page, limit, function (err, result) {
+            if (err != null) { obj.send({ action: 'scheduledtasklist', result: err.message ? err.message : 'Unable to load scheduled tasks.' }); return; }
+            obj.send({ action: 'scheduledtasklist', search: search, page: page, limit: limit, total: result.total, tasks: result.tasks });
+        });
+    }
+
+    function serverCommandScheduledTaskCreate(command) {
+        var payload = getScheduledTaskPayload(command);
+        if (payload.error != null) { obj.send({ action: 'scheduledtaskcreate', result: payload.error }); return; }
+        db.CreateScheduledTask(payload, function (err, task) {
+            if (err != null) { obj.send({ action: 'scheduledtaskcreate', result: err.message ? err.message : '新增失败。' }); return; }
+            obj.send({ action: 'scheduledtaskcreate', success: true, task: task });
+        });
+    }
+
+    function serverCommandScheduledTaskUpdate(command) {
+        var taskId = managerGetTextField(command.id || '', 128, false);
+        if (taskId == null) { obj.send({ action: 'scheduledtaskupdate', result: '无效的定时任务编号。' }); return; }
+        var payload = getScheduledTaskPayload(command);
+        if (payload.error != null) { obj.send({ action: 'scheduledtaskupdate', result: payload.error }); return; }
+        db.UpdateScheduledTask(taskId, payload, function (err, task) {
+            if (err != null) { obj.send({ action: 'scheduledtaskupdate', result: err.message ? err.message : '保存失败。' }); return; }
+            obj.send({ action: 'scheduledtaskupdate', success: true, task: task });
+        });
+    }
+
+    function serverCommandScheduledTaskSetEnabled(command) {
+        var taskId = managerGetTextField(command.id || '', 128, false);
+        if (taskId == null) { obj.send({ action: 'scheduledtasksetenabled', result: '无效的定时任务编号。' }); return; }
+        db.SetScheduledTaskEnabled(taskId, command.enabled === true, function (err, task) {
+            if (err != null) { obj.send({ action: 'scheduledtasksetenabled', result: err.message ? err.message : '更新失败。' }); return; }
+            obj.send({ action: 'scheduledtasksetenabled', success: true, task: task });
+        });
+    }
+
+    function serverCommandScheduledTaskDelete(command) {
+        var taskId = managerGetTextField(command.id || '', 128, false);
+        if (taskId == null) { obj.send({ action: 'scheduledtaskdelete', result: '无效的定时任务编号。' }); return; }
+        db.DeleteScheduledTask(taskId, function (err, deletedId) {
+            if (err != null) { obj.send({ action: 'scheduledtaskdelete', result: err.message ? err.message : '删除失败。' }); return; }
+            obj.send({ action: 'scheduledtaskdelete', success: true, id: deletedId });
+        });
+    }
+
+    function serverCommandScheduledTaskExecute(command) {
+        var taskId = managerGetTextField(command.id || '', 128, false);
+        if (taskId == null) { obj.send({ action: 'scheduledtaskexecute', result: '无效的定时任务编号。' }); return; }
+        if (parent.scheduledTaskManager == null) { obj.send({ action: 'scheduledtaskexecute', result: '定时任务执行器未启动。' }); return; }
+        parent.scheduledTaskManager.executeScheduledTask(taskId, 'manual').then(function (run) {
+            obj.send({ action: 'scheduledtaskexecute', success: true, run: run });
+        }).catch(function (err) {
+            obj.send({ action: 'scheduledtaskexecute', result: err.message ? err.message : '执行失败。' });
+        });
+    }
+
+    function serverCommandScheduledTaskRuns(command) {
+        var taskId = managerGetTextField(command.taskId || '', 128, false);
+        var page = 1, limit = 10;
+        if (taskId == null) { obj.send({ action: 'scheduledtaskruns', result: '无效的定时任务编号。' }); return; }
+        if (common.validateInt(command.page, 1, 100000) == true) page = command.page;
+        if (common.validateInt(command.limit, 1, 50) == true) limit = command.limit;
+        db.GetScheduledTaskRuns(taskId, page, limit, function (err, result) {
+            if (err != null) { obj.send({ action: 'scheduledtaskruns', result: err.message ? err.message : '无法加载执行记录。' }); return; }
+            obj.send({ action: 'scheduledtaskruns', success: true, taskId: taskId, page: page, limit: limit, total: result.total, runs: result.runs });
+        });
+    }
+
+    function serverCommandScheduledTaskRunSteps(command) {
+        var runId = managerGetTextField(command.runId || '', 128, false);
+        if (runId == null) { obj.send({ action: 'scheduledtaskrunsteps', result: '无效的执行记录编号。' }); return; }
+        db.GetScheduledTaskRunSteps(runId, function (err, steps) {
+            if (err != null) { obj.send({ action: 'scheduledtaskrunsteps', result: err.message ? err.message : '无法加载执行步骤。' }); return; }
+            obj.send({ action: 'scheduledtaskrunsteps', success: true, runId: runId, steps: steps });
         });
     }
 
@@ -8285,54 +8283,68 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
     function serverCommandFlowPrepareExecute(command) {
         var flowId = managerGetTextField(command.id || '', 128, false);
         if (flowId == null) { obj.send({ action: 'flowprepareexecute', result: '无效的流程编号。' }); return; }
-        (async function () {
-            var flow = await managerDbPromise('GetFlow', flowId);
-            if ((flow.last_run_status || flow.lastRunStatus) === 'running' || flow.active_run_id || flow.running_run_id) {
-                throw new Error('流程正在执行中，请先停止后再执行。');
-            }
-            var nodeId = await managerValidateExecutableNode(flow.device_id || flow.deviceId);
-            flow.device_id = nodeId;
-            var runId = managerMakeId('flowrun');
-            var prepared = await managerPrepareFlowExecution(flow);
-            var remote = managerBuildRemoteCommand(flow.device_os || flow.deviceOs, flow.script_path || flow.scriptPath, prepared.config, runId, 'flow', { background: prepared.background === true, useScriptDefaults: false, taskType: flow.flow_type || flow.flowType });
-            var runRow = await managerDbPromise('StartFlowRun', flow, { id: runId, collectBindings: prepared.bindings, scriptPath: remote.scriptPath, arguments: remote.arguments, resultSummary: prepared.background === true ? '常驻流程启动中。' : '流程执行中。' });
-            return { flow: flow, runRow: runRow, remote: remote, prepared: prepared };
-        })().then(function (prepared) {
-            obj.send({ action: 'flowprepareexecute', success: true, flowId: prepared.flow.id, runId: prepared.runRow.id, nodeId: prepared.flow.device_id || prepared.flow.deviceId, commandType: prepared.remote.commandType, cmds: prepared.remote.cmds, flowType: prepared.flow.flow_type || prepared.flow.flowType, runMode: prepared.prepared.background === true ? 'background' : 'foreground', runAsUser: 0, collectBindings: prepared.prepared.bindings, commandMeta: { configPath: prepared.remote.configPath, outputPath: prepared.remote.outputPath, scriptPath: prepared.remote.scriptPath }, responseid: 'flowexec_' + prepared.runRow.id });
+        if (parent.scheduledTaskManager == null) { obj.send({ action: 'flowprepareexecute', result: '节点任务执行器未启动。' }); return; }
+        parent.scheduledTaskManager.enqueueFlow(flowId, { idempotencyKey: 'manual-flow:' + managerMakeId('job') }).then(function (result) {
+            obj.send({ action: 'flowprepareexecute', success: true, queued: true, flowId: flowId, runId: result.flowRunId, nodeJobId: result.nodeJobId, runMode: result.background === true ? 'background' : 'foreground' });
         }).catch(function (err) {
             obj.send({ action: 'flowprepareexecute', result: err.message ? err.message : '无法准备流程执行。' });
         });
+    }
+
+    function managerScheduleFlowStartWatchdog(flow, runRow) {
+        if (!flow || !runRow) return;
+        var flowType = flow.flow_type || flow.flowType || '';
+        if (flowType !== 'pricing') return;
+        setTimeout(function () {
+            (async function () {
+                var currentRun = await managerDbPromise('GetFlowRun', runRow.id);
+                if (!currentRun || currentRun.status !== 'running') return;
+                if (currentRun.process_id || currentRun.session_id || currentRun.last_heartbeat_at) return;
+                if ((currentRun.stdout || '').trim() || (currentRun.stderr || '').trim()) return;
+                await new Promise(function (resolve, reject) {
+                    db.FinalizeFlowRun(runRow.id, {
+                        status: 'failed',
+                        stdout: '执行未真正启动：服务端创建了运行记录，但设备代理没有回传启动确认或执行结果。',
+                        stderr: '',
+                        exitCode: -1,
+                        resultSummary: '执行未真正启动：设备代理未回传执行结果。',
+                        resultJson: { status: 'failed', summary: '执行未真正启动：设备代理未回传执行结果。', errorType: 'server-start-watchdog' },
+                        stopReason: 'server-start-watchdog'
+                    }, function (err) { if (err) reject(err); else resolve(); });
+                });
+            })().catch(function (err) {
+                console.log('Flow start watchdog failed: ' + (err && err.message ? err.message : err));
+            });
+        }, 90000);
     }
 
     function serverCommandFlowPrepareStop(command) {
         var flowId = managerGetTextField(command.id || '', 128, false);
         var commandRunId = managerGetTextField(command.runId || '', 128, true) || '';
         if (flowId == null) { obj.send({ action: 'flowpreparestop', result: '无效的流程编号。' }); return; }
+        if (parent.scheduledTaskManager == null) { obj.send({ action: 'flowpreparestop', result: '节点任务执行器未启动。' }); return; }
         (async function () {
             var flow = await managerDbPromise('GetFlow', flowId);
             var runId = commandRunId || flow.active_run_id || flow.running_run_id || '';
             if (!runId) throw new Error('当前没有运行中的流程。');
             var run = await managerDbPromise('GetFlowRun', runId);
-            if (!run.process_id) {
-                return { flow: flow, run: run, finalizeOnly: true };
-            }
-            var deviceOs = flow.device_os || flow.deviceOs;
-            var cmds = '';
-            if (deviceOs === 'windows') {
-                cmds = "$ErrorActionPreference = 'Continue'\r\ntry { Stop-Process -Id " + String(run.process_id) + " -Force; $mcCode = 0 } catch { Write-Output $_.Exception.Message; $mcCode = 1 }\r\nWrite-Output (\"__MC_EXIT_CODE__:\" + $mcCode)";
-            } else {
-                cmds = 'kill ' + String(run.process_id) + ' >/dev/null 2>&1\nMC_EXIT_CODE=$?\nprintf "__MC_EXIT_CODE__:%s\\n" "$MC_EXIT_CODE"';
-            }
-            return { flow: flow, run: run, cmds: cmds, commandType: (deviceOs === 'windows') ? 2 : 3 };
-        })().then(function (prepared) {
-            if (prepared.finalizeOnly === true) {
-                db.FinalizeFlowRun(prepared.run.id, { status: 'stopped', stdout: prepared.run.stdout || '', stderr: prepared.run.stderr || '', exitCode: null, resultSummary: '流程未拿到进程标识，已手动停止。', resultJson: prepared.run.result_json || null, processId: null, sessionId: prepared.run.session_id || null, stopReason: 'manual-stop-no-process' }, function (err, runRow) {
-                    if (err != null) { obj.send({ action: 'flowpreparestop', result: err.message ? err.message : '无法停止流程。' }); return; }
-                    obj.send({ action: 'flowfinalizeexecute', success: true, runId: prepared.run.id, row: runRow });
+            var flowType = flow.flow_type || flow.flowType || run.flow_type || run.flowType || '';
+            if (flowType !== 'auto_reply') {
+                return await new Promise(function (resolve, reject) {
+                    db.FinalizeFlowRun(run.id, { status: 'stopped', stdout: run.stdout || '', stderr: run.stderr || '', exitCode: null, resultSummary: '流程已标记停止；节点任务会在租约过期后自动恢复或失败。', resultJson: run.result_json || null, processId: null, sessionId: run.session_id || null, stopReason: 'manual-stop-node-job' }, function (err, runRow) {
+                        if (err) reject(err); else resolve({ mode: 'legacy', runRow: runRow, run: run });
+                    });
                 });
-                return;
             }
-            obj.send({ action: 'flowpreparestop', success: true, flowId: prepared.flow.id, runId: prepared.run.id, nodeId: prepared.flow.device_id || prepared.flow.deviceId, commandType: prepared.commandType, cmds: prepared.cmds, responseid: 'flowstop_' + prepared.run.id });
+            if (!run.process_id) throw new Error('当前客服流程缺少进程编号，无法远程停止。');
+            var result = await parent.scheduledTaskManager.enqueueFlowStop(flow.id, run.id, { idempotencyKey: 'manual-flow-stop:' + managerMakeId('job') });
+            return { mode: 'queued', result: result, run: run };
+        })().then(function (prepared) {
+            if (prepared.mode === 'queued') {
+                obj.send({ action: 'flowpreparestop', success: true, queued: true, runId: prepared.run.id, flowId: flowId, nodeJobId: prepared.result.nodeJobId });
+            } else {
+                obj.send({ action: 'flowfinalizeexecute', success: true, runId: prepared.run.id, row: prepared.runRow });
+            }
         }).catch(function (err) {
             obj.send({ action: 'flowpreparestop', result: err.message ? err.message : '无法准备停止流程。' });
         });

@@ -186,7 +186,10 @@
             <div id="LeftMenuCollectManager" tabindex="0" class="lbbutton" title="采集管理" onmouseup="go(103,event)" onkeypress="if (event.key=='Enter') { go(103); }">
                 <div class="lbtg lb10"></div>
             </div>
-            <div id="LeftMenuOperationManager" tabindex="0" class="lbbutton" title="经营日报" onmouseup="go(105,event)" onkeypress="if (event.key=='Enter') { go(105); }">
+            <div id="LeftMenuScheduledTaskManager" tabindex="0" class="lbbutton" title="定时任务" onmouseup="go(105,event)" onkeypress="if (event.key=='Enter') { go(105); }">
+                <div class="lbtg lb-scheduled"></div>
+            </div>
+            <div id="LeftMenuOperationManager" tabindex="0" class="lbbutton" title="经营日报" onmouseup="go(106,event)" onkeypress="if (event.key=='Enter') { go(106); }">
                 <div class="lbtg lb11"></div>
             </div>
             <div id="LeftMenuMyDevices" tabindex="0" class="lbbutton lbbuttonsel" title="我的设备" onmouseup="go(1,event)" onkeypress="if (event.key=='Enter') { go(1); }">
@@ -246,7 +249,8 @@
                             <td tabindex="0" id="MainMenuProductManager" class="topbar_td style3x" onmouseup="go(101,event)" onkeypress="if (event.key == 'Enter') go(101)">商品管理</td>
                             <td tabindex="0" id="MainMenuFlowManager" class="topbar_td style3x" onmouseup="go(102,event)" onkeypress="if (event.key == 'Enter') go(102)">流程管理</td>
                             <td tabindex="0" id="MainMenuCollectManager" class="topbar_td style3x" onmouseup="go(103,event)" onkeypress="if (event.key == 'Enter') go(103)">采集管理</td>
-                            <td tabindex="0" id="MainMenuOperationManager" class="topbar_td style3x" onmouseup="go(105,event)" onkeypress="if (event.key == 'Enter') go(105)">经营日报</td>
+                            <td tabindex="0" id="MainMenuScheduledTaskManager" class="topbar_td style3x" onmouseup="go(105,event)" onkeypress="if (event.key == 'Enter') go(105)">定时任务</td>
+                            <td tabindex="0" id="MainMenuOperationManager" class="topbar_td style3x" onmouseup="go(106,event)" onkeypress="if (event.key == 'Enter') go(106)">经营日报</td>
                             <td class="topbar_td_end style3">&nbsp;</td>
                         </tr>
                     </tbody></table>
@@ -645,6 +649,7 @@
                     <div id="serverWarningsDiv" style="display:none">
                         <br><strong>服务器警告</strong><br><br>
                         <div id="serverCertWarnings"></div>
+                        <div id="serverNodeWorkerWarnings"></div>
                         <div id="serverWarnings"></div>
                     </div>
                 </div>
@@ -1596,6 +1601,11 @@
                         <div class="flow-empty-title">暂无流程</div>
                         <div class="flow-empty-text">点击右上角“新增流程”，开始维护第一条流程。</div>
                     </div>
+                    <div id="flowErrorState" class="flow-state flow-empty" style="display:none">
+                        <div class="flow-empty-title">流程数据加载超时</div>
+                        <div class="flow-empty-text">网络或登录会话可能还没准备好，请重新加载。</div>
+                        <button type="button" class="flow-btn flow-btn-primary" onclick="flowRefreshList(flowState.page)">重新加载</button>
+                    </div>
                     <div id="flowCardList" class="flow-card-grid"></div>
                     <div id="flowPagination" class="flow-pagination" style="display:none"></div>
                 </div>
@@ -1668,7 +1678,7 @@
                                     <div class="manager-fieldset-title">自动回复配置</div>
                                     <div class="manager-inline-grid">
                                         <label style="display:none"><span>运行模式</span><select id="flowAutoMode"><option value="once">单次执行</option><option value="resident">常驻监控</option></select></label>
-                                        <label><span>固定回复文本</span><input id="flowAutoReplyText" type="text" placeholder="您好" /></label>
+                                        <label><span>固定回复文本</span><input id="flowAutoReplyText" type="text" placeholder="感谢您对本店的信任与支持" /></label>
                                         <label><span>轮询间隔（秒）</span><input id="flowAutoPollInterval" type="number" min="1" step="1" /></label>
                                         <label><span>最大重试次数</span><input id="flowAutoMaxRetries" type="number" min="1" step="1" /></label>
                                         <label style="display:none"><span>CDP 地址</span><input id="flowAutoCdpUrl" type="text" placeholder="http://127.0.0.1:9222" /></label>
@@ -1729,6 +1739,11 @@
                     <div id="collectEmptyState" class="collect-state collect-empty" style="display:none">
                         <div class="collect-empty-title">暂无采集任务</div>
                         <div class="collect-empty-text">点击右上角“新增采集任务”，开始维护第一条采集任务。</div>
+                    </div>
+                    <div id="collectErrorState" class="collect-state collect-empty" style="display:none">
+                        <div class="collect-empty-title">采集任务加载超时</div>
+                        <div class="collect-empty-text">网络或登录会话可能还没准备好，请重新加载。</div>
+                        <button type="button" class="collect-btn collect-btn-primary" onclick="collectRefreshList(collectState.page)">重新加载</button>
                     </div>
                     <div id="collectCardList" class="collect-card-grid"></div>
                     <div id="collectPagination" class="collect-pagination" style="display:none"></div>
@@ -1795,6 +1810,74 @@
                 </div>
             </div>
             <div id=p105 style="display:none">
+                <div class="collect-page-shell">
+                    <div class="collect-page-top">
+                        <div>
+                            <h1 class="collect-page-title">定时任务</h1>
+                            <div class="collect-page-subtitle">按每天固定时间依次执行采集任务、发布流程和调价流程。</div>
+                        </div>
+                        <div class="collect-toolbar-actions">
+                            <button type="button" class="collect-btn collect-btn-primary" onclick="scheduledOpenEditor()">新增定时任务</button>
+                        </div>
+                    </div>
+                    <div class="collect-toolbar">
+                        <div class="collect-search"><input id="scheduledSearchInput" type="search" placeholder="搜索定时任务名称" autocomplete="off" oninput="scheduledHandleSearchInput()" /></div>
+                        <div class="collect-toolbar-meta" id="scheduledToolbarMeta">共 0 条定时任务</div>
+                    </div>
+                    <div id="scheduledLoadingState" class="collect-state collect-state-loading" style="display:none">正在加载定时任务...</div>
+                    <div id="scheduledEmptyState" class="collect-state collect-empty" style="display:none">
+                        <div class="collect-empty-title">暂无定时任务</div>
+                        <div class="collect-empty-text">点击右上角“新增定时任务”，编排每天自动执行的步骤。</div>
+                    </div>
+                    <div id="scheduledCardList" class="collect-card-grid"></div>
+                    <div id="scheduledPagination" class="collect-pagination" style="display:none"></div>
+                </div>
+                <div id="scheduledToast" class="collect-toast" style="display:none"></div>
+                <div id="scheduledModalMask" class="collect-modal-mask" style="display:none" onclick="scheduledCloseEditor(event)">
+                    <div class="collect-modal" onclick="event.stopPropagation()">
+                        <div class="collect-modal-header">
+                            <div>
+                                <div id="scheduledModalTitle" class="collect-modal-title">新增定时任务</div>
+                                <div class="collect-modal-subtitle">配置每天执行时间，并按顺序添加采集和流程步骤。</div>
+                            </div>
+                            <button type="button" class="collect-modal-close" onclick="scheduledCloseEditor()">×</button>
+                        </div>
+                        <div class="collect-modal-body">
+                            <input id="scheduledFormId" type="hidden" />
+                            <div class="collect-form-grid">
+                                <label class="collect-field"><span>任务名称 <b>*</b></span><input id="scheduledFormName" type="text" maxlength="256" /></label>
+                                <label class="collect-field"><span>每天执行时间 <b>*</b></span><input id="scheduledFormTime" type="time" value="03:00" /></label>
+                                <label class="collect-field"><span>任务状态</span><select id="scheduledFormEnabled"><option value="true">开始</option><option value="false">停止</option></select></label>
+                                <label class="collect-field"><span>时区</span><input id="scheduledFormTimezone" type="text" value="Asia/Shanghai" readonly /></label>
+                                <div class="collect-field collect-field-full manager-fieldset">
+                                    <div class="manager-section-header"><div class="manager-fieldset-title">执行步骤</div><button type="button" class="collect-btn" onclick="scheduledAddStepRow()">新增步骤</button></div>
+                                    <div id="scheduledStepRows" class="manager-repeat-list"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="collect-modal-footer">
+                            <button type="button" class="collect-btn" onclick="scheduledCloseEditor()">取消</button>
+                            <button type="button" id="scheduledSubmitButton" class="collect-btn collect-btn-primary" onclick="scheduledSubmitEditor()">保存</button>
+                        </div>
+                    </div>
+                </div>
+                <div id="scheduledRunsMask" class="collect-modal-mask" style="display:none" onclick="scheduledCloseRuns(event)">
+                    <div class="collect-modal collect-history-modal" onclick="event.stopPropagation()">
+                        <div class="collect-modal-header">
+                            <div>
+                                <div id="scheduledRunsTitle" class="collect-modal-title">定时任务执行记录</div>
+                                <div class="collect-modal-subtitle">查看每次批次执行结果和步骤明细。</div>
+                            </div>
+                            <button type="button" class="collect-modal-close" onclick="scheduledCloseRuns()">×</button>
+                        </div>
+                        <div class="collect-modal-body">
+                            <div id="scheduledRunsContent" class="collect-history-list"></div>
+                            <div id="scheduledRunsPagination" class="collect-pagination" style="display:none"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id=p106 style="display:none">
                 <div class="ops-page-shell">
                     <div class="ops-page-top">
                         <div>
@@ -2348,6 +2431,8 @@
             // Setup server stats panels
             setupGeneralServerStats();
             setupServerTimelineStats();
+            refreshNodeWorkerStatus();
+            setInterval(refreshNodeWorkerStatus, 60000);
 
             // Setup the user interface in the right mode
             userInterfaceSelectMenu();
@@ -2858,6 +2943,8 @@
             QV('LeftMenuShopManager', true);
             QV('MainMenuMyShopManager', true);
             QV('LeftMenuMyShopManager', true);
+            QV('MainMenuScheduledTaskManager', true);
+            QV('LeftMenuScheduledTaskManager', true);
             QV('MainMenuOperationManager', true);
             QV('LeftMenuOperationManager', true);
             if (((siteRights & 8) == 0) && (xxcurrentView == 5)) { setDialogMode(0); go(1); }
@@ -2928,8 +3015,9 @@
         var shopState = { items: [], total: 0, page: 1, limit: 12, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null };
         var myShopState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null };
         var productState = { items: [], total: 0, page: 1, limit: 12, search: '', storeSearch: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, loadTimer: null, loadRetry: 0, pendingAction: null };
-        var flowState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, loadTimer: null, loadRetry: 0, pendingAction: null, pendingMyShopId: '', currentRunsFlowId: null, runsPage: 1, runsLimit: 10, pricingReference: { nextRowSeq: 1, rows: {} }, pricingTaskMeta: { skuStrategy: 'allActive' }, productBinding: { searchTimer: null, suggestions: [], activeSearch: '' } };
+        var flowState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, loadTimer: null, loadRetry: 0, pendingAction: null, pendingMyShopId: '', currentRunsFlowId: null, runsPage: 1, runsLimit: 10, runsTimer: null, pricingReference: { nextRowSeq: 1, rows: {} }, pricingTaskMeta: { skuStrategy: 'allActive' }, productBinding: { searchTimer: null, suggestions: [], activeSearch: '' } };
         var collectState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, currentResultsTaskId: null, resultsPage: 1, resultsLimit: 10 };
+        var scheduledState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, listTimer: null, pendingAction: null, currentRunsTaskId: null, runsPage: 1, runsLimit: 10, runSteps: {} };
         var operationState = { items: [], total: 0, page: 1, limit: 7, storeSearch: '', dateFrom: '', dateTo: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null };
         var managerExecutionMap = {};
 
@@ -3676,7 +3764,7 @@
         }
         function managerDefaultFlowConfig(flowType) {
             if (flowType === 'pricing') return { globalEnabled: true, myShopId: '', tasks: [{ taskId: 'task_1', enabled: true, referenceProductSelection: 'average', strategy: 'average', priceOffset: 0, duplicateTargetPolicy: 'fail', skuStrategy: 'allActive' }] };
-            if (flowType === 'auto_reply') return { mode: 'once', autoReply: { enabled: true, replyText: '您好', pollIntervalSeconds: 3, maxRetries: 3, cdpUrl: 'http://127.0.0.1:9222', preferredUrl: '', fallbackOpenUrl: '', monitorRecentContacts: true, requirePendingClearForNextRound: false, startChromeDebugIfNeeded: true, statePath: './runtime/resident-auto-reply-state.json' } };
+            if (flowType === 'auto_reply') return { mode: 'once', autoReply: { enabled: true, replyText: '感谢您对本店的信任与支持', pollIntervalSeconds: 3, maxRetries: 3, cdpUrl: 'http://127.0.0.1:9222', preferredUrl: '', fallbackOpenUrl: '', monitorRecentContacts: true, requirePendingClearForNextRound: false, startChromeDebugIfNeeded: true, statePath: './runtime/resident-auto-reply-state.json' } };
             return {};
         }
         function managerFlowTypeLabel(flowType) {
@@ -3770,10 +3858,45 @@
             }
             return { raw: text, exitCode: exitMatch ? parseInt(exitMatch[1]) : null, processId: pidMatch ? pidMatch[1] : null, output: output };
         }
+        function managerClearRuncommandsTimeout(pending) {
+            if ((pending != null) && (pending.timeoutId != null)) { clearTimeout(pending.timeoutId); pending.timeoutId = null; }
+            if ((pending != null) && (pending.outputTimeoutId != null)) { clearTimeout(pending.outputTimeoutId); pending.outputTimeoutId = null; }
+        }
+        function managerFinalizeRuncommandsTimeout(responseid, acknowledged) {
+            var pending = managerExecutionMap[responseid];
+            if (!pending || ((acknowledged !== true) && (pending.acknowledged === true))) return;
+            var summary = acknowledged === true ? '执行超时：设备代理已确认命令，但执行结果长时间未回传。' : '执行未真正启动：设备代理未在限定时间内确认执行命令。';
+            managerClearRuncommandsTimeout(pending);
+            if (pending.kind === 'collect') {
+                meshserver.send({ action: 'collectfinalizeexecute', resultId: pending.resultId, status: 'failed', exitCode: -1, stdout: summary, stderr: '', data: '[]', resultMeta: JSON.stringify({ errorType: acknowledged === true ? 'agent_output_timeout' : 'agent_ack_timeout' }) });
+            } else if (pending.kind === 'flow' && pending.operation === 'stop') {
+                meshserver.send({ action: 'flowfinalizeexecute', runId: pending.runId, status: 'running', exitCode: -1, stdout: summary, stderr: '', resultSummary: acknowledged === true ? '停止失败：设备代理未回传停止结果。' : '停止失败：设备代理未确认停止命令。', resultJson: JSON.stringify({ status: 'failed', summary: summary, errorType: acknowledged === true ? 'agent_output_timeout' : 'agent_ack_timeout' }), processId: pending.processId || '', stopReason: acknowledged === true ? 'agent-output-timeout' : 'agent-ack-timeout' });
+            } else if (pending.kind === 'flow') {
+                meshserver.send({ action: 'flowfinalizeexecute', runId: pending.runId, status: 'failed', exitCode: -1, stdout: summary, stderr: '', resultSummary: summary, resultJson: JSON.stringify({ status: 'failed', summary: summary, errorType: acknowledged === true ? 'agent_output_timeout' : 'agent_ack_timeout' }), collectBindings: JSON.stringify(pending.collectBindings || null), stopReason: acknowledged === true ? 'agent-output-timeout' : 'agent-ack-timeout' });
+            }
+            delete managerExecutionMap[responseid];
+        }
+        function managerStartRuncommandsTimeout(responseid) {
+            var pending = managerExecutionMap[responseid];
+            if (!pending) return;
+            managerClearRuncommandsTimeout(pending);
+            managerStartRuncommandsOutputTimeout(responseid);
+        }
+        function managerStartRuncommandsOutputTimeout(responseid) {
+            var pending = managerExecutionMap[responseid];
+            if (!pending) return;
+            if (pending.outputTimeoutId != null) clearTimeout(pending.outputTimeoutId);
+            var timeoutMs = 30 * 60 * 1000;
+            if (pending.kind === 'flow' && pending.operation === 'stop') timeoutMs = 2 * 60 * 1000;
+            else if (pending.kind === 'flow' && pending.runMode !== 'background') timeoutMs = 15 * 60 * 1000;
+            else if (pending.kind === 'flow') timeoutMs = 2 * 60 * 1000;
+            pending.outputTimeoutId = setTimeout(function () { managerFinalizeRuncommandsTimeout(responseid, true); }, timeoutMs);
+        }
         function managerHandleRuncommandsAck(message) {
             var pending = managerExecutionMap[message.responseid];
             if (!pending) return false;
             if ((message.result != null) && (message.result !== 'OK')) {
+                managerClearRuncommandsTimeout(pending);
                 if (pending.kind === 'collect') {
                     meshserver.send({ action: 'collectfinalizeexecute', resultId: pending.resultId, status: 'failed', exitCode: -1, stdout: String(message.result), stderr: '', data: '[]', resultMeta: '{}' });
                 } else if (pending.kind === 'flow' && pending.operation === 'stop') {
@@ -3782,12 +3905,17 @@
                     meshserver.send({ action: 'flowfinalizeexecute', runId: pending.runId, status: 'failed', exitCode: -1, stdout: String(message.result), stderr: '', resultSummary: '执行失败：' + String(message.result), resultJson: '{}', collectBindings: JSON.stringify(pending.collectBindings || null) });
                 }
                 delete managerExecutionMap[message.responseid];
+            } else if (message.result === 'OK') {
+                pending.acknowledged = true;
+                managerClearRuncommandsTimeout(pending);
+                managerStartRuncommandsOutputTimeout(message.responseid);
             }
             return true;
         }
         function managerHandleRuncommandsOutput(message) {
             var pending = managerExecutionMap[message.responseid];
             if (!pending) return false;
+            managerClearRuncommandsTimeout(pending);
             var parsed = managerParseCommandEnvelope(message.result || '');
             if (pending.kind === 'collect') {
                 var parsedData = managerTryParseCollectData(parsed.output);
@@ -3816,34 +3944,37 @@
             if (Q('p102') == null) return;
             QC('p102').remove('flow-page-active'); void Q('p102').offsetWidth; QC('p102').add('flow-page-active');
             if (Q('flowSearchInput') != null) Q('flowSearchInput').value = flowState.search;
-            if (flowState.loaded !== true) flowRefreshList(1); else flowRender();
+            flowRefreshList(flowState.page || 1);
         }
         function flowHandleSearchInput() { if (flowState.searchTimer != null) clearTimeout(flowState.searchTimer); flowState.searchTimer = setTimeout(function () { flowState.search = Q('flowSearchInput').value.trim(); flowRefreshList(1); }, 260); }
         function flowRefreshList(page, isRetry) {
             if (typeof page === 'number') flowState.page = page;
             if (isRetry !== true) flowState.loadRetry = 0;
             if (flowState.loadTimer != null) { clearTimeout(flowState.loadTimer); flowState.loadTimer = null; }
-            flowState.loaded = true; flowState.loading = true; QV('flowLoadingState', true); QV('flowEmptyState', false); QH('flowCardList', '');
+            flowState.loaded = true; flowState.loading = true; QV('flowLoadingState', true); QV('flowEmptyState', false); QV('flowErrorState', false);
+            if (!Array.isArray(flowState.items) || flowState.items.length === 0) QH('flowCardList', '');
             meshserver.send({ action: 'flowlist', search: flowState.search, page: flowState.page, limit: flowState.limit });
             flowState.loadTimer = setTimeout(function () {
                 if (flowState.loading !== true) return;
-                if (flowState.loadRetry < 1) {
+                if (flowState.loadRetry < 2) {
                     flowState.loadRetry++;
                     flowRefreshList(flowState.page, true);
                     return;
                 }
                 flowState.loading = false;
                 QV('flowLoadingState', false);
-                flowRender();
+                QV('flowErrorState', true);
+                QV('flowEmptyState', false);
                 flowShowToast('流程数据加载超时，请稍后重试。', true);
-            }, 12000);
+            }, 6000);
         }
         function flowHandleListResponse(message) {
             flowState.loading = false;
             if (flowState.loadTimer != null) { clearTimeout(flowState.loadTimer); flowState.loadTimer = null; }
-            QV('flowLoadingState', false);
+            QV('flowLoadingState', false); QV('flowErrorState', false);
             if (message.result != null) { flowState.items = []; flowState.total = 0; flowShowToast(message.result, true); } else { flowState.items = Array.isArray(message.flows) ? message.flows : []; flowState.total = typeof message.total === 'number' ? message.total : 0; if (typeof message.page === 'number') flowState.page = message.page; }
             flowRender();
+            if (Q('scheduledModalMask') != null && Q('scheduledModalMask').style.display !== 'none') { var rows = Q('scheduledStepRows').querySelectorAll('.scheduled-step-row'); for (var i = 0; i < rows.length; i++) scheduledRefreshStepTarget(rows[i].id); }
         }
         function flowHandleMutationResponse(kind, message) {
             flowState.pendingAction = null; flowSetSubmitBusy(false);
@@ -3870,7 +4001,6 @@
                     x += '<div class="flow-card-meta"><span>' + (flowType === 'pricing' ? '参考商品关键词' : '商品名称') + '</span><strong>' + EscapeHtml(flow.product_name || flow.productName || '未设置') + '</strong></div>';
                     x += '<div class="flow-card-meta"><span>我的商品名称</span><strong>' + EscapeHtml(flow.my_product_name || flow.myProductName || '未设置') + '</strong></div>';
                 }
-                x += '<div class="flow-card-meta"><span>脚本路径</span><strong>' + EscapeHtml(managerCurrentScriptPath(flow.script_path || flow.scriptPath)) + '</strong></div>';
                 x += '<div class="flow-card-meta"><span>上次执行</span><strong>' + EscapeHtml(flow.last_run_at ? new Date(flow.last_run_at).toLocaleString() : '从未执行') + '</strong></div>';
                 x += '<div class="flow-card-meta"><span>摘要</span><strong>' + EscapeHtml(lastResult.resultSummary || '暂无') + '</strong></div>';
                 x += '<div class="flow-card-footer"><div class="flow-card-hints"><span>' + EscapeHtml(managerFlowTypeLabel(flow.flow_type || flow.flowType)) + '</span></div><div class="flow-card-actions">';
@@ -4361,7 +4491,7 @@
             } else {
                 var reply = (config.autoReply || {});
                 Q('flowAutoMode').value = config.mode || 'once';
-                Q('flowAutoReplyText').value = reply.replyText || '您好';
+                Q('flowAutoReplyText').value = reply.replyText || '感谢您对本店的信任与支持';
                 Q('flowAutoPollInterval').value = reply.pollIntervalSeconds == null ? 3 : reply.pollIntervalSeconds;
                 Q('flowAutoMaxRetries').value = reply.maxRetries == null ? 3 : reply.maxRetries;
                 Q('flowAutoCdpUrl').value = reply.cdpUrl || 'http://127.0.0.1:9222';
@@ -4464,18 +4594,25 @@
         }
         function flowConfirmDelete(id) { setDialogMode(2, '删除流程', 3, function (button, tag) { if (button === 1) meshserver.send({ action: 'flowdelete', id: tag }); }, '确认删除该流程吗？删除后将立即刷新列表。', id); }
         function flowShowToast(text, isError) { if (flowState.toastTimer != null) clearTimeout(flowState.toastTimer); QH('flowToast', EscapeHtml(text)); Q('flowToast').className = 'flow-toast' + (isError ? ' flow-toast-error' : ' flow-toast-success'); QV('flowToast', true); flowState.toastTimer = setTimeout(function () { QV('flowToast', false); }, 2800); }
-        function flowOpenRuns(flowId, page) { flowState.currentRunsFlowId = flowId; flowState.runsPage = typeof page === 'number' ? page : 1; QH('flowRunsTitle', '流程执行记录'); QH('flowRunsContent', '正在加载执行记录...'); QV('flowRunsMask', true); meshserver.send({ action: 'flowruns', flowId: flowId, page: flowState.runsPage, limit: flowState.runsLimit }); }
-        function flowCloseRuns(event) { if (event && !managerCanCloseModalMask(event, 'flowRunsMask')) return; QV('flowRunsMask', false); }
+        function flowOpenRuns(flowId, page, silent) { flowState.currentRunsFlowId = flowId; flowState.runsPage = typeof page === 'number' ? page : 1; if (flowState.runsTimer != null) { clearTimeout(flowState.runsTimer); flowState.runsTimer = null; } QH('flowRunsTitle', '流程执行记录'); if (silent !== true) QH('flowRunsContent', '正在加载执行记录...'); QV('flowRunsMask', true); meshserver.send({ action: 'flowruns', flowId: flowId, page: flowState.runsPage, limit: flowState.runsLimit }); }
+        function flowCloseRuns(event) { if (event && event.target && event.target.id !== 'flowRunsMask') return; if (flowState.runsTimer != null) { clearTimeout(flowState.runsTimer); flowState.runsTimer = null; } QV('flowRunsMask', false); }
+        function flowRunLooksUnstarted(run) {
+            if (!run || run.status !== 'running' || run.process_id || run.processId || run.stdout || run.stderr) return false;
+            var started = run.started_at ? new Date(run.started_at).getTime() : 0;
+            return started > 0 && ((Date.now() - started) > 60000);
+        }
         function flowHandleRunsResponse(message) {
             if (message.result != null) { QH('flowRunsContent', '<div class="flow-history-empty">' + EscapeHtml(message.result) + '</div>'); QV('flowRunsPagination', false); return; }
-            var runs = Array.isArray(message.runs) ? message.runs : [], x = '';
+            var runs = Array.isArray(message.runs) ? message.runs : [], x = '', hasRunning = false;
             if (runs.length === 0) { x = '<div class="flow-history-empty">暂无执行记录。</div>'; } else {
                 for (var i = 0; i < runs.length; i++) {
+                    if (runs[i].status === 'running') hasRunning = true;
                     var resultJson = managerParseJson(typeof runs[i].result_json === 'string' ? runs[i].result_json : JSON.stringify(runs[i].result_json || null), null);
                     x += '<div class="flow-history-item"><div class="flow-history-head"><div>' + managerRenderStatusBadge('flow', runs[i].status || 'idle') + '</div><strong>' + EscapeHtml(runs[i].started_at ? new Date(runs[i].started_at).toLocaleString() : '') + '</strong></div>';
                     x += '<div class="flow-history-meta"><span>脚本</span><strong>' + EscapeHtml(runs[i].script_path || '') + '</strong></div>';
                     x += '<div class="flow-history-meta"><span>采集绑定</span><strong>' + EscapeHtml(JSON.stringify(runs[i].collect_bindings || runs[i].collectBindings || null)) + '</strong></div>';
                     x += '<div class="flow-history-meta"><span>摘要</span><strong>' + EscapeHtml(runs[i].result_summary || '暂无') + '</strong></div>';
+                    if (flowRunLooksUnstarted(runs[i])) x += '<div class="flow-history-meta"><span>执行痕迹</span><strong>尚未收到本机进程号、心跳或输出；通常表示设备代理还没有真正启动脚本。</strong></div>';
                     x += '<details class="flow-history-raw"><summary>查看原始输出</summary><pre>' + EscapeHtml(runs[i].stdout || '') + '</pre></details>';
                     if (resultJson != null) x += '<details class="flow-history-raw"><summary>查看解析结果 JSON</summary><pre>' + EscapeHtml(JSON.stringify(resultJson, null, 2)) + '</pre></details>';
                     x += '</div>';
@@ -4484,6 +4621,10 @@
             QH('flowRunsContent', x);
             var totalPages = Math.max(1, Math.ceil((message.total || 0) / flowState.runsLimit)), current = Math.min(Math.max(1, message.page || 1), totalPages);
             if (message.total > flowState.runsLimit) { QH('flowRunsPagination', '<button type="button" class="flow-page-btn" ' + (current <= 1 ? 'disabled="disabled"' : 'onclick="flowOpenRuns(\'' + EscapeHtml(flowState.currentRunsFlowId) + '\',' + (current - 1) + ')"') + '>上一页</button><span class="flow-page-indicator">第 ' + current + ' / ' + totalPages + ' 页</span><button type="button" class="flow-page-btn" ' + (current >= totalPages ? 'disabled="disabled"' : 'onclick="flowOpenRuns(\'' + EscapeHtml(flowState.currentRunsFlowId) + '\',' + (current + 1) + ')"') + '>下一页</button>'); QV('flowRunsPagination', true); } else { QV('flowRunsPagination', false); }
+            if (hasRunning && flowState.currentRunsFlowId) {
+                if (flowState.runsTimer != null) clearTimeout(flowState.runsTimer);
+                flowState.runsTimer = setTimeout(function () { if (Q('flowRunsMask') && QS('flowRunsMask').display !== 'none') flowOpenRuns(flowState.currentRunsFlowId, flowState.runsPage, true); }, 8000);
+            }
         }
         function flowFindById(id) { for (var i = 0; i < flowState.items.length; i++) { if (String(flowState.items[i].id) === String(id)) return flowState.items[i]; } return null; }
         function flowExecute(id) {
@@ -4494,14 +4635,18 @@
         function flowStop(id, runId) { meshserver.send({ action: 'flowpreparestop', id: id, runId: runId }); }
         function flowHandlePrepareExecute(message) {
             if (message.success !== true) { flowShowToast(message.result || '无法准备流程执行。', true); return; }
+            if (message.queued === true) { flowShowToast('流程已提交到节点任务队列。', false); flowRefreshList(flowState.page); return; }
             managerExecutionMap[message.responseid] = { kind: 'flow', runId: message.runId, flowId: message.flowId, runMode: message.runMode, collectBindings: message.collectBindings || null };
             meshserver.send({ action: 'runcommands', nodeids: [message.nodeId], type: message.commandType, cmds: message.cmds, runAsUser: (typeof message.runAsUser === 'number' ? message.runAsUser : 0), reply: true, responseid: message.responseid });
+            managerStartRuncommandsTimeout(message.responseid);
             flowShowToast(message.runMode === 'background' ? '正在启动常驻流程...' : '正在执行流程...', false);
         }
         function flowHandlePrepareStop(message) {
             if (message.success !== true) { flowShowToast(message.result || '无法准备停止流程。', true); return; }
+            if (message.queued === true) { flowShowToast('停止任务已提交到节点任务队列。', false); flowRefreshList(flowState.page); return; }
             managerExecutionMap[message.responseid] = { kind: 'flow', operation: 'stop', runId: message.runId, flowId: message.flowId };
             meshserver.send({ action: 'runcommands', nodeids: [message.nodeId], type: message.commandType, cmds: message.cmds, runAsUser: 0, reply: true, responseid: message.responseid });
+            managerStartRuncommandsTimeout(message.responseid);
             flowShowToast('正在停止常驻流程...', false);
         }
         function flowHandleFinalizeExecute(message) {
@@ -4513,12 +4658,34 @@
             if (Q('p103') == null) return;
             QC('p103').remove('collect-page-active'); void Q('p103').offsetWidth; QC('p103').add('collect-page-active');
             if (Q('collectSearchInput') != null) Q('collectSearchInput').value = collectState.search;
-            if (collectState.loaded !== true) collectRefreshList(1); else collectRender();
+            collectRefreshList(collectState.page || 1);
         }
         function collectHandleSearchInput() { if (collectState.searchTimer != null) clearTimeout(collectState.searchTimer); collectState.searchTimer = setTimeout(function () { collectState.search = Q('collectSearchInput').value.trim(); collectRefreshList(1); }, 260); }
-        function collectRefreshList(page) { if (typeof page === 'number') collectState.page = page; collectState.loaded = true; collectState.loading = true; QV('collectLoadingState', true); QV('collectEmptyState', false); QH('collectCardList', ''); meshserver.send({ action: 'collectlist', search: collectState.search, page: collectState.page, limit: collectState.limit }); }
+        function collectRefreshList(page, isRetry) {
+            if (typeof page === 'number') collectState.page = page;
+            if (isRetry !== true) collectState.loadRetry = 0;
+            if (collectState.loadTimer != null) { clearTimeout(collectState.loadTimer); collectState.loadTimer = null; }
+            collectState.loaded = true; collectState.loading = true; QV('collectLoadingState', true); QV('collectEmptyState', false); QV('collectErrorState', false);
+            if (!Array.isArray(collectState.items) || collectState.items.length === 0) QH('collectCardList', '');
+            meshserver.send({ action: 'collectlist', search: collectState.search, page: collectState.page, limit: collectState.limit });
+            collectState.loadTimer = setTimeout(function () {
+                if (collectState.loading !== true) return;
+                if (collectState.loadRetry < 2) {
+                    collectState.loadRetry++;
+                    collectRefreshList(collectState.page, true);
+                    return;
+                }
+                collectState.loading = false;
+                QV('collectLoadingState', false);
+                QV('collectErrorState', true);
+                QV('collectEmptyState', false);
+                collectShowToast('采集任务加载超时，请稍后重试。', true);
+            }, 6000);
+        }
         function collectHandleListResponse(message) {
-            collectState.loading = false; QV('collectLoadingState', false);
+            collectState.loading = false;
+            if (collectState.loadTimer != null) { clearTimeout(collectState.loadTimer); collectState.loadTimer = null; }
+            QV('collectLoadingState', false); QV('collectErrorState', false);
             if (message.result != null) { collectState.items = []; collectState.total = 0; collectShowToast(message.result, true); } else { collectState.items = Array.isArray(message.tasks) ? message.tasks : []; collectState.total = typeof message.total === 'number' ? message.total : 0; if (typeof message.page === 'number') collectState.page = message.page; }
             collectRender();
         }
@@ -4549,10 +4716,9 @@
                 x += '<div class="collect-card-body">';
                 x += '<div class="collect-card-head"><div><h3>' + EscapeHtml(task.name || '') + '</h3><div class="collect-card-category">' + EscapeHtml(collectType || '') + ' · ' + EscapeHtml(managerGetNodeLabel(task.device_id || task.deviceId)) + '</div></div><div class="collect-card-badges">' + managerRenderStatusBadge('collect', task.last_run_status || task.lastRunStatus || 'idle', task.last_sync_status || task.lastSyncStatus || '') + '</div></div>';
                 x += '<div class="collect-card-meta"><span>系统</span><strong>' + EscapeHtml(deviceOs || '未知') + '</strong></div>';
-                x += '<div class="collect-card-meta"><span>脚本路径</span><strong>' + EscapeHtml(managerCurrentScriptPath(task.script_path || task.scriptPath)) + '</strong></div>';
                 x += '<div class="collect-card-meta"><span>上次采集</span><strong>' + EscapeHtml(task.last_run_at ? new Date(task.last_run_at).toLocaleString() : '从未执行') + '</strong></div>';
                 x += '<div class="collect-card-meta"><span>数据条数</span><strong>' + EscapeHtml(String(task.last_data_count || task.lastDataCount || 0)) + '</strong></div>';
-                x += '<div class="collect-card-footer"><div class="collect-card-hints"><span>' + EscapeHtml(task.collect_type || task.collectType || '') + '</span></div><div class="collect-card-actions">';
+                x += '<div class="collect-card-footer"><div class="collect-card-actions">';
                 x += '<button type="button" class="collect-btn" onclick="collectOpenEditorById(\'' + EscapeHtml(String(task.id)) + '\')">编辑</button>';
                 x += '<button type="button" class="collect-btn collect-btn-danger" onclick="collectConfirmDelete(\'' + EscapeHtml(String(task.id)) + '\')">删除</button>';
                 x += '<button type="button" class="collect-btn collect-btn-primary" onclick="collectExecute(\'' + EscapeHtml(String(task.id)) + '\')">执行采集</button>';
@@ -4743,8 +4909,10 @@
         function collectExecute(id) { meshserver.send({ action: 'collectprepareexecute', id: id }); }
         function collectHandlePrepareExecute(message) {
             if (message.success !== true) { collectShowToast(message.result || '无法准备采集执行。', true); return; }
+            if (message.queued === true) { collectShowToast('采集任务已提交到节点任务队列。', false); collectRefreshList(collectState.page); return; }
             managerExecutionMap[message.responseid] = { kind: 'collect', resultId: message.resultId, taskId: message.taskId };
             meshserver.send({ action: 'runcommands', nodeids: [message.nodeId], type: message.commandType, cmds: message.cmds, runAsUser: 0, reply: true, responseid: message.responseid });
+            managerStartRuncommandsTimeout(message.responseid);
             collectShowToast('正在执行采集任务...', false);
         }
         function collectHandleFinalizeExecute(message) {
@@ -4753,10 +4921,10 @@
         }
 
         function operationEnterPage() {
-            if (Q('p105') == null) return;
-            QC('p105').remove('ops-page-active');
-            void Q('p105').offsetWidth;
-            QC('p105').add('ops-page-active');
+            if (Q('p106') == null) return;
+            QC('p106').remove('ops-page-active');
+            void Q('p106').offsetWidth;
+            QC('p106').add('ops-page-active');
             if (Q('operationStoreSearchInput') != null) Q('operationStoreSearchInput').value = operationState.storeSearch;
             if (Q('operationDateFromInput') != null) Q('operationDateFromInput').value = operationState.dateFrom;
             if (Q('operationDateToInput') != null) Q('operationDateToInput').value = operationState.dateTo;
@@ -5021,6 +5189,176 @@
             operationState.toastTimer = setTimeout(function () { QV('operationToast', false); }, 2600);
         }
 
+        function scheduledEnterPage() {
+            if (Q('p105') == null) return;
+            if (Q('scheduledSearchInput') != null) Q('scheduledSearchInput').value = scheduledState.search;
+            if (scheduledState.loaded !== true) scheduledRefreshList(1); else scheduledRender();
+        }
+        function scheduledHandleSearchInput() { if (scheduledState.searchTimer != null) clearTimeout(scheduledState.searchTimer); scheduledState.searchTimer = setTimeout(function () { scheduledState.search = Q('scheduledSearchInput').value.trim(); scheduledRefreshList(1); }, 260); }
+        function scheduledRefreshList(page, isRetry) {
+            if (typeof page === 'number') scheduledState.page = page;
+            scheduledState.loaded = true; scheduledState.loading = true;
+            QV('scheduledLoadingState', true); QV('scheduledEmptyState', false); QH('scheduledCardList', '');
+            if (scheduledState.listTimer != null) clearTimeout(scheduledState.listTimer);
+            meshserver.send({ action: 'scheduledtasklist', search: scheduledState.search, page: scheduledState.page, limit: scheduledState.limit });
+            scheduledState.listTimer = setTimeout(function () {
+                if (scheduledState.loading !== true) return;
+                if (isRetry !== true) { scheduledRefreshList(scheduledState.page, true); return; }
+                scheduledState.loading = false; QV('scheduledLoadingState', false); scheduledShowToast('定时任务加载超时，请刷新页面后重试。', true); scheduledRender();
+            }, 5000);
+        }
+        function scheduledHandleListResponse(message) {
+            if (scheduledState.listTimer != null) { clearTimeout(scheduledState.listTimer); scheduledState.listTimer = null; }
+            scheduledState.loading = false; QV('scheduledLoadingState', false);
+            if (message.result != null) { scheduledState.items = []; scheduledState.total = 0; scheduledShowToast(message.result, true); } else { scheduledState.items = Array.isArray(message.tasks) ? message.tasks : []; scheduledState.total = typeof message.total === 'number' ? message.total : 0; if (typeof message.page === 'number') scheduledState.page = message.page; }
+            scheduledRender();
+        }
+        function scheduledStepLabel(step) {
+            if (!step) return '';
+            var type = step.type === 'collect_task' ? '采集任务' : (step.type === 'publish_flow' ? '发布流程' : '调价流程');
+            return type + ' · ' + (step.failurePolicy === 'continue' ? '失败继续' : '失败停止');
+        }
+        function scheduledRender() {
+            QH('scheduledToolbarMeta', '共 ' + scheduledState.total + ' 条定时任务');
+            var list = scheduledState.items || [];
+            if (list.length === 0) { QH('scheduledCardList', ''); QV('scheduledEmptyState', !scheduledState.loading); QV('scheduledPagination', false); return; }
+            QV('scheduledEmptyState', false);
+            var x = '';
+            for (var i = 0; i < list.length; i++) {
+                var task = list[i], steps = managerParseJson(typeof task.steps === 'string' ? task.steps : JSON.stringify(task.steps || []), []);
+                x += '<article class="collect-card"><div class="collect-card-body">';
+                x += '<div class="collect-card-head"><div><h3>' + EscapeHtml(task.name || '') + '</h3><div class="collect-card-category">' + (task.enabled ? '已开始' : '已停止') + ' · 每天 ' + EscapeHtml(task.schedule_time || task.scheduleTime || '') + '</div></div><div class="collect-card-badges">' + managerRenderStatusBadge('flow', task.last_run_status || task.lastRunStatus || 'idle', '') + '</div></div>';
+                x += '<div class="collect-card-meta"><span>步骤数量</span><strong>' + steps.length + '</strong></div>';
+                x += '<div class="collect-card-meta"><span>上次执行</span><strong>' + EscapeHtml(task.last_run_at ? new Date(task.last_run_at).toLocaleString() : '从未执行') + '</strong></div>';
+                x += '<div class="collect-card-meta"><span>摘要</span><strong>' + EscapeHtml(task.last_run_summary || task.lastRunSummary || '') + '</strong></div>';
+                x += '<div class="collect-card-footer"><div class="collect-card-hints"><span>' + EscapeHtml(steps.map(scheduledStepLabel).join(' / ') || '无步骤') + '</span></div><div class="collect-card-actions">';
+                x += '<button type="button" class="collect-btn" onclick="scheduledOpenEditorById(\'' + EscapeHtml(String(task.id)) + '\')">编辑</button>';
+                x += '<button type="button" class="collect-btn collect-btn-danger" onclick="scheduledConfirmDelete(\'' + EscapeHtml(String(task.id)) + '\')">删除</button>';
+                x += '<button type="button" class="collect-btn collect-btn-primary" onclick="scheduledSetEnabled(\'' + EscapeHtml(String(task.id)) + '\',' + (task.enabled ? 'false' : 'true') + ')">' + (task.enabled ? '停止' : '开始') + '</button>';
+                x += '<button type="button" class="collect-btn" onclick="scheduledOpenRuns(\'' + EscapeHtml(String(task.id)) + '\')">查看记录</button>';
+                x += '</div></div></div></article>';
+            }
+            QH('scheduledCardList', x); scheduledRenderPagination();
+        }
+        function scheduledRenderPagination() {
+            var totalPages = Math.max(1, Math.ceil(scheduledState.total / scheduledState.limit)), current = Math.min(Math.max(1, scheduledState.page), totalPages);
+            var startItem = (scheduledState.total === 0) ? 0 : ((current - 1) * scheduledState.limit + 1), endItem = Math.min(scheduledState.total, current * scheduledState.limit);
+            var x = '<button type="button" class="collect-page-btn" ' + (current <= 1 ? 'disabled="disabled"' : 'onclick="scheduledRefreshList(1)"') + '>首页</button>';
+            x += '<button type="button" class="collect-page-btn" ' + (current <= 1 ? 'disabled="disabled"' : 'onclick="scheduledRefreshList(' + (current - 1) + ')"') + '>上一页</button>';
+            x += '<span class="collect-page-indicator">第 ' + current + ' / ' + totalPages + ' 页，显示 ' + startItem + '-' + endItem + '，共 ' + scheduledState.total + ' 条</span>';
+            x += '<button type="button" class="collect-page-btn" ' + (current >= totalPages ? 'disabled="disabled"' : 'onclick="scheduledRefreshList(' + (current + 1) + ')"') + '>下一页</button>';
+            x += '<button type="button" class="collect-page-btn" ' + (current >= totalPages ? 'disabled="disabled"' : 'onclick="scheduledRefreshList(' + totalPages + ')"') + '>末页</button>';
+            QH('scheduledPagination', x); QV('scheduledPagination', true);
+        }
+        function scheduledShowToast(text, isError) { if (scheduledState.toastTimer != null) clearTimeout(scheduledState.toastTimer); QH('scheduledToast', EscapeHtml(text)); Q('scheduledToast').className = 'collect-toast' + (isError ? ' collect-toast-error' : ' collect-toast-success'); QV('scheduledToast', true); scheduledState.toastTimer = setTimeout(function () { QV('scheduledToast', false); }, 2800); }
+        function scheduledSetSubmitBusy(busy) { QE('scheduledSubmitButton', !busy); Q('scheduledSubmitButton').innerText = busy ? '保存中...' : '保存'; }
+        function scheduledTargetOptions(type, selectedId) {
+            var source = type === 'collect_task' ? (collectState.items || []) : (flowState.items || []);
+            var x = '<option value="">请选择</option>', found = false;
+            for (var i = 0; i < source.length; i++) {
+                var item = source[i], itemType = item.flow_type || item.flowType || '';
+                if (type === 'publish_flow' && itemType !== 'publish') continue;
+                if (type === 'pricing_flow' && itemType !== 'pricing') continue;
+                if (String(selectedId || '') === String(item.id)) found = true;
+                x += '<option value="' + EscapeHtml(String(item.id)) + '"' + (String(selectedId || '') === String(item.id) ? ' selected' : '') + '>' + EscapeHtml(item.name || item.id) + '</option>';
+            }
+            if ((selectedId != null) && (String(selectedId) !== '') && (found === false)) x += '<option value="' + EscapeHtml(String(selectedId)) + '" selected>已选目标（可能已删除）</option>';
+            return x;
+        }
+        function scheduledStepTypeChanged(rowId) {
+            var row = Q(rowId), target = row ? row.querySelector('[data-field="targetId"]') : null;
+            if (target) { target.value = ''; target.setAttribute('data-selected', ''); }
+            scheduledRefreshStepTarget(rowId);
+        }
+        function scheduledRefreshStepTarget(rowId) {
+            var row = Q(rowId), type = row.querySelector('[data-field="type"]').value, target = row.querySelector('[data-field="targetId"]'), selected = target.getAttribute('data-selected') || target.value;
+            target.innerHTML = scheduledTargetOptions(type, selected);
+            if (selected) { target.value = selected; }
+            target.setAttribute('data-selected', target.value || selected || '');
+        }
+        function scheduledAddStepRow(step) {
+            step = step || {};
+            var id = 'scheduledStepRow_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
+            var x = '<div id="' + id + '" class="manager-repeat-card scheduled-step-row">';
+            x += '<div class="manager-repeat-head"><strong>执行步骤</strong><span><button type="button" class="collect-btn" onclick="scheduledMoveStepRow(\'' + id + '\',-1)">上移</button> <button type="button" class="collect-btn" onclick="scheduledMoveStepRow(\'' + id + '\',1)">下移</button> <button type="button" class="collect-btn collect-btn-danger" onclick="Q(\'' + id + '\').remove()">删除</button></span></div>';
+            x += '<div class="manager-inline-grid">';
+            x += '<label><span>步骤类型</span><select data-field="type" onchange="scheduledStepTypeChanged(\'' + id + '\')"><option value="collect_task">采集任务</option><option value="publish_flow">发布流程</option><option value="pricing_flow">调价流程</option></select></label>';
+            x += '<label><span>目标</span><select data-field="targetId" data-selected="' + EscapeHtml(step.targetId || '') + '" onchange="this.setAttribute(\'data-selected\', this.value)"></select></label>';
+            x += '<label><span>失败策略</span><select data-field="failurePolicy"><option value="stop">失败停止</option><option value="continue">失败继续</option></select></label>';
+            x += '</div></div>';
+            Q('scheduledStepRows').insertAdjacentHTML('beforeend', x);
+            Q(id).querySelector('[data-field="type"]').value = step.type || 'collect_task';
+            Q(id).querySelector('[data-field="failurePolicy"]').value = step.failurePolicy || 'stop';
+            scheduledRefreshStepTarget(id);
+        }
+        function scheduledMoveStepRow(id, dir) { var row = Q(id), parentNode = Q('scheduledStepRows'); if (!row) return; if (dir < 0 && row.previousElementSibling) parentNode.insertBefore(row, row.previousElementSibling); if (dir > 0 && row.nextElementSibling) parentNode.insertBefore(row.nextElementSibling, row); }
+        function scheduledReadSteps() {
+            var rows = Q('scheduledStepRows').querySelectorAll('.scheduled-step-row'), steps = [];
+            for (var i = 0; i < rows.length; i++) {
+                var type = rows[i].querySelector('[data-field="type"]').value, targetId = rows[i].querySelector('[data-field="targetId"]').value, failurePolicy = rows[i].querySelector('[data-field="failurePolicy"]').value;
+                if (targetId !== '') steps.push({ type: type, targetId: targetId, failurePolicy: failurePolicy });
+            }
+            return steps;
+        }
+        function scheduledOpenEditorById(id) { for (var i = 0; i < scheduledState.items.length; i++) { if (String(scheduledState.items[i].id) === String(id)) { scheduledOpenEditor(scheduledState.items[i]); return; } } }
+        function scheduledOpenEditor(task) {
+            meshserver.send({ action: 'collectlist', search: '', page: 1, limit: 200 });
+            meshserver.send({ action: 'flowlist', search: '', page: 1, limit: 200 });
+            Q('scheduledFormId').value = task ? task.id : '';
+            Q('scheduledFormName').value = task ? (task.name || '') : '';
+            Q('scheduledFormTime').value = task ? (task.schedule_time || task.scheduleTime || '03:00') : '03:00';
+            Q('scheduledFormEnabled').value = (!task || task.enabled !== false) ? 'true' : 'false';
+            Q('scheduledFormTimezone').value = task ? (task.timezone || 'Asia/Shanghai') : 'Asia/Shanghai';
+            QH('scheduledStepRows', '');
+            var steps = task ? managerParseJson(typeof task.steps === 'string' ? task.steps : JSON.stringify(task.steps || []), []) : [];
+            if (steps.length === 0) scheduledAddStepRow(); else { for (var i = 0; i < steps.length; i++) scheduledAddStepRow(steps[i]); }
+            QH('scheduledModalTitle', task ? '编辑定时任务' : '新增定时任务');
+            scheduledSetSubmitBusy(false); QV('scheduledModalMask', true);
+        }
+        function scheduledCloseEditor(event) { if (event && event.target && event.target.id !== 'scheduledModalMask') return; QV('scheduledModalMask', false); }
+        function scheduledSubmitEditor() {
+            var payload = { id: Q('scheduledFormId').value, name: Q('scheduledFormName').value.trim(), enabled: Q('scheduledFormEnabled').value === 'true', scheduleTime: Q('scheduledFormTime').value, timezone: Q('scheduledFormTimezone').value, steps: scheduledReadSteps() };
+            if (payload.name === '') { scheduledShowToast('任务名称不能为空。', true); return; }
+            if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(payload.scheduleTime)) { scheduledShowToast('定时时间必须是 HH:mm。', true); return; }
+            if (payload.steps.length === 0) { scheduledShowToast('至少需要添加一个步骤。', true); return; }
+            scheduledSetSubmitBusy(true); scheduledState.pendingAction = payload.id !== '' ? 'scheduledtaskupdate' : 'scheduledtaskcreate';
+            meshserver.send({ action: scheduledState.pendingAction, id: payload.id, name: payload.name, enabled: payload.enabled, scheduleTime: payload.scheduleTime, timezone: payload.timezone, steps: JSON.stringify(payload.steps) });
+        }
+        function scheduledHandleMutationResponse(kind, message) {
+            scheduledState.pendingAction = null; scheduledSetSubmitBusy(false);
+            if (message.success !== true) { scheduledShowToast(message.result || '操作失败。', true); return; }
+            if (kind !== 'delete') scheduledCloseEditor();
+            scheduledShowToast(kind === 'create' ? '定时任务新增成功。' : (kind === 'update' ? '定时任务保存成功。' : '定时任务已删除。'), false);
+            scheduledRefreshList(kind === 'create' ? 1 : scheduledState.page);
+        }
+        function scheduledConfirmDelete(id) { setDialogMode(2, '删除定时任务', 3, function (button, tag) { if (button === 1) meshserver.send({ action: 'scheduledtaskdelete', id: tag }); }, '确认删除该定时任务吗？历史执行记录会保留。', id); }
+        function scheduledSetEnabled(id, enabled) { scheduledShowToast(enabled ? '正在开始定时任务...' : '正在停止定时任务...', false); meshserver.send({ action: 'scheduledtasksetenabled', id: id, enabled: enabled === true }); }
+        function scheduledHandleSetEnabledResponse(message) { if (message.success !== true) { scheduledShowToast(message.result || '更新失败。', true); return; } scheduledShowToast(message.task && message.task.enabled ? '定时任务已开始。' : '定时任务已停止。', false); scheduledRefreshList(scheduledState.page); }
+        function scheduledExecute(id) { scheduledShowToast('定时任务已提交执行。', false); meshserver.send({ action: 'scheduledtaskexecute', id: id }); }
+        function scheduledHandleExecuteResponse(message) { if (message.success !== true) { scheduledShowToast(message.result || '执行失败。', true); return; } scheduledShowToast('定时任务已提交到节点任务队列。', false); scheduledRefreshList(scheduledState.page); if (scheduledState.currentRunsTaskId) scheduledOpenRuns(scheduledState.currentRunsTaskId, scheduledState.runsPage); }
+        function scheduledOpenRuns(taskId, page) { scheduledState.currentRunsTaskId = taskId; scheduledState.runsPage = typeof page === 'number' ? page : 1; QH('scheduledRunsContent', '正在加载执行记录...'); QV('scheduledRunsMask', true); meshserver.send({ action: 'scheduledtaskruns', taskId: taskId, page: scheduledState.runsPage, limit: scheduledState.runsLimit }); }
+        function scheduledCloseRuns(event) { if (event && event.target && event.target.id !== 'scheduledRunsMask') return; QV('scheduledRunsMask', false); }
+        function scheduledHandleRunsResponse(message) {
+            if (message.result != null) { QH('scheduledRunsContent', '<div class="collect-history-empty">' + EscapeHtml(message.result) + '</div>'); return; }
+            var runs = Array.isArray(message.runs) ? message.runs : [], x = '';
+            if (runs.length === 0) x = '<div class="collect-history-empty">暂无执行记录。</div>';
+            for (var i = 0; i < runs.length; i++) {
+                x += '<div class="collect-history-item"><div class="collect-history-head"><div>' + managerRenderStatusBadge('flow', runs[i].status || 'idle', '') + '</div><strong>' + EscapeHtml(runs[i].started_at ? new Date(runs[i].started_at).toLocaleString() : '') + '</strong></div>';
+                x += '<div class="collect-history-meta">触发方式：' + EscapeHtml(runs[i].trigger_type || '') + '</div><div class="collect-history-meta">' + EscapeHtml(runs[i].summary || '') + '</div>';
+                x += '<div id="scheduledRunSteps_' + EscapeHtml(runs[i].id) + '" class="collect-history-data">正在加载步骤...</div></div>';
+                meshserver.send({ action: 'scheduledtaskrunsteps', runId: runs[i].id });
+            }
+            QH('scheduledRunsContent', x);
+            var totalPages = Math.max(1, Math.ceil((message.total || 0) / scheduledState.runsLimit)), current = Math.min(Math.max(1, message.page || 1), totalPages);
+            if (message.total > scheduledState.runsLimit) { QH('scheduledRunsPagination', '<button type="button" class="collect-page-btn" ' + (current <= 1 ? 'disabled="disabled"' : 'onclick="scheduledOpenRuns(\'' + EscapeHtml(scheduledState.currentRunsTaskId) + '\',' + (current - 1) + ')"') + '>上一页</button><span class="collect-page-indicator">第 ' + current + ' / ' + totalPages + ' 页</span><button type="button" class="collect-page-btn" ' + (current >= totalPages ? 'disabled="disabled"' : 'onclick="scheduledOpenRuns(\'' + EscapeHtml(scheduledState.currentRunsTaskId) + '\',' + (current + 1) + ')"') + '>下一页</button>'); QV('scheduledRunsPagination', true); } else { QV('scheduledRunsPagination', false); }
+        }
+        function scheduledHandleRunStepsResponse(message) {
+            if (message.result != null) return;
+            var steps = Array.isArray(message.steps) ? message.steps : [], x = '';
+            for (var i = 0; i < steps.length; i++) x += '<div>' + EscapeHtml(String(steps[i].step_index + 1)) + '. ' + EscapeHtml(steps[i].target_name || steps[i].target_id || '') + ' - ' + EscapeHtml(steps[i].status || '') + (steps[i].error ? ('：' + EscapeHtml(steps[i].error)) : '') + '</div>';
+            if (Q('scheduledRunSteps_' + message.runId) != null) QH('scheduledRunSteps_' + message.runId, x || '无步骤明细');
+        }
+
         // Return the number of 2nd factor for this account
         function count2factoraAuths() {
             if (userinfo == null) return -1;
@@ -5161,6 +5499,7 @@
                     break;
                 }
                 case 'serverwarnings': {
+                    var x = '';
                     if ((message.warnings != null) && (message.warnings.length > 0)) {
                         var ServerWarnings = {
                             1: "",
@@ -5191,7 +5530,6 @@
                             26: "This NodeJS version does not support Discord.js.",
                             27: "Firebase now requires a service account JSON file, Firebase disabled."
                         };
-                        var x = '';
                         for (var i in message.warnings) {
                             var y = message.warnings[i];
                             if (typeof y == 'string') {
@@ -5202,9 +5540,10 @@
                                 x += '<div style=color:red;padding-bottom:6px><b>' + "警告： " + z + '</b></div>';
                             }
                         }
-                        QH('serverWarnings', x);
-                        QV('serverWarningsDiv', true);
                     }
+                    QH('serverWarnings', x);
+                    QV('serverWarningsDiv', (x != '') || (Q('serverCertWarnings').innerHTML != '') || (Q('serverNodeWorkerWarnings').innerHTML != ''));
+                    refreshNodeWorkerStatus();
                     break;
                 }
                 case 'servertimelinestats': {
@@ -5329,6 +5668,7 @@
                     updateDevicePageState();
 
                     mainUpdate(1 | 2 | 4 | 64);
+                    refreshNodeWorkerStatus();
                     
                     // If groups are to be collapsed by default, do it now
                     if (collapseGroups === 'true' && Object.keys(CollapsedGroups).length === 0 && typeof(getstore('_collapse')) === 'undefined') { cmexpandaction(2); }
@@ -5941,6 +6281,38 @@
                 }
                 case 'operationrecorddelete': {
                     operationHandleMutationResponse('delete', message);
+                    break;
+                }
+                case 'scheduledtasklist': {
+                    scheduledHandleListResponse(message);
+                    break;
+                }
+                case 'scheduledtaskcreate': {
+                    scheduledHandleMutationResponse('create', message);
+                    break;
+                }
+                case 'scheduledtaskupdate': {
+                    scheduledHandleMutationResponse('update', message);
+                    break;
+                }
+                case 'scheduledtasksetenabled': {
+                    scheduledHandleSetEnabledResponse(message);
+                    break;
+                }
+                case 'scheduledtaskdelete': {
+                    scheduledHandleMutationResponse('delete', message);
+                    break;
+                }
+                case 'scheduledtaskexecute': {
+                    scheduledHandleExecuteResponse(message);
+                    break;
+                }
+                case 'scheduledtaskruns': {
+                    scheduledHandleRunsResponse(message);
+                    break;
+                }
+                case 'scheduledtaskrunsteps': {
+                    scheduledHandleRunStepsResponse(message);
                     break;
                 }
                 case 'productlist': {
@@ -21262,6 +21634,50 @@
         }
 
         var lastServerStats = null;
+        var lastNodeWorkerStatus = null;
+
+        function refreshNodeWorkerStatus() {
+            if (typeof fetch != 'function') return;
+            fetch(domainUrl + 'api/node-workers/status', { credentials: 'same-origin' }).then(function (response) {
+                if (response.ok !== true) throw new Error('node worker status unavailable');
+                return response.json();
+            }).then(function (data) {
+                lastNodeWorkerStatus = data;
+                updateNodeWorkerWarnings();
+            }).catch(function () {
+                lastNodeWorkerStatus = null;
+                updateNodeWorkerWarnings();
+            });
+        }
+
+        function getNodeWorkerDisplayName(nodeId) {
+            if ((lastNodeWorkerStatus != null) && Array.isArray(lastNodeWorkerStatus.workers)) {
+                for (var i = 0; i < lastNodeWorkerStatus.workers.length; i++) {
+                    var worker = lastNodeWorkerStatus.workers[i];
+                    if ((worker.nodeId === nodeId) && (typeof worker.name == 'string') && (worker.name != '')) return worker.name;
+                }
+            }
+            var node = getNodeFromId(nodeId);
+            if (node != null) return node.name;
+            return nodeId;
+        }
+
+        function updateNodeWorkerWarnings() {
+            var x = '';
+            if ((lastNodeWorkerStatus != null) && (lastNodeWorkerStatus.success === true) && Array.isArray(lastNodeWorkerStatus.workers)) {
+                var offline = [];
+                for (var i = 0; i < lastNodeWorkerStatus.workers.length; i++) {
+                    var worker = lastNodeWorkerStatus.workers[i];
+                    if (worker.online !== true) offline.push(worker);
+                }
+                for (var j = 0; j < offline.length; j++) {
+                    x += '<div style=color:red;padding-bottom:6px><b>警告：设备节点 ' + EscapeHtml(getNodeWorkerDisplayName(offline[j].nodeId)) + ' 未运行 D:\\winsclaw-work\\aibot\\scripts\\start-node-worker.ps1，节点任务不会自动执行。</b></div>';
+                }
+            }
+            QH('serverNodeWorkerWarnings', x);
+            if (x != '') QV('serverWarningsDiv', true);
+        }
+
         function updateGeneralServerStats(message) {
             if (message != null) { lastServerStats = message; } else { message = lastServerStats; }
             if (message == null) return;
@@ -21820,7 +22236,7 @@
             if (xxcurrentView == 17) deviceDetailsStatsClear();
 
             // Edit this line when adding a new screen
-            for (var i = 0; i < 106; i++) { QV('p' + i, i == x); }
+            for (var i = 0; i < 107; i++) { QV('p' + i, i == x); }
             xxcurrentView = x;
 
             // Get out of fullscreen if needed
@@ -21843,14 +22259,14 @@
             }
 
             // Remove top bar selection
-            var mainBarItems = ['MainMenuMyDevices', 'MainMenuMyAccount', 'MainMenuMyEvents', 'MainMenuMyFiles', 'MainMenuMyUsers', 'MainMenuMyServer', 'MainMenuShopManager', 'MainMenuMyShopManager', 'MainMenuProductManager', 'MainMenuFlowManager', 'MainMenuCollectManager', 'MainMenuOperationManager'];
+            var mainBarItems = ['MainMenuMyDevices', 'MainMenuMyAccount', 'MainMenuMyEvents', 'MainMenuMyFiles', 'MainMenuMyUsers', 'MainMenuMyServer', 'MainMenuShopManager', 'MainMenuMyShopManager', 'MainMenuProductManager', 'MainMenuFlowManager', 'MainMenuCollectManager', 'MainMenuScheduledTaskManager', 'MainMenuOperationManager'];
             for (var i in mainBarItems) {
                 QC(mainBarItems[i]).remove('fullselect');
                 QC(mainBarItems[i]).remove('semiselect');
             }
 
             // Remove left bar selection
-            var leftBarItems = ['LeftMenuMyDevices', 'LeftMenuMyAccount', 'LeftMenuMyEvents', 'LeftMenuMyFiles', 'LeftMenuMyUsers', 'LeftMenuMyServer', 'LeftMenuShopManager', 'LeftMenuMyShopManager', 'LeftMenuProductManager', 'LeftMenuFlowManager', 'LeftMenuCollectManager', 'LeftMenuOperationManager'];
+            var leftBarItems = ['LeftMenuMyDevices', 'LeftMenuMyAccount', 'LeftMenuMyEvents', 'LeftMenuMyFiles', 'LeftMenuMyUsers', 'LeftMenuMyServer', 'LeftMenuShopManager', 'LeftMenuMyShopManager', 'LeftMenuProductManager', 'LeftMenuFlowManager', 'LeftMenuCollectManager', 'LeftMenuScheduledTaskManager', 'LeftMenuOperationManager'];
             for (var i in leftBarItems) {
                 QC(leftBarItems[i]).remove('lbbuttonsel');
                 QC(leftBarItems[i]).remove('lbbuttonsel2');
@@ -21908,6 +22324,10 @@
                 QC('MainMenuCollectManager').add(mainMenuActiveClass);
                 QC('LeftMenuCollectManager').add(leftMenuActiveClass);
             } else if (x == 105) {
+                // Scheduled Task Manager
+                QC('MainMenuScheduledTaskManager').add(mainMenuActiveClass);
+                QC('LeftMenuScheduledTaskManager').add(leftMenuActiveClass);
+            } else if (x == 106) {
                 // Operation Manager
                 QC('MainMenuOperationManager').add(mainMenuActiveClass);
                 QC('LeftMenuOperationManager').add(leftMenuActiveClass);
@@ -21933,7 +22353,8 @@
             if (x == 101) { productEnterPage(); }
             if (x == 102) { flowEnterPage(); }
             if (x == 103) { collectEnterPage(); }
-            if (x == 105) { operationEnterPage(); }
+            if (x == 105) { scheduledEnterPage(); }
+            if (x == 106) { operationEnterPage(); }
             var panels = { 3: 'EventsLive', 4: 'UsersGeneral', 10: 'MainDev', 11: 'MainDevDesktop', 12: 'MainDevTerminal', 13: 'MainDevFiles', 14: 'MainDevAmt', 15: 'MainDevConsole', 16: 'MainDevEvents', 17: 'MainDevInfo', 19: 'MainDevPlugins', 20: 'MeshGeneral', 21: 'MeshSummary', 30: 'UserGeneral', 31: 'UserEvents', 6: 'ServerGeneral', 40: 'ServerStats', 41: 'ServerTrace', 42: 'ServerPlugins', 50: 'UsersGroups', 52: 'UsersRecordings', 60: 'EventsReport', 115: 'ServerConsole' };
             for (var i in panels) {
                 QC(panels[i]).remove('style3x');
