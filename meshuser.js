@@ -5732,6 +5732,10 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         'pricingreferenceproducts': serverCommandPricingReferenceProductList,
         'pricingreferenceshops': serverCommandPricingReferenceShopList,
         'myshopupdate': serverCommandMyShopUpdate,
+        'operationrecordcreate': serverCommandOperationRecordCreate,
+        'operationrecorddelete': serverCommandOperationRecordDelete,
+        'operationrecordlist': serverCommandOperationRecordList,
+        'operationrecordupdate': serverCommandOperationRecordUpdate,
         'shopcreate': serverCommandShopCreate,
         'shopdelete': serverCommandShopDelete,
         'shoplist': serverCommandShopList,
@@ -7536,6 +7540,115 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         db.DeleteProduct(productId, function (err, deletedId) {
             if (err != null) { obj.send({ action: 'productdelete', result: err.message ? err.message : '删除失败。' }); return; }
             obj.send({ action: 'productdelete', success: true, id: deletedId });
+        });
+    }
+
+    function getOperationRecordId(value) {
+        if ((typeof value == 'number') && (value >= 0)) return value;
+        if ((typeof value == 'string') && (/^[0-9]+$/.test(value.trim()))) return value.trim();
+        return null;
+    }
+
+    function getOperationDateField(value) {
+        if (typeof value != 'string') return null;
+        value = value.trim();
+        if (/^\d{4}-\d{2}-\d{2}$/.test(value) !== true) return null;
+        return value;
+    }
+
+    function getOperationIntegerField(value) {
+        if (value == null || value === '') return null;
+        var num = Number(value);
+        if ((isFinite(num) !== true) || (num < 0) || (Math.floor(num) !== num)) return null;
+        return num;
+    }
+
+    function getOperationAmountField(value) {
+        if (value == null || value === '') return null;
+        var num = Number(value);
+        if ((isFinite(num) !== true) || (num < 0) || (num > 99999999)) return null;
+        return Math.round(num * 100) / 100;
+    }
+
+    function getOperationRecordPayload(command) {
+        var businessDate = getOperationDateField(command.businessDate);
+        var storeName = getShopTextField(command.storeName, 256);
+        var expenseCategory = getShopTextField(command.expenseCategory || '', 128);
+        var payload = {
+            businessDate: businessDate,
+            storeName: storeName,
+            meituanOrders: getOperationIntegerField(command.meituanOrders),
+            meituanAmount: getOperationAmountField(command.meituanAmount),
+            taobaoOrders: getOperationIntegerField(command.taobaoOrders),
+            taobaoAmount: getOperationAmountField(command.taobaoAmount),
+            jdOrders: getOperationIntegerField(command.jdOrders),
+            jdAmount: getOperationAmountField(command.jdAmount),
+            douyinOrders: getOperationIntegerField(command.douyinOrders),
+            douyinAmount: getOperationAmountField(command.douyinAmount),
+            offlineOrders: getOperationIntegerField(command.offlineOrders),
+            offlineAmount: getOperationAmountField(command.offlineAmount),
+            expenseCategory: expenseCategory || '',
+            expenseAmount: getOperationAmountField(command.expenseAmount)
+        };
+        if (payload.businessDate == null) return { error: '日期格式无效，请使用 YYYY-MM-DD。' };
+        if ((payload.storeName == null) || (payload.storeName.length === 0)) return { error: '门店名称不能为空。' };
+        if (expenseCategory == null) return { error: '支出类别内容无效。' };
+        if ((payload.expenseAmount != null) && (payload.expenseCategory === '')) return { error: '填写支出费用时请同时填写支出类别。' };
+        var hasBusinessData = false;
+        var keys = ['meituanOrders', 'meituanAmount', 'taobaoOrders', 'taobaoAmount', 'jdOrders', 'jdAmount', 'douyinOrders', 'douyinAmount', 'offlineOrders', 'offlineAmount', 'expenseAmount'];
+        for (var i = 0; i < keys.length; i++) { if (payload[keys[i]] != null) { hasBusinessData = true; break; } }
+        if (hasBusinessData !== true) return { error: '请至少填写一项经营数据或支出费用。' };
+        return payload;
+    }
+
+    function serverCommandOperationRecordList(command) {
+        var page = 1, limit = 7, storeSearch = '', dateFrom = '', dateTo = '';
+        if (typeof command.storeSearch == 'string') {
+            storeSearch = command.storeSearch.trim();
+            if (storeSearch.length > 128) { obj.send({ action: 'operationrecordlist', result: 'Invalid store search.' }); return; }
+        }
+        if (typeof command.dateFrom == 'string' && command.dateFrom.trim() !== '') {
+            dateFrom = command.dateFrom.trim();
+            if (getOperationDateField(dateFrom) == null) { obj.send({ action: 'operationrecordlist', result: '开始日期格式无效。' }); return; }
+        }
+        if (typeof command.dateTo == 'string' && command.dateTo.trim() !== '') {
+            dateTo = command.dateTo.trim();
+            if (getOperationDateField(dateTo) == null) { obj.send({ action: 'operationrecordlist', result: '结束日期格式无效。' }); return; }
+        }
+        if (common.validateInt(command.page, 1, 100000) == true) { page = command.page; }
+        if (common.validateInt(command.limit, 1, 60) == true) { limit = command.limit; }
+        db.GetFlowerOperationRecordList({ storeSearch: storeSearch, dateFrom: dateFrom, dateTo: dateTo }, page, limit, function (err, result) {
+            if (err != null) { obj.send({ action: 'operationrecordlist', result: err.message ? err.message : 'Unable to load operation records.' }); return; }
+            obj.send({ action: 'operationrecordlist', page: page, limit: limit, total: result.total, dates: result.dates || [], records: result.records || [], storeSearch: storeSearch, dateFrom: dateFrom, dateTo: dateTo });
+        });
+    }
+
+    function serverCommandOperationRecordCreate(command) {
+        var payload = getOperationRecordPayload(command);
+        if (payload.error != null) { obj.send({ action: 'operationrecordcreate', result: payload.error }); return; }
+        db.CreateFlowerOperationRecord(payload, function (err, record) {
+            if (err != null) { obj.send({ action: 'operationrecordcreate', result: err.message ? err.message : '新增失败。' }); return; }
+            obj.send({ action: 'operationrecordcreate', success: true, record: record });
+        });
+    }
+
+    function serverCommandOperationRecordUpdate(command) {
+        var recordId = getOperationRecordId(command.id);
+        if (recordId == null) { obj.send({ action: 'operationrecordupdate', result: '无效的记录编号。' }); return; }
+        var payload = getOperationRecordPayload(command);
+        if (payload.error != null) { obj.send({ action: 'operationrecordupdate', result: payload.error }); return; }
+        db.UpdateFlowerOperationRecord(recordId, payload, function (err, record) {
+            if (err != null) { obj.send({ action: 'operationrecordupdate', result: err.message ? err.message : '保存失败。' }); return; }
+            obj.send({ action: 'operationrecordupdate', success: true, record: record });
+        });
+    }
+
+    function serverCommandOperationRecordDelete(command) {
+        var recordId = getOperationRecordId(command.id);
+        if (recordId == null) { obj.send({ action: 'operationrecorddelete', result: '无效的记录编号。' }); return; }
+        db.DeleteFlowerOperationRecord(recordId, function (err, deletedId) {
+            if (err != null) { obj.send({ action: 'operationrecorddelete', result: err.message ? err.message : '删除失败。' }); return; }
+            obj.send({ action: 'operationrecorddelete', success: true, id: deletedId });
         });
     }
 

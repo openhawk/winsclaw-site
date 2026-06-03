@@ -1491,6 +1491,8 @@ module.exports.CreateDB = function (parent, func) {
             'CREATE TABLE IF NOT EXISTS meituan_h5_shops (id BIGINT PRIMARY KEY, name TEXT NOT NULL, scheme TEXT NOT NULL, poi_id_str TEXT, source_page_url TEXT NOT NULL DEFAULT \'\', category TEXT NOT NULL DEFAULT \'\', distance_text TEXT NOT NULL DEFAULT \'\', distance_km DOUBLE PRECISION NOT NULL DEFAULT 0, rating_text TEXT NOT NULL DEFAULT \'\', monthly_sales_text TEXT NOT NULL DEFAULT \'\', min_price_tip TEXT NOT NULL DEFAULT \'\', delivery_fee_tip TEXT NOT NULL DEFAULT \'\', delivery_time_tip TEXT NOT NULL DEFAULT \'\', review_highlight TEXT NOT NULL DEFAULT \'\', promo_tags_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, platform_tags_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, phone TEXT NOT NULL DEFAULT \'\', address TEXT NOT NULL DEFAULT \'\', detail_fetched BOOLEAN NOT NULL DEFAULT FALSE, detail_fetched_at TIMESTAMP WITH TIME ZONE, created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(), updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(), detail_status TEXT NOT NULL DEFAULT \'pending\', detail_started_at TIMESTAMP WITH TIME ZONE, detail_last_attempt_at TIMESTAMP WITH TIME ZONE, detail_attempt_count INTEGER NOT NULL DEFAULT 0, detail_error_message TEXT NOT NULL DEFAULT \'\', is_deleted BOOLEAN NOT NULL DEFAULT FALSE, deleted_at TIMESTAMP WITH TIME ZONE)',
             'CREATE TABLE IF NOT EXISTS my_shops (id VARCHAR(64) PRIMARY KEY, name TEXT NOT NULL, scheme TEXT NOT NULL DEFAULT \'\', poi_id_str TEXT, source_page_url TEXT NOT NULL DEFAULT \'\', category TEXT NOT NULL DEFAULT \'\', distance_text TEXT NOT NULL DEFAULT \'\', distance_km DOUBLE PRECISION NOT NULL DEFAULT 0, rating_text TEXT NOT NULL DEFAULT \'\', monthly_sales_text TEXT NOT NULL DEFAULT \'\', min_price_tip TEXT NOT NULL DEFAULT \'\', delivery_fee_tip TEXT NOT NULL DEFAULT \'\', delivery_time_tip TEXT NOT NULL DEFAULT \'\', review_highlight TEXT NOT NULL DEFAULT \'\', promo_tags_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, platform_tags_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, phone TEXT NOT NULL DEFAULT \'\', address TEXT NOT NULL DEFAULT \'\', detail_fetched BOOLEAN NOT NULL DEFAULT FALSE, detail_fetched_at TIMESTAMP WITH TIME ZONE, created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(), updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(), detail_status TEXT NOT NULL DEFAULT \'manual\', detail_started_at TIMESTAMP WITH TIME ZONE, detail_last_attempt_at TIMESTAMP WITH TIME ZONE, detail_attempt_count INTEGER NOT NULL DEFAULT 0, detail_error_message TEXT NOT NULL DEFAULT \'\', is_deleted BOOLEAN NOT NULL DEFAULT FALSE, deleted_at TIMESTAMP WITH TIME ZONE)',
             'CREATE TABLE IF NOT EXISTS meituan_h5_products (id BIGINT PRIMARY KEY, name TEXT NOT NULL, price NUMERIC(10,2), original_price NUMERIC(10,2), description TEXT, inventory INTEGER, image_paths_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, image_urls_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, sku_json JSONB NOT NULL DEFAULT \'{}\'::jsonb, sku_list_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, category_path_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, store_category_path_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, required_attributes_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, entry_url TEXT, use_existing_options_only BOOLEAN DEFAULT FALSE, publish_history_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, source_url TEXT, collect_task_id VARCHAR(64), collect_result_id VARCHAR(64), collect_source_key VARCHAR(256), source_type VARCHAR(32), created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(), updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(), is_deleted BOOLEAN NOT NULL DEFAULT FALSE, deleted_at TIMESTAMP WITH TIME ZONE)',
+            'CREATE TABLE IF NOT EXISTS flower_operation_records (id BIGSERIAL PRIMARY KEY, business_date DATE NOT NULL, store_name TEXT NOT NULL, meituan_orders INTEGER NULL, meituan_amount NUMERIC(12,2) NULL, taobao_orders INTEGER NULL, taobao_amount NUMERIC(12,2) NULL, jd_orders INTEGER NULL, jd_amount NUMERIC(12,2) NULL, douyin_orders INTEGER NULL, douyin_amount NUMERIC(12,2) NULL, offline_orders INTEGER NULL, offline_amount NUMERIC(12,2) NULL, expense_category TEXT NOT NULL DEFAULT \'\', expense_amount NUMERIC(12,2) NULL, is_deleted BOOLEAN NOT NULL DEFAULT FALSE, deleted_at TIMESTAMP WITH TIME ZONE NULL, created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(), updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW())',
+            'CREATE TABLE IF NOT EXISTS flower_ledger_records (id BIGSERIAL PRIMARY KEY, business_date DATE NOT NULL, shop_name TEXT NOT NULL, record_type TEXT NOT NULL, major_category TEXT NOT NULL DEFAULT \'\', minor_category TEXT NOT NULL DEFAULT \'\', amount NUMERIC(12,2) NOT NULL, payment_method TEXT NOT NULL DEFAULT \'\', handler_name TEXT NOT NULL DEFAULT \'\', reimbursement_status TEXT NOT NULL DEFAULT \'\', remark TEXT NOT NULL DEFAULT \'\', is_deleted BOOLEAN NOT NULL DEFAULT FALSE, deleted_at TIMESTAMP WITH TIME ZONE NULL, created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(), updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW())',
             'ALTER TABLE IF EXISTS collect_tasks ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN NOT NULL DEFAULT FALSE',
             'ALTER TABLE IF EXISTS collect_tasks ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP NULL',
             'ALTER TABLE IF EXISTS collect_tasks ADD COLUMN IF NOT EXISTS script_path TEXT',
@@ -1541,6 +1543,8 @@ module.exports.CreateDB = function (parent, func) {
             sqlDbExec('CREATE INDEX IF NOT EXISTS ndx_my_shops_name ON my_shops (name)', null, function (err, response) { });
             sqlDbExec('CREATE INDEX IF NOT EXISTS ndx_meituan_h5_products_name ON meituan_h5_products (name)', null, function (err, response) { });
             sqlDbExec('CREATE INDEX IF NOT EXISTS ndx_products_collect_source ON meituan_h5_products (collect_result_id, collect_source_key)', null, function (err, response) { });
+            sqlDbExec('CREATE INDEX IF NOT EXISTS ndx_flower_operation_records_date_store ON flower_operation_records (business_date DESC, store_name)', null, function (err, response) { });
+            sqlDbExec('CREATE INDEX IF NOT EXISTS ndx_flower_ledger_records_date_shop ON flower_ledger_records (business_date DESC, shop_name)', null, function (err, response) { });
 
 
 
@@ -3623,6 +3627,106 @@ module.exports.CreateDB = function (parent, func) {
             Datastore.query('DELETE FROM meituan_h5_products WHERE id = $1 RETURNING id', [productId], function (err, results) {
                 if (err != null) { func(err); return; }
                 if ((results.rows == null) || (results.rows.length === 0)) { func(new Error('Product not found.')); return; }
+                func(null, results.rows[0].id);
+            });
+        };
+
+        obj.GetFlowerOperationRecordList = function (filters, page, limit, func) {
+            if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Operation manager requires PostgreSQL.')); return; }
+            if (typeof page != 'number' || page < 1) { page = 1; }
+            if (typeof limit != 'number' || limit < 1) { limit = 7; }
+            filters = (filters && typeof filters === 'object') ? filters : {};
+            const args = [], where = ['is_deleted = FALSE'];
+            const storeSearch = (typeof filters.storeSearch === 'string') ? filters.storeSearch.trim() : '';
+            const dateFrom = (typeof filters.dateFrom === 'string') ? filters.dateFrom.trim() : '';
+            const dateTo = (typeof filters.dateTo === 'string') ? filters.dateTo.trim() : '';
+            if (storeSearch !== '') { args.push('%' + storeSearch + '%'); where.push('store_name ILIKE $' + args.length); }
+            if (dateFrom !== '') { args.push(dateFrom); where.push('business_date >= $' + args.length); }
+            if (dateTo !== '') { args.push(dateTo); where.push('business_date <= $' + args.length); }
+            const whereSql = ' WHERE ' + where.join(' AND ');
+            Datastore.query('SELECT COUNT(*) AS count FROM (SELECT business_date FROM flower_operation_records' + whereSql + ' GROUP BY business_date) t', args, function (err, countResults) {
+                if (err != null) { func(err); return; }
+                const total = parseInt(countResults.rows[0].count);
+                const dateArgs = args.slice(0);
+                dateArgs.push(limit);
+                dateArgs.push((page - 1) * limit);
+                Datastore.query('SELECT business_date FROM flower_operation_records' + whereSql + ' GROUP BY business_date ORDER BY business_date DESC LIMIT $' + (args.length + 1) + ' OFFSET $' + (args.length + 2), dateArgs, function (dateErr, dateResults) {
+                    if (dateErr != null) { func(dateErr); return; }
+                    const businessDates = (dateResults.rows || []).map(function (row) { return row.business_date; });
+                    if (businessDates.length === 0) { func(null, { total: total, records: [], dates: [] }); return; }
+                    const listArgs = args.slice(0);
+                    const placeholders = [];
+                    for (let i = 0; i < businessDates.length; i++) {
+                        listArgs.push(businessDates[i]);
+                        placeholders.push('$' + listArgs.length);
+                    }
+                    Datastore.query('SELECT * FROM flower_operation_records' + whereSql + ' AND business_date IN (' + placeholders.join(', ') + ') ORDER BY business_date DESC, store_name ASC, id ASC', listArgs, function (listErr, listResults) {
+                        if (listErr != null) { func(listErr); return; }
+                        func(null, { total: total, dates: businessDates, records: listResults.rows || [] });
+                    });
+                });
+            });
+        };
+
+        obj.CreateFlowerOperationRecord = function (record, func) {
+            if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Operation manager requires PostgreSQL.')); return; }
+            const now = new Date();
+            const values = [
+                record.businessDate,
+                record.storeName,
+                record.meituanOrders,
+                record.meituanAmount,
+                record.taobaoOrders,
+                record.taobaoAmount,
+                record.jdOrders,
+                record.jdAmount,
+                record.douyinOrders,
+                record.douyinAmount,
+                record.offlineOrders,
+                record.offlineAmount,
+                record.expenseCategory || '',
+                record.expenseAmount,
+                now,
+                now
+            ];
+            Datastore.query('INSERT INTO flower_operation_records (business_date, store_name, meituan_orders, meituan_amount, taobao_orders, taobao_amount, jd_orders, jd_amount, douyin_orders, douyin_amount, offline_orders, offline_amount, expense_category, expense_amount, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING *', values, function (err, results) {
+                if (err != null) { func(err); return; }
+                func(null, results.rows[0]);
+            });
+        };
+
+        obj.UpdateFlowerOperationRecord = function (recordId, record, func) {
+            if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Operation manager requires PostgreSQL.')); return; }
+            const values = [
+                recordId,
+                record.businessDate,
+                record.storeName,
+                record.meituanOrders,
+                record.meituanAmount,
+                record.taobaoOrders,
+                record.taobaoAmount,
+                record.jdOrders,
+                record.jdAmount,
+                record.douyinOrders,
+                record.douyinAmount,
+                record.offlineOrders,
+                record.offlineAmount,
+                record.expenseCategory || '',
+                record.expenseAmount,
+                new Date()
+            ];
+            Datastore.query('UPDATE flower_operation_records SET business_date = $2, store_name = $3, meituan_orders = $4, meituan_amount = $5, taobao_orders = $6, taobao_amount = $7, jd_orders = $8, jd_amount = $9, douyin_orders = $10, douyin_amount = $11, offline_orders = $12, offline_amount = $13, expense_category = $14, expense_amount = $15, updated_at = $16 WHERE id = $1 AND is_deleted = FALSE RETURNING *', values, function (err, results) {
+                if (err != null) { func(err); return; }
+                if ((results.rows == null) || (results.rows.length === 0)) { func(new Error('Operation record not found.')); return; }
+                func(null, results.rows[0]);
+            });
+        };
+
+        obj.DeleteFlowerOperationRecord = function (recordId, func) {
+            if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Operation manager requires PostgreSQL.')); return; }
+            Datastore.query('UPDATE flower_operation_records SET is_deleted = TRUE, deleted_at = $2, updated_at = $2 WHERE id = $1 AND is_deleted = FALSE RETURNING id', [recordId, new Date()], function (err, results) {
+                if (err != null) { func(err); return; }
+                if ((results.rows == null) || (results.rows.length === 0)) { func(new Error('Operation record not found.')); return; }
                 func(null, results.rows[0].id);
             });
         };

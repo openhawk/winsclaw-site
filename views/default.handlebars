@@ -186,6 +186,9 @@
             <div id="LeftMenuCollectManager" tabindex="0" class="lbbutton" title="采集管理" onmouseup="go(103,event)" onkeypress="if (event.key=='Enter') { go(103); }">
                 <div class="lbtg lb10"></div>
             </div>
+            <div id="LeftMenuOperationManager" tabindex="0" class="lbbutton" title="经营日报" onmouseup="go(105,event)" onkeypress="if (event.key=='Enter') { go(105); }">
+                <div class="lbtg lb11"></div>
+            </div>
             <div id="LeftMenuMyDevices" tabindex="0" class="lbbutton lbbuttonsel" title="我的设备" onmouseup="go(1,event)" onkeypress="if (event.key=='Enter') { go(1); }">
                 <div class="lbtg lb2"></div>
             </div>
@@ -243,6 +246,7 @@
                             <td tabindex="0" id="MainMenuProductManager" class="topbar_td style3x" onmouseup="go(101,event)" onkeypress="if (event.key == 'Enter') go(101)">商品管理</td>
                             <td tabindex="0" id="MainMenuFlowManager" class="topbar_td style3x" onmouseup="go(102,event)" onkeypress="if (event.key == 'Enter') go(102)">流程管理</td>
                             <td tabindex="0" id="MainMenuCollectManager" class="topbar_td style3x" onmouseup="go(103,event)" onkeypress="if (event.key == 'Enter') go(103)">采集管理</td>
+                            <td tabindex="0" id="MainMenuOperationManager" class="topbar_td style3x" onmouseup="go(105,event)" onkeypress="if (event.key == 'Enter') go(105)">经营日报</td>
                             <td class="topbar_td_end style3">&nbsp;</td>
                         </tr>
                     </tbody></table>
@@ -1379,7 +1383,7 @@
                     <div id="shopPagination" class="shop-pagination" style="display:none"></div>
                 </div>
                 <div id="shopToast" class="shop-toast" style="display:none"></div>
-                <div id="shopModalMask" class="shop-modal-mask" style="display:none" onclick="shopCloseEditor(event)">
+                <div id="shopModalMask" class="shop-modal-mask" style="display:none" onmousedown="managerHandleModalMaskPointerDown(event, 'shopModalMask')" onclick="shopCloseEditor(event)">
                     <div class="shop-modal" onclick="event.stopPropagation()">
                         <div class="shop-modal-header">
                             <div>
@@ -1450,7 +1454,7 @@
                     <div id="myShopPagination" class="shop-pagination" style="display:none"></div>
                 </div>
                 <div id="myShopToast" class="shop-toast" style="display:none"></div>
-                <div id="myShopModalMask" class="shop-modal-mask" style="display:none" onclick="myShopCloseEditor(event)">
+                <div id="myShopModalMask" class="shop-modal-mask" style="display:none" onmousedown="managerHandleModalMaskPointerDown(event, 'myShopModalMask')" onclick="myShopCloseEditor(event)">
                     <div class="shop-modal" onclick="event.stopPropagation()">
                         <div class="shop-modal-header">
                             <div>
@@ -1526,7 +1530,7 @@
                     <div id="productPagination" class="product-pagination" style="display:none"></div>
                 </div>
                 <div id="productToast" class="product-toast" style="display:none"></div>
-                <div id="productModalMask" class="product-modal-mask" style="display:none" onclick="productCloseEditor(event)">
+                <div id="productModalMask" class="product-modal-mask" style="display:none" onmousedown="managerHandleModalMaskPointerDown(event, 'productModalMask')" onclick="productCloseEditor(event)">
                     <div class="product-modal" onclick="event.stopPropagation()">
                         <div class="product-modal-header">
                             <div>
@@ -1596,7 +1600,7 @@
                     <div id="flowPagination" class="flow-pagination" style="display:none"></div>
                 </div>
                 <div id="flowToast" class="flow-toast" style="display:none"></div>
-                <div id="flowModalMask" class="flow-modal-mask" style="display:none" onclick="flowCloseEditor(event)">
+                <div id="flowModalMask" class="flow-modal-mask" style="display:none" onmousedown="managerHandleModalMaskPointerDown(event, 'flowModalMask')" onclick="flowCloseEditor(event)">
                     <div class="flow-modal" onclick="event.stopPropagation()">
                         <div class="flow-modal-header">
                             <div>
@@ -1688,7 +1692,7 @@
                         </div>
                     </div>
                 </div>
-                <div id="flowRunsMask" class="flow-modal-mask" style="display:none" onclick="flowCloseRuns(event)">
+                <div id="flowRunsMask" class="flow-modal-mask" style="display:none" onmousedown="managerHandleModalMaskPointerDown(event, 'flowRunsMask')" onclick="flowCloseRuns(event)">
                     <div class="flow-modal flow-history-modal" onclick="event.stopPropagation()">
                         <div class="flow-modal-header">
                             <div>
@@ -1730,7 +1734,7 @@
                     <div id="collectPagination" class="collect-pagination" style="display:none"></div>
                 </div>
                 <div id="collectToast" class="collect-toast" style="display:none"></div>
-                <div id="collectModalMask" class="collect-modal-mask" style="display:none" onclick="collectCloseEditor(event)">
+                <div id="collectModalMask" class="collect-modal-mask" style="display:none" onmousedown="managerHandleModalMaskPointerDown(event, 'collectModalMask')" onclick="collectCloseEditor(event)">
                     <div class="collect-modal" onclick="event.stopPropagation()">
                         <div class="collect-modal-header">
                             <div>
@@ -1774,7 +1778,7 @@
                         </div>
                     </div>
                 </div>
-                <div id="collectResultsMask" class="collect-modal-mask" style="display:none" onclick="collectCloseResults(event)">
+                <div id="collectResultsMask" class="collect-modal-mask" style="display:none" onmousedown="managerHandleModalMaskPointerDown(event, 'collectResultsMask')" onclick="collectCloseResults(event)">
                     <div class="collect-modal collect-history-modal" onclick="event.stopPropagation()">
                         <div class="collect-modal-header">
                             <div>
@@ -1786,6 +1790,84 @@
                         <div class="collect-modal-body">
                             <div id="collectResultsContent" class="collect-history-list"></div>
                             <div id="collectResultsPagination" class="collect-pagination" style="display:none"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id=p105 style="display:none">
+                <div class="ops-page-shell">
+                    <div class="ops-page-top">
+                        <div>
+                            <h1 class="ops-page-title">经营日报</h1>
+                            <div class="ops-page-subtitle">按日期归档各门店平台订单、收入与支出，支持表格式查看和基础增删改查。</div>
+                        </div>
+                        <div class="ops-toolbar-actions">
+                            <button type="button" class="ops-btn ops-btn-primary" onclick="operationOpenEditor()">新增记录</button>
+                        </div>
+                    </div>
+                    <div class="ops-toolbar">
+                        <div class="ops-filter-grid">
+                            <label class="ops-filter-field">
+                                <span>开始日期</span>
+                                <input id="operationDateFromInput" type="date" onchange="operationHandleFilterChange()" />
+                            </label>
+                            <label class="ops-filter-field">
+                                <span>结束日期</span>
+                                <input id="operationDateToInput" type="date" onchange="operationHandleFilterChange()" />
+                            </label>
+                            <label class="ops-filter-field ops-filter-search">
+                                <span>门店搜索</span>
+                                <input id="operationStoreSearchInput" type="search" placeholder="搜索门店名称" autocomplete="off" oninput="operationHandleStoreSearchInput()" />
+                            </label>
+                        </div>
+                        <div class="ops-toolbar-meta" id="operationToolbarMeta">共 0 天经营数据</div>
+                    </div>
+                    <div id="operationLoadingState" class="ops-state ops-state-loading" style="display:none">正在加载经营日报...</div>
+                    <div id="operationEmptyState" class="ops-state ops-empty" style="display:none">
+                        <div class="ops-empty-title">暂无经营数据</div>
+                        <div class="ops-empty-text">点击右上角“新增记录”，开始维护第一天的门店经营数据。</div>
+                    </div>
+                    <div id="operationTableWrap" class="ops-table-wrap"></div>
+                    <div id="operationPagination" class="ops-pagination" style="display:none"></div>
+                </div>
+                <div id="operationToast" class="ops-toast" style="display:none"></div>
+                <div id="operationModalMask" class="ops-modal-mask" style="display:none" onmousedown="managerHandleModalMaskPointerDown(event, 'operationModalMask')" onclick="operationCloseEditor(event)">
+                    <div class="ops-modal" onclick="event.stopPropagation()">
+                        <div class="ops-modal-header">
+                            <div>
+                                <div id="operationModalTitle" class="ops-modal-title">新增经营记录</div>
+                                <div class="ops-modal-subtitle">维护单日、单门店的各平台订单金额和支出信息。</div>
+                            </div>
+                            <button type="button" class="ops-modal-close" onclick="operationCloseEditor()">×</button>
+                        </div>
+                        <div class="ops-modal-body">
+                            <input id="operationFormId" type="hidden" />
+                            <div class="ops-form-grid">
+                                <label class="ops-field">
+                                    <span>日期 <b>*</b></span>
+                                    <input id="operationFormBusinessDate" type="date" />
+                                </label>
+                                <label class="ops-field">
+                                    <span>门店 <b>*</b></span>
+                                    <input id="operationFormStoreName" type="text" maxlength="256" placeholder="例如：酷木" />
+                                </label>
+                                <label class="ops-field"><span>美团订单</span><input id="operationFormMeituanOrders" type="number" min="0" step="1" /></label>
+                                <label class="ops-field"><span>美团金额</span><input id="operationFormMeituanAmount" type="number" min="0" step="0.01" /></label>
+                                <label class="ops-field"><span>淘宝闪购订单</span><input id="operationFormTaobaoOrders" type="number" min="0" step="1" /></label>
+                                <label class="ops-field"><span>淘宝闪购金额</span><input id="operationFormTaobaoAmount" type="number" min="0" step="0.01" /></label>
+                                <label class="ops-field"><span>京东订单</span><input id="operationFormJdOrders" type="number" min="0" step="1" /></label>
+                                <label class="ops-field"><span>京东金额</span><input id="operationFormJdAmount" type="number" min="0" step="0.01" /></label>
+                                <label class="ops-field"><span>抖音订单</span><input id="operationFormDouyinOrders" type="number" min="0" step="1" /></label>
+                                <label class="ops-field"><span>抖音金额</span><input id="operationFormDouyinAmount" type="number" min="0" step="0.01" /></label>
+                                <label class="ops-field"><span>线下订单</span><input id="operationFormOfflineOrders" type="number" min="0" step="1" /></label>
+                                <label class="ops-field"><span>线下金额</span><input id="operationFormOfflineAmount" type="number" min="0" step="0.01" /></label>
+                                <label class="ops-field"><span>支出类别</span><input id="operationFormExpenseCategory" type="text" maxlength="128" placeholder="例如：包装耗材" /></label>
+                                <label class="ops-field"><span>支出费用</span><input id="operationFormExpenseAmount" type="number" min="0" step="0.01" /></label>
+                            </div>
+                        </div>
+                        <div class="ops-modal-footer">
+                            <button type="button" class="ops-btn" onclick="operationCloseEditor()">取消</button>
+                            <button type="button" id="operationSubmitButton" class="ops-btn ops-btn-primary" onclick="operationSubmitEditor()">保存</button>
                         </div>
                     </div>
                 </div>
@@ -2776,6 +2858,8 @@
             QV('LeftMenuShopManager', true);
             QV('MainMenuMyShopManager', true);
             QV('LeftMenuMyShopManager', true);
+            QV('MainMenuOperationManager', true);
+            QV('LeftMenuOperationManager', true);
             if (((siteRights & 8) == 0) && (xxcurrentView == 5)) { setDialogMode(0); go(1); }
             if (currentNode != null) { gotoDevice(currentNode._id, xxcurrentView, true); }
 
@@ -2846,6 +2930,7 @@
         var productState = { items: [], total: 0, page: 1, limit: 12, search: '', storeSearch: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, loadTimer: null, loadRetry: 0, pendingAction: null };
         var flowState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, loadTimer: null, loadRetry: 0, pendingAction: null, pendingMyShopId: '', currentRunsFlowId: null, runsPage: 1, runsLimit: 10, pricingReference: { nextRowSeq: 1, rows: {} }, pricingTaskMeta: { skuStrategy: 'allActive' }, productBinding: { searchTimer: null, suggestions: [], activeSearch: '' } };
         var collectState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, currentResultsTaskId: null, resultsPage: 1, resultsLimit: 10 };
+        var operationState = { items: [], total: 0, page: 1, limit: 7, storeSearch: '', dateFrom: '', dateTo: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null };
         var managerExecutionMap = {};
 
         function shopEnterPage() {
@@ -3015,8 +3100,18 @@
             QV('shopModalMask', true);
         }
 
+        var managerModalMaskPointerDown = {};
+        function managerHandleModalMaskPointerDown(event, maskId) {
+            managerModalMaskPointerDown[maskId] = !!(event && event.currentTarget && event.target === event.currentTarget);
+        }
+        function managerCanCloseModalMask(event, maskId) {
+            if (!event || !event.currentTarget) return true;
+            var startedOnMask = managerModalMaskPointerDown[maskId] === true;
+            delete managerModalMaskPointerDown[maskId];
+            return startedOnMask && event.target === event.currentTarget;
+        }
         function shopCloseEditor(event) {
-            if (event && event.target && event.target.id !== 'shopModalMask') return;
+            if (event && !managerCanCloseModalMask(event, 'shopModalMask')) return;
             QV('shopModalMask', false);
         }
 
@@ -3194,7 +3289,7 @@
         }
 
         function myShopCloseEditor(event) {
-            if (event && event.target && event.target.id !== 'myShopModalMask') return;
+            if (event && !managerCanCloseModalMask(event, 'myShopModalMask')) return;
             QV('myShopModalMask', false);
         }
 
@@ -3452,7 +3547,7 @@
             QV('productModalMask', true);
         }
 
-        function productCloseEditor(event) { if (event && event.target && event.target.id !== 'productModalMask') return; QV('productModalMask', false); }
+        function productCloseEditor(event) { if (event && !managerCanCloseModalMask(event, 'productModalMask')) return; QV('productModalMask', false); }
         function productSetSubmitBusy(busy) { QE('productSubmitButton', !busy); Q('productSubmitButton').value = Q('productSubmitButton').innerText = busy ? '保存中...' : '保存'; }
 
         function productCollectSkuList() {
@@ -4351,7 +4446,7 @@
             if (Q('flowPricingMyShopId') != null) Q('flowPricingMyShopId').value = flow ? (flow.my_shop_id || flow.myShopId || '') : '';
             flowSetSubmitBusy(false); QV('flowModalMask', true);
         }
-        function flowCloseEditor(event) { if (event && event.target && event.target.id !== 'flowModalMask') return; QV('flowModalMask', false); }
+        function flowCloseEditor(event) { if (event && !managerCanCloseModalMask(event, 'flowModalMask')) return; QV('flowModalMask', false); }
         function flowSubmitEditor() {
             var flowType = Q('flowFormType').value;
             var config = flowBuildConfigFromFields(flowType);
@@ -4370,7 +4465,7 @@
         function flowConfirmDelete(id) { setDialogMode(2, '删除流程', 3, function (button, tag) { if (button === 1) meshserver.send({ action: 'flowdelete', id: tag }); }, '确认删除该流程吗？删除后将立即刷新列表。', id); }
         function flowShowToast(text, isError) { if (flowState.toastTimer != null) clearTimeout(flowState.toastTimer); QH('flowToast', EscapeHtml(text)); Q('flowToast').className = 'flow-toast' + (isError ? ' flow-toast-error' : ' flow-toast-success'); QV('flowToast', true); flowState.toastTimer = setTimeout(function () { QV('flowToast', false); }, 2800); }
         function flowOpenRuns(flowId, page) { flowState.currentRunsFlowId = flowId; flowState.runsPage = typeof page === 'number' ? page : 1; QH('flowRunsTitle', '流程执行记录'); QH('flowRunsContent', '正在加载执行记录...'); QV('flowRunsMask', true); meshserver.send({ action: 'flowruns', flowId: flowId, page: flowState.runsPage, limit: flowState.runsLimit }); }
-        function flowCloseRuns(event) { if (event && event.target && event.target.id !== 'flowRunsMask') return; QV('flowRunsMask', false); }
+        function flowCloseRuns(event) { if (event && !managerCanCloseModalMask(event, 'flowRunsMask')) return; QV('flowRunsMask', false); }
         function flowHandleRunsResponse(message) {
             if (message.result != null) { QH('flowRunsContent', '<div class="flow-history-empty">' + EscapeHtml(message.result) + '</div>'); QV('flowRunsPagination', false); return; }
             var runs = Array.isArray(message.runs) ? message.runs : [], x = '';
@@ -4606,7 +4701,7 @@
             collectHandleTypeChange();
             collectSetSubmitBusy(false); QV('collectModalMask', true);
         }
-        function collectCloseEditor(event) { if (event && event.target && event.target.id !== 'collectModalMask') return; QV('collectModalMask', false); }
+        function collectCloseEditor(event) { if (event && !managerCanCloseModalMask(event, 'collectModalMask')) return; QV('collectModalMask', false); }
         function collectSubmitEditor() {
             var collectType = Q('collectFormType').value;
             var config = collectBuildConfigFromFields(collectType);
@@ -4626,7 +4721,7 @@
         }
         function collectShowToast(text, isError) { if (collectState.toastTimer != null) clearTimeout(collectState.toastTimer); QH('collectToast', EscapeHtml(text)); Q('collectToast').className = 'collect-toast' + (isError ? ' collect-toast-error' : ' collect-toast-success'); QV('collectToast', true); collectState.toastTimer = setTimeout(function () { QV('collectToast', false); }, 2800); }
         function collectOpenResults(taskId, page) { collectState.currentResultsTaskId = taskId; collectState.resultsPage = typeof page === 'number' ? page : 1; QH('collectResultsTitle', '采集结果'); QH('collectResultsContent', '正在加载采集结果...'); QV('collectResultsMask', true); meshserver.send({ action: 'collectresults', taskId: taskId, page: collectState.resultsPage, limit: collectState.resultsLimit }); }
-        function collectCloseResults(event) { if (event && event.target && event.target.id !== 'collectResultsMask') return; QV('collectResultsMask', false); }
+        function collectCloseResults(event) { if (event && !managerCanCloseModalMask(event, 'collectResultsMask')) return; QV('collectResultsMask', false); }
         function collectHandleResultsResponse(message) {
             if (message.result != null) { QH('collectResultsContent', '<div class="collect-history-empty">' + EscapeHtml(message.result) + '</div>'); QV('collectResultsPagination', false); return; }
             var results = Array.isArray(message.results) ? message.results : [], x = '';
@@ -4655,6 +4750,275 @@
         function collectHandleFinalizeExecute(message) {
             if (message.success !== true) { collectShowToast(message.result || '无法保存采集结果。', true); return; }
             collectShowToast('采集结果已更新。', false); collectRefreshList(collectState.page); if (collectState.currentResultsTaskId) collectOpenResults(collectState.currentResultsTaskId, collectState.resultsPage);
+        }
+
+        function operationEnterPage() {
+            if (Q('p105') == null) return;
+            QC('p105').remove('ops-page-active');
+            void Q('p105').offsetWidth;
+            QC('p105').add('ops-page-active');
+            if (Q('operationStoreSearchInput') != null) Q('operationStoreSearchInput').value = operationState.storeSearch;
+            if (Q('operationDateFromInput') != null) Q('operationDateFromInput').value = operationState.dateFrom;
+            if (Q('operationDateToInput') != null) Q('operationDateToInput').value = operationState.dateTo;
+            if (operationState.loaded !== true) { operationRefreshList(1); } else { operationRender(); }
+        }
+
+        function operationHandleStoreSearchInput() {
+            if (operationState.searchTimer != null) clearTimeout(operationState.searchTimer);
+            operationState.searchTimer = setTimeout(function () {
+                operationState.storeSearch = Q('operationStoreSearchInput').value.trim();
+                operationRefreshList(1);
+            }, 260);
+        }
+
+        function operationHandleFilterChange() {
+            operationState.dateFrom = Q('operationDateFromInput').value;
+            operationState.dateTo = Q('operationDateToInput').value;
+            operationRefreshList(1);
+        }
+
+        function operationRefreshList(page) {
+            if (typeof page === 'number') operationState.page = page;
+            operationState.loaded = true;
+            operationState.loading = true;
+            QV('operationLoadingState', true);
+            QV('operationEmptyState', false);
+            QH('operationTableWrap', '');
+            meshserver.send({ action: 'operationrecordlist', page: operationState.page, limit: operationState.limit, storeSearch: operationState.storeSearch, dateFrom: operationState.dateFrom, dateTo: operationState.dateTo });
+        }
+
+        function operationHandleListResponse(message) {
+            operationState.loading = false;
+            QV('operationLoadingState', false);
+            if (message.result != null) {
+                operationState.items = [];
+                operationState.total = 0;
+                operationShowToast(message.result, true);
+            } else {
+                operationState.items = Array.isArray(message.records) ? message.records : [];
+                operationState.total = (typeof message.total === 'number') ? message.total : 0;
+                if (typeof message.page === 'number') operationState.page = message.page;
+                if ((operationState.items.length === 0) && (operationState.total > 0) && (operationState.page > 1)) {
+                    operationRefreshList(Math.max(1, Math.ceil(operationState.total / operationState.limit)));
+                    return;
+                }
+            }
+            operationRender();
+        }
+
+        function operationHandleMutationResponse(kind, message) {
+            operationState.pendingAction = null;
+            operationSetSubmitBusy(false);
+            if (message.success !== true) {
+                operationShowToast(message.result || '操作失败。', true);
+                return;
+            }
+            if (kind !== 'delete') operationCloseEditor();
+            if (kind === 'create') operationState.page = 1;
+            operationShowToast(kind === 'create' ? '经营记录新增成功。' : (kind === 'update' ? '经营记录保存成功。' : '经营记录删除成功。'), false);
+            operationRefreshList(operationState.page);
+        }
+
+        function operationRender() {
+            if (Q('operationToolbarMeta') != null) QH('operationToolbarMeta', '共 ' + operationState.total + ' 天经营数据');
+            if ((operationState.items || []).length === 0) {
+                QH('operationTableWrap', '');
+                QV('operationEmptyState', !operationState.loading);
+                QV('operationPagination', false);
+                return;
+            }
+            QV('operationEmptyState', false);
+            var grouped = {}, order = [];
+            for (var i = 0; i < operationState.items.length; i++) {
+                var item = operationState.items[i];
+                var key = operationFormatDate(item.business_date || item.businessDate);
+                if (grouped[key] == null) { grouped[key] = []; order.push(key); }
+                grouped[key].push(item);
+            }
+            var x = '';
+            for (var j = 0; j < order.length; j++) {
+                var businessDate = order[j];
+                var rows = grouped[businessDate] || [];
+                var summary = operationBuildSummary(rows);
+                x += '<section class="ops-day-card">';
+                x += '<div class="ops-day-head"><div class="ops-day-title">' + EscapeHtml(businessDate) + '</div><div class="ops-day-summary"><span>门店数 ' + EscapeHtml(String(rows.length)) + '</span><span>总订单量 ' + EscapeHtml(String(summary.totalOrders)) + '</span><span>总收入 ¥' + EscapeHtml(operationFormatAmount(summary.totalIncome)) + '</span></div></div>';
+                x += '<div class="ops-day-table"><table class="ops-table"><thead><tr><th rowspan="2">门店</th><th colspan="2">美团</th><th colspan="2">淘宝闪购</th><th colspan="2">京东</th><th colspan="2">抖音</th><th colspan="2">线下</th><th rowspan="2">支出类别</th><th rowspan="2">支出费用</th><th rowspan="2">操作</th></tr><tr><th>订单</th><th>金额</th><th>订单</th><th>金额</th><th>订单</th><th>金额</th><th>订单</th><th>金额</th><th>订单</th><th>金额</th></tr></thead><tbody>';
+                for (var k = 0; k < rows.length; k++) {
+                    var row = rows[k];
+                    x += '<tr>';
+                    x += '<td class="ops-store-cell">' + EscapeHtml(row.store_name || row.storeName || '') + '</td>';
+                    x += '<td>' + EscapeHtml(operationFormatInteger(row.meituan_orders || row.meituanOrders)) + '</td>';
+                    x += '<td>' + EscapeHtml(operationFormatAmountCell(row.meituan_amount || row.meituanAmount)) + '</td>';
+                    x += '<td>' + EscapeHtml(operationFormatInteger(row.taobao_orders || row.taobaoOrders)) + '</td>';
+                    x += '<td>' + EscapeHtml(operationFormatAmountCell(row.taobao_amount || row.taobaoAmount)) + '</td>';
+                    x += '<td>' + EscapeHtml(operationFormatInteger(row.jd_orders || row.jdOrders)) + '</td>';
+                    x += '<td>' + EscapeHtml(operationFormatAmountCell(row.jd_amount || row.jdAmount)) + '</td>';
+                    x += '<td>' + EscapeHtml(operationFormatInteger(row.douyin_orders || row.douyinOrders)) + '</td>';
+                    x += '<td>' + EscapeHtml(operationFormatAmountCell(row.douyin_amount || row.douyinAmount)) + '</td>';
+                    x += '<td>' + EscapeHtml(operationFormatInteger(row.offline_orders || row.offlineOrders)) + '</td>';
+                    x += '<td>' + EscapeHtml(operationFormatAmountCell(row.offline_amount || row.offlineAmount)) + '</td>';
+                    x += '<td>' + EscapeHtml((row.expense_category || row.expenseCategory || '').trim() || '-') + '</td>';
+                    x += '<td>' + EscapeHtml(operationFormatAmountCell(row.expense_amount || row.expenseAmount)) + '</td>';
+                    x += '<td><div class="ops-row-actions"><button type="button" class="ops-btn" onclick="operationOpenEditorById(\'' + EscapeHtml(String(row.id)) + '\')">编辑</button><button type="button" class="ops-btn ops-btn-danger" onclick="operationConfirmDelete(\'' + EscapeHtml(String(row.id)) + '\')">删除</button></div></td>';
+                    x += '</tr>';
+                }
+                x += '<tr class="ops-summary-row"><td class="ops-summary-label">统计分析</td>';
+                x += '<td>' + EscapeHtml(String(summary.meituanOrders)) + '</td><td>' + EscapeHtml(operationFormatAmount(summary.meituanAmount)) + '</td>';
+                x += '<td>' + EscapeHtml(String(summary.taobaoOrders)) + '</td><td>' + EscapeHtml(operationFormatAmount(summary.taobaoAmount)) + '</td>';
+                x += '<td>' + EscapeHtml(String(summary.jdOrders)) + '</td><td>' + EscapeHtml(operationFormatAmount(summary.jdAmount)) + '</td>';
+                x += '<td>' + EscapeHtml(String(summary.douyinOrders)) + '</td><td>' + EscapeHtml(operationFormatAmount(summary.douyinAmount)) + '</td>';
+                x += '<td>' + EscapeHtml(String(summary.offlineOrders)) + '</td><td>' + EscapeHtml(operationFormatAmount(summary.offlineAmount)) + '</td>';
+                x += '<td class="ops-summary-total">总订单量 ' + EscapeHtml(String(summary.totalOrders)) + '</td><td class="ops-summary-total">总收入 ¥' + EscapeHtml(operationFormatAmount(summary.totalIncome)) + '</td><td class="ops-summary-hint">准确记录当天数据</td></tr>';
+                x += '</tbody></table></div></section>';
+            }
+            QH('operationTableWrap', x);
+            operationRenderPagination();
+        }
+
+        function operationRenderPagination() {
+            var totalPages = Math.max(1, Math.ceil(operationState.total / operationState.limit));
+            var current = Math.min(Math.max(1, operationState.page), totalPages);
+            var startItem = (operationState.total === 0) ? 0 : ((current - 1) * operationState.limit + 1);
+            var endItem = Math.min(operationState.total, current * operationState.limit);
+            var x = '';
+            x += '<button type="button" class="ops-page-btn" ' + (current <= 1 ? 'disabled="disabled"' : 'onclick="operationRefreshList(1)"') + '>首页</button>';
+            x += '<button type="button" class="ops-page-btn" ' + (current <= 1 ? 'disabled="disabled"' : 'onclick="operationRefreshList(' + (current - 1) + ')"') + '>上一页</button>';
+            x += '<span class="ops-page-indicator">第 ' + current + ' / ' + totalPages + ' 页，显示 ' + startItem + '-' + endItem + ' 天，共 ' + operationState.total + ' 天</span>';
+            x += '<button type="button" class="ops-page-btn" ' + (current >= totalPages ? 'disabled="disabled"' : 'onclick="operationRefreshList(' + (current + 1) + ')"') + '>下一页</button>';
+            x += '<button type="button" class="ops-page-btn" ' + (current >= totalPages ? 'disabled="disabled"' : 'onclick="operationRefreshList(' + totalPages + ')"') + '>末页</button>';
+            QH('operationPagination', x);
+            QV('operationPagination', true);
+        }
+
+        function operationBuildSummary(rows) {
+            var summary = { meituanOrders: 0, meituanAmount: 0, taobaoOrders: 0, taobaoAmount: 0, jdOrders: 0, jdAmount: 0, douyinOrders: 0, douyinAmount: 0, offlineOrders: 0, offlineAmount: 0, totalOrders: 0, totalIncome: 0 };
+            for (var i = 0; i < rows.length; i++) {
+                summary.meituanOrders += operationToNumber(rows[i].meituan_orders || rows[i].meituanOrders);
+                summary.meituanAmount += operationToNumber(rows[i].meituan_amount || rows[i].meituanAmount);
+                summary.taobaoOrders += operationToNumber(rows[i].taobao_orders || rows[i].taobaoOrders);
+                summary.taobaoAmount += operationToNumber(rows[i].taobao_amount || rows[i].taobaoAmount);
+                summary.jdOrders += operationToNumber(rows[i].jd_orders || rows[i].jdOrders);
+                summary.jdAmount += operationToNumber(rows[i].jd_amount || rows[i].jdAmount);
+                summary.douyinOrders += operationToNumber(rows[i].douyin_orders || rows[i].douyinOrders);
+                summary.douyinAmount += operationToNumber(rows[i].douyin_amount || rows[i].douyinAmount);
+                summary.offlineOrders += operationToNumber(rows[i].offline_orders || rows[i].offlineOrders);
+                summary.offlineAmount += operationToNumber(rows[i].offline_amount || rows[i].offlineAmount);
+            }
+            summary.totalOrders = summary.meituanOrders + summary.taobaoOrders + summary.jdOrders + summary.douyinOrders + summary.offlineOrders;
+            summary.totalIncome = summary.meituanAmount + summary.taobaoAmount + summary.jdAmount + summary.douyinAmount + summary.offlineAmount;
+            return summary;
+        }
+
+        function operationToNumber(value) {
+            if (value == null || value === '') return 0;
+            var num = Number(value);
+            return isFinite(num) ? num : 0;
+        }
+
+        function operationFormatDate(value) {
+            if (typeof value !== 'string') value = String(value || '');
+            var match = value.match(/^(\d{4}-\d{2}-\d{2})/);
+            return match ? match[1] : value;
+        }
+
+        function operationFormatInteger(value) {
+            if (value == null || value === '') return '';
+            return String(Math.round(operationToNumber(value)));
+        }
+
+        function operationFormatAmount(value) {
+            return (Math.round(operationToNumber(value) * 100) / 100).toFixed(2);
+        }
+
+        function operationFormatAmountCell(value) {
+            if (value == null || value === '') return '';
+            return operationFormatAmount(value);
+        }
+
+        function operationOpenEditorById(id) {
+            for (var i = 0; i < operationState.items.length; i++) {
+                if (String(operationState.items[i].id) === String(id)) { operationOpenEditor(operationState.items[i]); return; }
+            }
+        }
+
+        function operationOpenEditor(record) {
+            var today = new Date(), todayValue = today.getFullYear() + '-' + ('0' + (today.getMonth() + 1)).slice(-2) + '-' + ('0' + today.getDate()).slice(-2);
+            Q('operationFormId').value = record ? record.id : '';
+            Q('operationFormBusinessDate').value = record ? operationFormatDate(record.business_date || record.businessDate || todayValue) : todayValue;
+            Q('operationFormStoreName').value = record ? (record.store_name || record.storeName || '') : '';
+            Q('operationFormMeituanOrders').value = record ? (record.meituan_orders == null ? '' : record.meituan_orders) : '';
+            Q('operationFormMeituanAmount').value = record ? (record.meituan_amount == null ? '' : record.meituan_amount) : '';
+            Q('operationFormTaobaoOrders').value = record ? (record.taobao_orders == null ? '' : record.taobao_orders) : '';
+            Q('operationFormTaobaoAmount').value = record ? (record.taobao_amount == null ? '' : record.taobao_amount) : '';
+            Q('operationFormJdOrders').value = record ? (record.jd_orders == null ? '' : record.jd_orders) : '';
+            Q('operationFormJdAmount').value = record ? (record.jd_amount == null ? '' : record.jd_amount) : '';
+            Q('operationFormDouyinOrders').value = record ? (record.douyin_orders == null ? '' : record.douyin_orders) : '';
+            Q('operationFormDouyinAmount').value = record ? (record.douyin_amount == null ? '' : record.douyin_amount) : '';
+            Q('operationFormOfflineOrders').value = record ? (record.offline_orders == null ? '' : record.offline_orders) : '';
+            Q('operationFormOfflineAmount').value = record ? (record.offline_amount == null ? '' : record.offline_amount) : '';
+            Q('operationFormExpenseCategory').value = record ? (record.expense_category || record.expenseCategory || '') : '';
+            Q('operationFormExpenseAmount').value = record ? (record.expense_amount == null ? '' : record.expense_amount) : '';
+            QH('operationModalTitle', record ? '编辑经营记录' : '新增经营记录');
+            operationSetSubmitBusy(false);
+            QV('operationModalMask', true);
+        }
+
+        function operationCloseEditor(event) {
+            if (event && !managerCanCloseModalMask(event, 'operationModalMask')) return;
+            QV('operationModalMask', false);
+        }
+
+        function operationSetSubmitBusy(busy) {
+            QE('operationSubmitButton', !busy);
+            Q('operationSubmitButton').value = Q('operationSubmitButton').innerText = busy ? '保存中...' : '保存';
+        }
+
+        function operationSubmitEditor() {
+            var payload = {
+                id: Q('operationFormId').value,
+                businessDate: Q('operationFormBusinessDate').value,
+                storeName: Q('operationFormStoreName').value.trim(),
+                meituanOrders: Q('operationFormMeituanOrders').value,
+                meituanAmount: Q('operationFormMeituanAmount').value,
+                taobaoOrders: Q('operationFormTaobaoOrders').value,
+                taobaoAmount: Q('operationFormTaobaoAmount').value,
+                jdOrders: Q('operationFormJdOrders').value,
+                jdAmount: Q('operationFormJdAmount').value,
+                douyinOrders: Q('operationFormDouyinOrders').value,
+                douyinAmount: Q('operationFormDouyinAmount').value,
+                offlineOrders: Q('operationFormOfflineOrders').value,
+                offlineAmount: Q('operationFormOfflineAmount').value,
+                expenseCategory: Q('operationFormExpenseCategory').value.trim(),
+                expenseAmount: Q('operationFormExpenseAmount').value
+            };
+            if (payload.businessDate === '') { operationShowToast('日期不能为空。', true); return; }
+            if (payload.storeName === '') { operationShowToast('门店名称不能为空。', true); return; }
+            operationSetSubmitBusy(true);
+            operationState.pendingAction = payload.id !== '' ? 'operationrecordupdate' : 'operationrecordcreate';
+            meshserver.send({ action: operationState.pendingAction, id: payload.id, businessDate: payload.businessDate, storeName: payload.storeName, meituanOrders: payload.meituanOrders, meituanAmount: payload.meituanAmount, taobaoOrders: payload.taobaoOrders, taobaoAmount: payload.taobaoAmount, jdOrders: payload.jdOrders, jdAmount: payload.jdAmount, douyinOrders: payload.douyinOrders, douyinAmount: payload.douyinAmount, offlineOrders: payload.offlineOrders, offlineAmount: payload.offlineAmount, expenseCategory: payload.expenseCategory, expenseAmount: payload.expenseAmount });
+        }
+
+        function operationConfirmDelete(id) {
+            var label = '该经营记录';
+            for (var i = 0; i < operationState.items.length; i++) {
+                if (String(operationState.items[i].id) === String(id)) {
+                    label = operationFormatDate(operationState.items[i].business_date || operationState.items[i].businessDate || '') + ' / ' + (operationState.items[i].store_name || operationState.items[i].storeName || '未命名门店');
+                    break;
+                }
+            }
+            setDialogMode(2, '删除经营记录', 3, function (button, tag) {
+                if (button !== 1) return;
+                meshserver.send({ action: 'operationrecorddelete', id: tag });
+            }, '确认删除经营记录“' + EscapeHtml(label) + '”吗？删除后将立即刷新列表。', id);
+        }
+
+        function operationShowToast(text, isError) {
+            if (Q('operationToast') == null) return;
+            if (operationState.toastTimer != null) clearTimeout(operationState.toastTimer);
+            QH('operationToast', EscapeHtml(text));
+            Q('operationToast').className = 'ops-toast' + (isError ? ' ops-toast-error' : ' ops-toast-success');
+            QV('operationToast', true);
+            operationState.toastTimer = setTimeout(function () { QV('operationToast', false); }, 2600);
         }
 
         // Return the number of 2nd factor for this account
@@ -5561,6 +5925,22 @@
                 }
                 case 'collectfinalizeexecute': {
                     collectHandleFinalizeExecute(message);
+                    break;
+                }
+                case 'operationrecordlist': {
+                    operationHandleListResponse(message);
+                    break;
+                }
+                case 'operationrecordcreate': {
+                    operationHandleMutationResponse('create', message);
+                    break;
+                }
+                case 'operationrecordupdate': {
+                    operationHandleMutationResponse('update', message);
+                    break;
+                }
+                case 'operationrecorddelete': {
+                    operationHandleMutationResponse('delete', message);
                     break;
                 }
                 case 'productlist': {
@@ -21440,7 +21820,7 @@
             if (xxcurrentView == 17) deviceDetailsStatsClear();
 
             // Edit this line when adding a new screen
-            for (var i = 0; i < 105; i++) { QV('p' + i, i == x); }
+            for (var i = 0; i < 106; i++) { QV('p' + i, i == x); }
             xxcurrentView = x;
 
             // Get out of fullscreen if needed
@@ -21463,14 +21843,14 @@
             }
 
             // Remove top bar selection
-            var mainBarItems = ['MainMenuMyDevices', 'MainMenuMyAccount', 'MainMenuMyEvents', 'MainMenuMyFiles', 'MainMenuMyUsers', 'MainMenuMyServer', 'MainMenuShopManager', 'MainMenuMyShopManager', 'MainMenuProductManager'];
+            var mainBarItems = ['MainMenuMyDevices', 'MainMenuMyAccount', 'MainMenuMyEvents', 'MainMenuMyFiles', 'MainMenuMyUsers', 'MainMenuMyServer', 'MainMenuShopManager', 'MainMenuMyShopManager', 'MainMenuProductManager', 'MainMenuFlowManager', 'MainMenuCollectManager', 'MainMenuOperationManager'];
             for (var i in mainBarItems) {
                 QC(mainBarItems[i]).remove('fullselect');
                 QC(mainBarItems[i]).remove('semiselect');
             }
 
             // Remove left bar selection
-            var leftBarItems = ['LeftMenuMyDevices', 'LeftMenuMyAccount', 'LeftMenuMyEvents', 'LeftMenuMyFiles', 'LeftMenuMyUsers', 'LeftMenuMyServer', 'LeftMenuShopManager', 'LeftMenuMyShopManager', 'LeftMenuProductManager', 'LeftMenuFlowManager', 'LeftMenuCollectManager'];
+            var leftBarItems = ['LeftMenuMyDevices', 'LeftMenuMyAccount', 'LeftMenuMyEvents', 'LeftMenuMyFiles', 'LeftMenuMyUsers', 'LeftMenuMyServer', 'LeftMenuShopManager', 'LeftMenuMyShopManager', 'LeftMenuProductManager', 'LeftMenuFlowManager', 'LeftMenuCollectManager', 'LeftMenuOperationManager'];
             for (var i in leftBarItems) {
                 QC(leftBarItems[i]).remove('lbbuttonsel');
                 QC(leftBarItems[i]).remove('lbbuttonsel2');
@@ -21527,6 +21907,10 @@
                 // Collect Manager
                 QC('MainMenuCollectManager').add(mainMenuActiveClass);
                 QC('LeftMenuCollectManager').add(leftMenuActiveClass);
+            } else if (x == 105) {
+                // Operation Manager
+                QC('MainMenuOperationManager').add(mainMenuActiveClass);
+                QC('LeftMenuOperationManager').add(leftMenuActiveClass);
             }
             QV('ServerPlugins', pluginHandler != null);
 
@@ -21549,6 +21933,7 @@
             if (x == 101) { productEnterPage(); }
             if (x == 102) { flowEnterPage(); }
             if (x == 103) { collectEnterPage(); }
+            if (x == 105) { operationEnterPage(); }
             var panels = { 3: 'EventsLive', 4: 'UsersGeneral', 10: 'MainDev', 11: 'MainDevDesktop', 12: 'MainDevTerminal', 13: 'MainDevFiles', 14: 'MainDevAmt', 15: 'MainDevConsole', 16: 'MainDevEvents', 17: 'MainDevInfo', 19: 'MainDevPlugins', 20: 'MeshGeneral', 21: 'MeshSummary', 30: 'UserGeneral', 31: 'UserEvents', 6: 'ServerGeneral', 40: 'ServerStats', 41: 'ServerTrace', 42: 'ServerPlugins', 50: 'UsersGroups', 52: 'UsersRecordings', 60: 'EventsReport', 115: 'ServerConsole' };
             for (var i in panels) {
                 QC(panels[i]).remove('style3x');

@@ -1,0 +1,31 @@
+- table [ref=e3]:
+  - rowgroup [ref=e4]:
+    - row "赢客鲜花 Log In Don't have an account? Create one." [ref=e5]:
+      - cell "赢客鲜花 Log In Don't have an account? Create one." [ref=e6]:
+        - img
+        - generic [ref=e7]:
+          - text: 赢客鲜花
+          - superscript
+        - generic [ref=e10]:
+          - table [ref=e11]:
+            - rowgroup [ref=e12]:
+              - row [ref=e13]:
+                - cell [ref=e14]:
+                  - textbox "Username" [active] [ref=e15]
+              - row [ref=e16]:
+                - cell [ref=e17]:
+                  - textbox "Password" [ref=e18]
+              - row [ref=e19]:
+                - cell [ref=e20]
+              - row "Log In" [ref=e21]:
+                - cell "Log In" [ref=e22]:
+                  - button "Log In" [ref=e23]
+          - generic [ref=e24]:
+            - text: Don't have an account?
+            - link "Create one" [ref=e25] [cursor=pointer]:
+              - /url: "#"
+            - text: .
+    - row "Terms & Privacy" [ref=e26]:
+      - cell "Terms & Privacy" [ref=e27]:
+        - link "Terms & Privacy" [ref=e29] [cursor=pointer]:
+          - /url: terms
