@@ -3029,7 +3029,7 @@
         var flowState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, loadTimer: null, loadRetry: 0, pendingAction: null, pendingMyShopId: '', currentRunsFlowId: null, runsPage: 1, runsLimit: 10, runsTimer: null, pricingReference: { nextRowSeq: 1, rows: {} }, pricingTaskMeta: { skuStrategy: 'allActive' }, productBinding: { searchTimer: null, suggestions: [], activeSearch: '' } };
         var collectState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, currentResultsTaskId: null, resultsPage: 1, resultsLimit: 10 };
         var scheduledState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, listTimer: null, pendingAction: null, currentRunsTaskId: null, runsPage: 1, runsLimit: 10, runSteps: {} };
-        var operationState = { items: [], total: 0, page: 1, limit: 7, storeSearch: '', dateFrom: '', dateTo: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, pendingStoreName: '', editorDate: '', editorLoading: false, editorExistingRecords: [], batch: null };
+        var operationState = { items: [], total: 0, page: 1, limit: 7, storeSearch: '', dateFrom: '', dateTo: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, pendingStoreName: '', editorDate: '', editorLoading: false, editorExistingRecords: [], editorLegacyRecordIds: [], batch: null };
         var managerExecutionMap = {};
 
         function shopEnterPage() {
@@ -5143,7 +5143,7 @@
 
         function operationBuildEditorRows() {
             var storeNames = managerGetOperationStoreNames(), records = Array.isArray(operationState.editorExistingRecords) ? operationState.editorExistingRecords : [];
-            var rows = [], existingMap = {}, seen = {};
+            var rows = [], existingMap = {}, seen = {}, legacyIds = [];
             for (var i = 0; i < records.length; i++) {
                 var recordStoreName = (records[i].store_name || records[i].storeName || '').trim();
                 if (recordStoreName !== '') existingMap[recordStoreName] = records[i];
@@ -5156,21 +5156,20 @@
             for (var k = 0; k < records.length; k++) {
                 var extraStoreName = (records[k].store_name || records[k].storeName || '').trim();
                 if (extraStoreName === '' || seen[extraStoreName]) continue;
-                seen[extraStoreName] = true;
-                rows.push(operationBuildEditorRowHtml(extraStoreName, records[k], true));
+                if (records[k].id != null) legacyIds.push(records[k].id);
             }
+            operationState.editorLegacyRecordIds = legacyIds;
             QH('operationEditorRows', rows.join(''));
-            QH('operationEditorMeta', '共 ' + rows.length + ' 家门店');
+            QH('operationEditorMeta', '共 ' + rows.length + ' 家门店' + (legacyIds.length > 0 ? ('，待清理历史门店数据 ' + legacyIds.length + ' 条') : ''));
             QV('operationEditorLoading', false);
-            QV('operationEditorEmpty', rows.length === 0);
+            QV('operationEditorEmpty', (rows.length === 0) && (legacyIds.length === 0));
             QV('operationEditorTableWrap', rows.length > 0);
         }
 
-        function operationBuildEditorRowHtml(storeName, record, isLegacyStore) {
-            var legacyBadge = isLegacyStore ? '<div class="ops-editor-store-tag">历史门店</div>' : '';
+        function operationBuildEditorRowHtml(storeName, record) {
             var rowId = record ? String(record.id) : '';
             var x = '<tr class="ops-editor-row" data-store-name="' + EscapeHtml(storeName) + '" data-record-id="' + EscapeHtml(rowId) + '">';
-            x += '<td class="ops-editor-store-cell"><div class="ops-editor-store-name">' + EscapeHtml(storeName) + '</div>' + legacyBadge + '</td>';
+            x += '<td class="ops-editor-store-cell"><div class="ops-editor-store-name">' + EscapeHtml(storeName) + '</div></td>';
             x += '<td><input data-field="meituanOrders" type="number" min="0" step="1" value="' + EscapeHtml(operationFormatEditorValue(record ? (record.meituan_orders || record.meituanOrders) : '', false)) + '" /></td>';
             x += '<td><input data-field="meituanAmount" type="number" min="0" step="0.01" value="' + EscapeHtml(operationFormatEditorValue(record ? (record.meituan_amount || record.meituanAmount) : '', true)) + '" /></td>';
             x += '<td><input data-field="taobaoOrders" type="number" min="0" step="1" value="' + EscapeHtml(operationFormatEditorValue(record ? (record.taobao_orders || record.taobaoOrders) : '', false)) + '" /></td>';
@@ -5192,6 +5191,7 @@
             operationState.editorDate = businessDate;
             operationState.editorLoading = true;
             operationState.editorExistingRecords = [];
+            operationState.editorLegacyRecordIds = [];
             QH('operationEditorMeta', '正在加载门店...');
             QV('operationEditorLoading', true);
             QV('operationEditorEmpty', false);
@@ -5211,6 +5211,7 @@
             operationState.editorLoading = false;
             if (message.result != null) {
                 operationState.editorExistingRecords = [];
+                operationState.editorLegacyRecordIds = [];
                 QV('operationEditorLoading', false);
                 QV('operationEditorTableWrap', false);
                 QV('operationEditorEmpty', true);
@@ -5304,6 +5305,7 @@
             operationState.batch = null;
             operationState.pendingAction = null;
             operationState.editorExistingRecords = [];
+            operationState.editorLegacyRecordIds = [];
             operationState.editorDate = businessDate;
             Q('operationFormBusinessDate').value = businessDate;
             QH('operationModalTitle', record ? ('编辑 ' + businessDate + ' 经营数据') : '新增经营记录');
@@ -5336,7 +5338,7 @@
             var businessDate = Q('operationFormBusinessDate').value;
             var rows = operationCollectEditorRows(), actions = [];
             if (businessDate === '') { operationShowToast('日期不能为空。', true); return; }
-            if (rows.length === 0) { operationShowToast('没有可保存的门店数据。', true); return; }
+            if (rows.length === 0 && operationState.editorLegacyRecordIds.length === 0) { operationShowToast('没有可保存的门店数据。', true); return; }
             for (var i = 0; i < rows.length; i++) {
                 var payload = rows[i];
                 var hasData = operationHasPayloadData(payload);
@@ -5347,6 +5349,9 @@
                 } else if (payload.id !== '') {
                     actions.push({ action: 'operationrecorddelete', id: payload.id });
                 }
+            }
+            for (var j = 0; j < operationState.editorLegacyRecordIds.length; j++) {
+                actions.push({ action: 'operationrecorddelete', id: operationState.editorLegacyRecordIds[j] });
             }
             if (actions.length === 0) { operationShowToast('请至少填写一家门店的数据。', true); return; }
             operationSetSubmitBusy(true);
