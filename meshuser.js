@@ -7609,15 +7609,15 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         return value;
     }
 
-    function getOperationIntegerField(value) {
-        if (value == null || value === '') return null;
+    function getOperationIntegerField(value, defaultZero) {
+        if (value == null || value === '') return (defaultZero === true ? 0 : null);
         var num = Number(value);
         if ((isFinite(num) !== true) || (num < 0) || (Math.floor(num) !== num)) return null;
         return num;
     }
 
-    function getOperationAmountField(value) {
-        if (value == null || value === '') return null;
+    function getOperationAmountField(value, defaultZero) {
+        if (value == null || value === '') return (defaultZero === true ? 0 : null);
         var num = Number(value);
         if ((isFinite(num) !== true) || (num < 0) || (num > 99999999)) return null;
         return Math.round(num * 100) / 100;
@@ -7630,27 +7630,23 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         var payload = {
             businessDate: businessDate,
             storeName: storeName,
-            meituanOrders: getOperationIntegerField(command.meituanOrders),
-            meituanAmount: getOperationAmountField(command.meituanAmount),
-            taobaoOrders: getOperationIntegerField(command.taobaoOrders),
-            taobaoAmount: getOperationAmountField(command.taobaoAmount),
-            jdOrders: getOperationIntegerField(command.jdOrders),
-            jdAmount: getOperationAmountField(command.jdAmount),
-            douyinOrders: getOperationIntegerField(command.douyinOrders),
-            douyinAmount: getOperationAmountField(command.douyinAmount),
-            offlineOrders: getOperationIntegerField(command.offlineOrders),
-            offlineAmount: getOperationAmountField(command.offlineAmount),
+            meituanOrders: getOperationIntegerField(command.meituanOrders, true),
+            meituanAmount: getOperationAmountField(command.meituanAmount, true),
+            taobaoOrders: getOperationIntegerField(command.taobaoOrders, true),
+            taobaoAmount: getOperationAmountField(command.taobaoAmount, true),
+            jdOrders: getOperationIntegerField(command.jdOrders, true),
+            jdAmount: getOperationAmountField(command.jdAmount, true),
+            douyinOrders: getOperationIntegerField(command.douyinOrders, true),
+            douyinAmount: getOperationAmountField(command.douyinAmount, true),
+            offlineOrders: getOperationIntegerField(command.offlineOrders, true),
+            offlineAmount: getOperationAmountField(command.offlineAmount, true),
             expenseCategory: expenseCategory || '',
-            expenseAmount: getOperationAmountField(command.expenseAmount)
+            expenseAmount: getOperationAmountField(command.expenseAmount, true)
         };
         if (payload.businessDate == null) return { error: '日期格式无效，请使用 YYYY-MM-DD。' };
         if ((payload.storeName == null) || (payload.storeName.length === 0)) return { error: '门店名称不能为空。' };
         if (expenseCategory == null) return { error: '支出类别内容无效。' };
-        if ((payload.expenseAmount != null) && (payload.expenseCategory === '')) return { error: '填写支出费用时请同时填写支出类别。' };
-        var hasBusinessData = false;
-        var keys = ['meituanOrders', 'meituanAmount', 'taobaoOrders', 'taobaoAmount', 'jdOrders', 'jdAmount', 'douyinOrders', 'douyinAmount', 'offlineOrders', 'offlineAmount', 'expenseAmount'];
-        for (var i = 0; i < keys.length; i++) { if (payload[keys[i]] != null) { hasBusinessData = true; break; } }
-        if (hasBusinessData !== true) return { error: '请至少填写一项经营数据或支出费用。' };
+        if ((payload.expenseAmount > 0) && (payload.expenseCategory === '')) return { error: '填写支出费用时请同时填写支出类别。' };
         return payload;
     }
 

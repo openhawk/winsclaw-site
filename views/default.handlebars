@@ -5289,6 +5289,32 @@
             return payloads;
         }
 
+        function operationNormalizeSaveNumber(value, isAmount) {
+            value = (typeof value === 'string') ? value.trim() : String(value || '').trim();
+            if (value === '') return isAmount ? '0' : '0';
+            return value;
+        }
+
+        function operationNormalizeSavePayload(payload) {
+            return {
+                id: payload.id || '',
+                businessDate: payload.businessDate || '',
+                storeName: payload.storeName || '',
+                meituanOrders: operationNormalizeSaveNumber(payload.meituanOrders, false),
+                meituanAmount: operationNormalizeSaveNumber(payload.meituanAmount, true),
+                taobaoOrders: operationNormalizeSaveNumber(payload.taobaoOrders, false),
+                taobaoAmount: operationNormalizeSaveNumber(payload.taobaoAmount, true),
+                jdOrders: operationNormalizeSaveNumber(payload.jdOrders, false),
+                jdAmount: operationNormalizeSaveNumber(payload.jdAmount, true),
+                douyinOrders: operationNormalizeSaveNumber(payload.douyinOrders, false),
+                douyinAmount: operationNormalizeSaveNumber(payload.douyinAmount, true),
+                offlineOrders: operationNormalizeSaveNumber(payload.offlineOrders, false),
+                offlineAmount: operationNormalizeSaveNumber(payload.offlineAmount, true),
+                expenseCategory: (payload.expenseCategory || '').trim(),
+                expenseAmount: operationNormalizeSaveNumber(payload.expenseAmount, true)
+            };
+        }
+
         function operationStartBatch(actions) {
             operationState.batch = { actions: actions, index: 0, mode: 'save' };
             operationState.pendingAction = actions[0].action;
@@ -5386,20 +5412,14 @@
             if (businessDate === '') { operationShowToast('日期不能为空。', true); return; }
             if (rows.length === 0 && operationState.editorLegacyRecordIds.length === 0) { operationShowToast('没有可保存的门店数据。', true); return; }
             for (var i = 0; i < rows.length; i++) {
-                var payload = rows[i];
-                var hasData = operationHasPayloadData(payload);
-                if (payload.expenseAmount !== '' && payload.expenseCategory === '') { operationShowToast('门店“' + payload.storeName + '”填写支出费用时请同时填写支出类别。', true); return; }
-                if (payload.expenseCategory !== '' && hasData !== true && payload.expenseAmount === '') { operationShowToast('门店“' + payload.storeName + '”仅填写支出类别还不够，请补充费用或经营数据。', true); return; }
-                if (hasData === true) {
-                    actions.push({ action: (payload.id !== '' ? 'operationrecordupdate' : 'operationrecordcreate'), id: payload.id, businessDate: businessDate, storeName: payload.storeName, meituanOrders: payload.meituanOrders, meituanAmount: payload.meituanAmount, taobaoOrders: payload.taobaoOrders, taobaoAmount: payload.taobaoAmount, jdOrders: payload.jdOrders, jdAmount: payload.jdAmount, douyinOrders: payload.douyinOrders, douyinAmount: payload.douyinAmount, offlineOrders: payload.offlineOrders, offlineAmount: payload.offlineAmount, expenseCategory: payload.expenseCategory, expenseAmount: payload.expenseAmount });
-                } else if (payload.id !== '') {
-                    actions.push({ action: 'operationrecorddelete', id: payload.id });
-                }
+                var payload = operationNormalizeSavePayload(rows[i]);
+                if ((Number(payload.expenseAmount) > 0) && (payload.expenseCategory === '')) { operationShowToast('门店“' + payload.storeName + '”填写支出费用时请同时填写支出类别。', true); return; }
+                actions.push({ action: (payload.id !== '' ? 'operationrecordupdate' : 'operationrecordcreate'), id: payload.id, businessDate: businessDate, storeName: payload.storeName, meituanOrders: payload.meituanOrders, meituanAmount: payload.meituanAmount, taobaoOrders: payload.taobaoOrders, taobaoAmount: payload.taobaoAmount, jdOrders: payload.jdOrders, jdAmount: payload.jdAmount, douyinOrders: payload.douyinOrders, douyinAmount: payload.douyinAmount, offlineOrders: payload.offlineOrders, offlineAmount: payload.offlineAmount, expenseCategory: payload.expenseCategory, expenseAmount: payload.expenseAmount });
             }
             for (var j = 0; j < operationState.editorLegacyRecordIds.length; j++) {
                 actions.push({ action: 'operationrecorddelete', id: operationState.editorLegacyRecordIds[j] });
             }
-            if (actions.length === 0) { operationShowToast('请至少填写一家门店的数据。', true); return; }
+            if (actions.length === 0) { operationShowToast('没有可保存的门店数据。', true); return; }
             operationSetSubmitBusy(true);
             operationStartBatch(actions);
         }
