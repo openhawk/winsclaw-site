@@ -7211,14 +7211,49 @@ module.exports.CreateWebServer = function (parent, db, args, certificates, doneF
             return '';
         }
 
+        function getConfiguredNodeJobTokens() {
+            var settings = parent.config && parent.config.settings ? parent.config.settings : {};
+            var tokens = settings.nodeJobTokens || settings.nodejobtokens || settings.nodeJobToken || settings.nodejobtoken || [];
+            var results = [], seen = {};
+            function addToken(token) {
+                token = String(token || '').trim();
+                if ((token === '') || (seen[token] === 1)) return;
+                seen[token] = 1;
+                results.push(token);
+            }
+            if (typeof tokens == 'string') {
+                addToken(tokens);
+            } else if (Array.isArray(tokens)) {
+                for (var i in tokens) { addToken(tokens[i]); }
+            } else if (tokens && typeof tokens == 'object') {
+                for (var key in tokens) { addToken(tokens[key]); }
+            }
+            return results;
+        }
+
+        function isConfiguredNodeJobToken(token) {
+            token = String(token || '').trim();
+            if (token === '') return false;
+            var tokens = getConfiguredNodeJobTokens();
+            for (var i in tokens) { if (tokens[i] === token) return true; }
+            return false;
+        }
+
         function validateNodeJobRequest(req, res) {
             var body = req.body || {};
             var nodeId = String(body.nodeId || body.node_id || '').trim();
             if (nodeId === '') { res.status(400).json({ success: false, result: 'nodeId is required.' }); return null; }
-            var expectedToken = getConfiguredNodeJobToken(nodeId);
-            if (expectedToken === '') { res.status(403).json({ success: false, result: 'Node job API token is not configured.' }); return null; }
-            if (getNodeJobRequestToken(req) !== expectedToken) { res.status(403).json({ success: false, result: 'Invalid node token.' }); return null; }
+            if (isConfiguredNodeJobToken(getNodeJobRequestToken(req)) !== true) { res.status(403).json({ success: false, result: 'Invalid node token.' }); return null; }
             return { nodeId: nodeId, body: body };
+        }
+
+        function getNodeWorkerResolveScore(node) {
+            var score = 0;
+            if (node == null) return score;
+            if (Number(node.conn || 0) > 0) score += 1000000000000000;
+            if (Number(node.pwr || 0) > 0) score += 1000000000000;
+            score += Math.max(Number(node.agct || 0), Number(node.lastconnect || 0), Number(node.firstconnect || 0), Number(node.lastbootuptime || 0));
+            return score;
         }
 
         function handleNodeWorkerResolveRequest(req, res) {
@@ -7227,16 +7262,13 @@ module.exports.CreateWebServer = function (parent, db, args, certificates, doneF
             if (deviceName === '') { res.status(400).json({ success: false, result: 'deviceName is required.' }); return; }
             var token = getNodeJobRequestToken(req);
             if (token === '') { res.status(403).json({ success: false, result: 'Node job API token is required.' }); return; }
+            if (isConfiguredNodeJobToken(token) !== true) { res.status(403).json({ success: false, result: 'Invalid node token.' }); return; }
             obj.db.GetAllType('node', function (err, nodes) {
                 if (err != null) { sendNodeJobError(res, err, 500); return; }
                 var matches = [];
-                var configuredNodeIds = getConfiguredNodeJobNodeIds();
-                var configured = {};
-                for (var i in configuredNodeIds) { configured[String(configuredNodeIds[i] || '').toLowerCase()] = 1; }
                 for (var nodeIndex in nodes) {
                     var node = nodes[nodeIndex];
-                    if ((node == null) || (typeof node._id != 'string') || (configured[node._id.toLowerCase()] !== 1)) continue;
-                    if (getConfiguredNodeJobToken(node._id) !== token) continue;
+                    if ((node == null) || (typeof node._id != 'string')) continue;
                     var names = [node.name, node.rname, node.host];
                     for (var nameIndex in names) {
                         if (String(names[nameIndex] || '').trim().toLowerCase() === deviceName) {
@@ -7245,8 +7277,8 @@ module.exports.CreateWebServer = function (parent, db, args, certificates, doneF
                         }
                     }
                 }
-                if (matches.length === 0) { res.status(404).json({ success: false, result: 'No configured Winsclaw node matches this device name.' }); return; }
-                if (matches.length > 1) { res.status(409).json({ success: false, result: 'Multiple configured Winsclaw nodes match this device name.' }); return; }
+                if (matches.length === 0) { res.status(404).json({ success: false, result: 'No MeshCentral node matches this device name.' }); return; }
+                matches.sort(function (a, b) { return getNodeWorkerResolveScore(b) - getNodeWorkerResolveScore(a); });
                 res.json({ success: true, nodeId: matches[0]._id, name: matches[0].name || matches[0].rname || deviceName });
             });
         }
@@ -7284,12 +7316,11 @@ module.exports.CreateWebServer = function (parent, db, args, certificates, doneF
         }
 
         function handleNodeWorkerStatusRequest(req, res) {
-            var nodeIds = getConfiguredNodeJobNodeIds();
             var now = Date.now();
             var workers = [];
-            for (var i in nodeIds) {
-                var nodeId = nodeIds[i];
-                var heartbeat = obj.nodeWorkerHeartbeats[String(nodeId || '').toLowerCase()] || null;
+            for (var heartbeatKey in obj.nodeWorkerHeartbeats) {
+                var heartbeat = obj.nodeWorkerHeartbeats[heartbeatKey] || null;
+                var nodeId = heartbeat ? heartbeat.nodeId : heartbeatKey;
                 var leaseSeconds = heartbeat ? heartbeat.leaseSeconds : 600;
                 var online = heartbeat != null && ((now - heartbeat.lastSeen) <= Math.max(90000, leaseSeconds * 1000));
                 workers.push({
@@ -7319,12 +7350,11 @@ module.exports.CreateWebServer = function (parent, db, args, certificates, doneF
         }
 
         obj.getNodeWorkerWarningStates = function () {
-            var nodeIds = getConfiguredNodeJobNodeIds();
             var now = Date.now();
             var states = [];
-            for (var i in nodeIds) {
-                var nodeId = nodeIds[i];
-                var heartbeat = obj.nodeWorkerHeartbeats[String(nodeId || '').toLowerCase()] || null;
+            for (var heartbeatKey in obj.nodeWorkerHeartbeats) {
+                var heartbeat = obj.nodeWorkerHeartbeats[heartbeatKey] || null;
+                var nodeId = heartbeat ? heartbeat.nodeId : heartbeatKey;
                 var leaseSeconds = heartbeat ? heartbeat.leaseSeconds : 600;
                 var online = heartbeat != null && ((now - heartbeat.lastSeen) <= Math.max(90000, leaseSeconds * 1000));
                 if (online !== true) {
