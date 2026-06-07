@@ -3158,7 +3158,7 @@
         var collectState = { items: [], total: 0, page: 1, limit: 12, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, currentResultsTaskId: null, resultsPage: 1, resultsLimit: 10 };
         var scheduledState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, listTimer: null, pendingAction: null, currentRunsTaskId: null, runsPage: 1, runsLimit: 10, runSteps: {} };
         var operationState = { items: [], total: 0, page: 1, limit: 7, storeSearch: '', dateFrom: '', dateTo: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, pendingStoreName: '', editorDate: '', editorLoading: false, editorExistingRecords: [], editorLegacyRecordIds: [], editorSharedRecordId: '', monthIncome: 0, monthExpense: 0, batch: null };
-        var wholesaleState = { items: [], total: 0, page: 1, limit: 12, search: '', filterDate: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, pendingMutationKind: null, shopSuggestions: [], shopSuggestionKeyword: '', shopSuggestionTimer: null, hideSuggestTimer: null, summary: null, materialRows: [], nextMaterialRowSeq: 1 };
+        var wholesaleState = { items: [], total: 0, page: 1, limit: 12, search: '', filterDate: '', loaded: false, loading: false, listTimer: null, searchTimer: null, toastTimer: null, pendingAction: null, pendingMutationKind: null, shopSuggestions: [], shopSuggestionKeyword: '', shopSuggestionTimer: null, hideSuggestTimer: null, summary: null, materialRows: [], nextMaterialRowSeq: 1 };
         var managerExecutionMap = {};
 
         function shopEnterPage() {
@@ -5714,7 +5714,7 @@
             QC('p107').add('collect-page-active');
             if (Q('wholesaleSearchInput') != null) Q('wholesaleSearchInput').value = wholesaleState.search;
             if (Q('wholesaleDateFilterInput') != null) Q('wholesaleDateFilterInput').value = wholesaleState.filterDate;
-            if (wholesaleState.loaded !== true) wholesaleRefreshList(1); else wholesaleRender();
+            wholesaleRefreshList(wholesaleState.loaded === true ? wholesaleState.page : 1);
         }
 
         function wholesaleHandleSearchInput() {
@@ -5737,10 +5737,19 @@
             QV('wholesaleLoadingState', true);
             QV('wholesaleEmptyState', false);
             QH('wholesaleCardList', '');
+            if (wholesaleState.listTimer != null) clearTimeout(wholesaleState.listTimer);
             meshserver.send({ action: 'wholesalelist', search: wholesaleState.search, businessDate: wholesaleState.filterDate, page: wholesaleState.page, limit: wholesaleState.limit });
+            wholesaleState.listTimer = setTimeout(function () {
+                if (wholesaleState.loading !== true) return;
+                wholesaleState.loading = false;
+                QV('wholesaleLoadingState', false);
+                wholesaleShowToast('鲜花批发数据加载超时，请稍后重试。', true);
+                wholesaleRender();
+            }, 5000);
         }
 
         function wholesaleHandleListResponse(message) {
+            if (wholesaleState.listTimer != null) { clearTimeout(wholesaleState.listTimer); wholesaleState.listTimer = null; }
             wholesaleState.loading = false;
             QV('wholesaleLoadingState', false);
             if (message.result != null) {
