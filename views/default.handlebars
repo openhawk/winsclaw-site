@@ -3155,7 +3155,7 @@
         var collectState = { items: [], total: 0, page: 1, limit: 12, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, currentResultsTaskId: null, resultsPage: 1, resultsLimit: 10 };
         var scheduledState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, listTimer: null, pendingAction: null, currentRunsTaskId: null, runsPage: 1, runsLimit: 10, runSteps: {} };
         var operationState = { items: [], total: 0, page: 1, limit: 7, storeSearch: '', dateFrom: '', dateTo: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, pendingStoreName: '', editorDate: '', editorLoading: false, editorExistingRecords: [], editorLegacyRecordIds: [], editorSharedRecordId: '', monthIncome: 0, monthExpense: 0, batch: null };
-        var wholesaleState = { items: [], total: 0, page: 1, limit: 12, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, shopSuggestions: [], hideSuggestTimer: null, summary: null, materialRows: [], nextMaterialRowSeq: 1 };
+        var wholesaleState = { items: [], total: 0, page: 1, limit: 12, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, pendingMutationKind: null, shopSuggestions: [], hideSuggestTimer: null, summary: null, materialRows: [], nextMaterialRowSeq: 1 };
         var managerExecutionMap = {};
 
         function shopEnterPage() {
@@ -5780,7 +5780,9 @@
         }
 
         function wholesaleHandleMutationResponse(kind, message) {
+            if (kind == null || kind === '') kind = wholesaleState.pendingMutationKind || 'update';
             wholesaleState.pendingAction = null;
+            wholesaleState.pendingMutationKind = null;
             wholesaleSetSubmitBusy(false);
             if (message.success !== true) {
                 wholesaleShowToast(message.result || '操作失败。', true);
@@ -5788,7 +5790,7 @@
             }
             if (kind !== 'delete') wholesaleCloseEditor();
             if (kind === 'create') wholesaleState.page = 1;
-            wholesaleShowToast(kind === 'create' ? '批发记录新增成功。' : (kind === 'update' ? '批发记录保存成功。' : '批发记录删除成功。'), false);
+            wholesaleShowToast(kind === 'create' ? '批发记录新增成功。' : (kind === 'settle' ? '批发记录已结算。' : (kind === 'update' ? '批发记录保存成功。' : '批发记录删除成功。')), false);
             wholesaleRefreshList(wholesaleState.page);
         }
 
@@ -5850,6 +5852,17 @@
             var rows = [];
             for (var i = 0; i < lines.length; i++) rows.push(wholesaleMakeMaterialRow(lines[i]));
             return rows;
+        }
+
+        function wholesaleExtractMaterialLines(record) {
+            var parsed = managerParseJson(typeof record.materials_json === 'string' ? record.materials_json : JSON.stringify(record.materials_json || []), []);
+            if (Array.isArray(parsed) === true && parsed.length > 0) return parsed;
+            return [{
+                materialName: record.material_name || record.materialName || '',
+                quantity: record.quantity || '',
+                unitPrice: record.unit_price || record.unitPrice || '',
+                totalPrice: record.total_price || record.totalPrice || ''
+            }];
         }
 
         function wholesaleRenderMaterialRows() {
@@ -5915,24 +5928,28 @@
                 return;
             }
             QV('wholesaleEmptyState', false);
-            var x = '';
+            var x = '<div class="wholesale-list"><div class="wholesale-list-head">';
+            x += '<span>日期</span><span>花店</span><span>总金额</span><span>配送费</span><span>是否结算</span><span>操作</span>';
+            x += '</div><div class="wholesale-list-body">';
             for (var i = 0; i < list.length; i++) {
-                var record = list[i], materialLines = wholesaleNormalizeMaterialRows(list[i]), materialHint = materialLines.length > 1 ? ('共 ' + materialLines.length + ' 行明细') : (materialLines[0].materialName || '');
-                x += '<article class="collect-card"><div class="collect-card-body">';
-                x += '<div class="collect-card-head"><div><h3>' + EscapeHtml(record.shop_name || record.shopName || '') + '</h3><div class="collect-card-category">' + EscapeHtml(wholesaleFormatDate(record.business_date || record.businessDate || '')) + ' · ' + EscapeHtml(record.material_name || record.materialName || '') + '</div></div><div class="collect-card-badges">' + wholesaleSettlementBadge(record.is_settled === true || record.isSettled === true) + '</div></div>';
-                x += '<div class="collect-card-meta"><span>明细行数</span><strong>' + EscapeHtml(String(materialLines.length)) + '</strong></div>';
-                x += '<div class="collect-card-meta"><span>数量合计</span><strong>' + EscapeHtml(wholesaleFormatQuantity(record.quantity)) + '</strong></div>';
-                x += '<div class="collect-card-meta"><span>金额</span><strong>¥' + EscapeHtml(wholesaleFormatAmount(record.total_price || record.totalPrice)) + '</strong></div>';
-                x += '<div class="collect-card-meta"><span>总金额</span><strong>¥' + EscapeHtml(wholesaleFormatAmount(record.grand_total || record.grandTotal)) + '</strong></div>';
-                x += '<div class="collect-card-meta"><span>配送方式</span><strong>' + EscapeHtml(wholesaleDeliveryLabel(record.delivery_type || record.deliveryType)) + '</strong></div>';
-                x += '<div class="collect-card-meta"><span>配送费</span><strong>¥' + EscapeHtml(wholesaleFormatAmount(record.delivery_fee || record.deliveryFee)) + '</strong></div>';
-                x += '<div class="collect-card-meta"><span>联系电话</span><strong>' + EscapeHtml(record.contact_phone || record.contactPhone || '未填写') + '</strong></div>';
-                x += '<div class="collect-card-meta"><span>更新时间</span><strong>' + EscapeHtml(record.updated_at ? new Date(record.updated_at).toLocaleString() : '') + '</strong></div>';
-                x += '<div class="collect-card-footer"><div class="collect-card-hints"><span>' + EscapeHtml(materialHint) + '</span><span>' + EscapeHtml(record.delivery_address || record.deliveryAddress || '未填写配送地址') + '</span></div><div class="collect-card-actions">';
+                var record = list[i], isSettled = (record.is_settled === true || record.isSettled === true);
+                x += '<article class="wholesale-list-row">';
+                x += '<div class="wholesale-list-cell" data-label="日期">' + EscapeHtml(wholesaleFormatDate(record.business_date || record.businessDate || '')) + '</div>';
+                x += '<div class="wholesale-list-cell wholesale-list-shop" data-label="花店">' + EscapeHtml(record.shop_name || record.shopName || '') + '</div>';
+                x += '<div class="wholesale-list-cell wholesale-list-money" data-label="总金额">¥' + EscapeHtml(wholesaleFormatAmount(record.grand_total || record.grandTotal)) + '</div>';
+                x += '<div class="wholesale-list-cell wholesale-list-money" data-label="配送费">¥' + EscapeHtml(wholesaleFormatAmount(record.delivery_fee || record.deliveryFee)) + '</div>';
+                x += '<div class="wholesale-list-cell" data-label="是否结算">' + wholesaleSettlementBadge(isSettled) + '</div>';
+                x += '<div class="wholesale-list-cell wholesale-list-actions" data-label="操作">';
                 x += '<button type="button" class="collect-btn" onclick="wholesaleOpenEditorById(\'' + EscapeHtml(String(record.id)) + '\')">编辑</button>';
+                if (isSettled) {
+                    x += '<button type="button" class="collect-btn collect-btn-warn" disabled="disabled">已结算</button>';
+                } else {
+                    x += '<button type="button" class="collect-btn collect-btn-warn" onclick="wholesaleConfirmSettle(\'' + EscapeHtml(String(record.id)) + '\')">结算</button>';
+                }
                 x += '<button type="button" class="collect-btn collect-btn-danger" onclick="wholesaleConfirmDelete(\'' + EscapeHtml(String(record.id)) + '\')">删除</button>';
-                x += '</div></div></div></article>';
+                x += '</div></article>';
             }
+            x += '</div></div>';
             QH('wholesaleCardList', x);
             wholesaleRenderPagination();
         }
@@ -5956,6 +5973,45 @@
             for (var i = 0; i < wholesaleState.items.length; i++) {
                 if (String(wholesaleState.items[i].id) === String(id)) { wholesaleOpenEditor(wholesaleState.items[i]); return; }
             }
+        }
+
+        function wholesaleConfirmSettle(id) {
+            var record = null;
+            for (var i = 0; i < wholesaleState.items.length; i++) {
+                if (String(wholesaleState.items[i].id) === String(id)) { record = wholesaleState.items[i]; break; }
+            }
+            if (record == null) return;
+            if (record.is_settled === true || record.isSettled === true) {
+                wholesaleShowToast('该批发记录已经结算。', true);
+                return;
+            }
+            setDialogMode(2, '结算批发记录', 3, function (button, tag) {
+                if (button !== 1) return;
+                wholesaleMarkSettled(tag);
+            }, '确认将批发记录“' + EscapeHtml(record.shop_name || record.shopName || '') + '”标记为已结算吗？', id);
+        }
+
+        function wholesaleMarkSettled(id) {
+            var record = null;
+            for (var i = 0; i < wholesaleState.items.length; i++) {
+                if (String(wholesaleState.items[i].id) === String(id)) { record = wholesaleState.items[i]; break; }
+            }
+            if (record == null) return;
+            wholesaleState.pendingAction = 'wholesaleupdate';
+            wholesaleState.pendingMutationKind = 'settle';
+            meshserver.send({
+                action: 'wholesaleupdate',
+                id: record.id,
+                businessDate: wholesaleFormatDate(record.business_date || record.businessDate || ''),
+                shopName: record.shop_name || record.shopName || '',
+                materialLines: wholesaleExtractMaterialLines(record),
+                grandTotal: wholesaleFormatAmount(record.grand_total || record.grandTotal),
+                deliveryAddress: record.delivery_address || record.deliveryAddress || '',
+                contactPhone: record.contact_phone || record.contactPhone || '',
+                deliveryType: record.delivery_type || record.deliveryType || 'self',
+                deliveryFee: wholesaleFormatAmount(record.delivery_fee || record.deliveryFee),
+                isSettled: true
+            });
         }
 
         function wholesaleGetTodayValue() {
@@ -6096,6 +6152,7 @@
             if (payload.shopName === '') { wholesaleShowToast('花店不能为空。', true); return; }
             wholesaleSetSubmitBusy(true);
             wholesaleState.pendingAction = (payload.id !== '') ? 'wholesaleupdate' : 'wholesalecreate';
+            wholesaleState.pendingMutationKind = (payload.id !== '') ? 'update' : 'create';
             meshserver.send({ action: wholesaleState.pendingAction, id: payload.id, businessDate: payload.businessDate, shopName: payload.shopName, materialLines: payload.materialLines, grandTotal: payload.grandTotal, deliveryAddress: payload.deliveryAddress, contactPhone: payload.contactPhone, deliveryType: payload.deliveryType, deliveryFee: payload.deliveryFee, isSettled: payload.isSettled });
         }
 
@@ -7230,7 +7287,7 @@
                     break;
                 }
                 case 'wholesaleupdate': {
-                    wholesaleHandleMutationResponse('update', message);
+                    wholesaleHandleMutationResponse('', message);
                     break;
                 }
                 case 'wholesaledelete': {
