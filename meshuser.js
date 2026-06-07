@@ -7782,7 +7782,7 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         if (common.validateInt(command.limit, 1, 60) == true) { limit = command.limit; }
         db.GetFlowerWholesaleRecordList(search, page, limit, function (err, result) {
             if (err != null) { obj.send({ action: 'wholesalelist', result: err.message ? err.message : 'Unable to load wholesale records.' }); return; }
-            obj.send({ action: 'wholesalelist', search: search, page: page, limit: limit, total: result.total, records: result.records || [] });
+            obj.send({ action: 'wholesalelist', search: search, page: page, limit: limit, total: result.total, summary: result.summary || null, records: result.records || [] });
         });
     }
 

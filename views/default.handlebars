@@ -2013,6 +2013,24 @@
                         <div class="collect-search"><input id="wholesaleSearchInput" type="search" placeholder="搜索花店或花材" autocomplete="off" oninput="wholesaleHandleSearchInput()" /></div>
                         <div class="collect-toolbar-meta" id="wholesaleToolbarMeta">共 0 条批发记录</div>
                     </div>
+                    <div class="wholesale-summary" id="wholesaleSummary">
+                        <div class="wholesale-summary-card">
+                            <span class="wholesale-summary-label">采购总额</span>
+                            <strong id="wholesaleSummaryTotalAmount">¥0.00</strong>
+                        </div>
+                        <div class="wholesale-summary-card">
+                            <span class="wholesale-summary-label">配送总费</span>
+                            <strong id="wholesaleSummaryDeliveryFee">¥0.00</strong>
+                        </div>
+                        <div class="wholesale-summary-card">
+                            <span class="wholesale-summary-label">未结算采购额</span>
+                            <strong id="wholesaleSummaryUnsettledAmount">¥0.00</strong>
+                        </div>
+                        <div class="wholesale-summary-card">
+                            <span class="wholesale-summary-label">今日采购额</span>
+                            <strong id="wholesaleSummaryTodayAmount">¥0.00</strong>
+                        </div>
+                    </div>
                     <div id="wholesaleLoadingState" class="collect-state collect-state-loading" style="display:none">正在加载鲜花批发数据...</div>
                     <div id="wholesaleEmptyState" class="collect-state collect-empty" style="display:none">
                         <div class="collect-empty-title">暂无批发记录</div>
@@ -3124,7 +3142,7 @@
         var collectState = { items: [], total: 0, page: 1, limit: 12, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, currentResultsTaskId: null, resultsPage: 1, resultsLimit: 10 };
         var scheduledState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, listTimer: null, pendingAction: null, currentRunsTaskId: null, runsPage: 1, runsLimit: 10, runSteps: {} };
         var operationState = { items: [], total: 0, page: 1, limit: 7, storeSearch: '', dateFrom: '', dateTo: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, pendingStoreName: '', editorDate: '', editorLoading: false, editorExistingRecords: [], editorLegacyRecordIds: [], editorSharedRecordId: '', monthIncome: 0, monthExpense: 0, batch: null };
-        var wholesaleState = { items: [], total: 0, page: 1, limit: 12, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, shopSuggestions: [], hideSuggestTimer: null };
+        var wholesaleState = { items: [], total: 0, page: 1, limit: 12, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, shopSuggestions: [], hideSuggestTimer: null, summary: null };
         var managerExecutionMap = {};
 
         function shopEnterPage() {
@@ -5707,10 +5725,12 @@
             if (message.result != null) {
                 wholesaleState.items = [];
                 wholesaleState.total = 0;
+                wholesaleState.summary = wholesaleGetEmptySummary();
                 wholesaleShowToast(message.result, true);
             } else {
                 wholesaleState.items = Array.isArray(message.records) ? message.records : [];
                 wholesaleState.total = (typeof message.total === 'number') ? message.total : 0;
+                wholesaleState.summary = wholesaleNormalizeSummary(message.summary);
                 if (typeof message.page === 'number') wholesaleState.page = message.page;
                 if ((wholesaleState.items.length === 0) && (wholesaleState.total > 0) && (wholesaleState.page > 1)) {
                     wholesaleRefreshList(Math.max(1, Math.ceil(wholesaleState.total / wholesaleState.limit)));
@@ -5749,6 +5769,19 @@
             return (Math.round(wholesaleToNumber(value) * 100) / 100).toFixed(2);
         }
 
+        function wholesaleGetEmptySummary() {
+            return { totalAmount: 0, totalDeliveryFee: 0, unsettledAmount: 0, todayAmount: 0 };
+        }
+
+        function wholesaleNormalizeSummary(summary) {
+            return {
+                totalAmount: wholesaleToNumber(summary && (summary.totalAmount != null ? summary.totalAmount : summary.total_amount)),
+                totalDeliveryFee: wholesaleToNumber(summary && (summary.totalDeliveryFee != null ? summary.totalDeliveryFee : summary.total_delivery_fee)),
+                unsettledAmount: wholesaleToNumber(summary && (summary.unsettledAmount != null ? summary.unsettledAmount : summary.unsettled_amount)),
+                todayAmount: wholesaleToNumber(summary && (summary.todayAmount != null ? summary.todayAmount : summary.today_amount))
+            };
+        }
+
         function wholesaleFormatQuantity(value) {
             var num = wholesaleToNumber(value);
             if (Math.abs(num - Math.round(num)) < 0.000001) return String(Math.round(num));
@@ -5763,8 +5796,17 @@
             return isSettled ? '<span class="collect-status-badge collect-status-success">已结算</span>' : '<span class="collect-status-badge collect-status-manual_required">未结算</span>';
         }
 
+        function wholesaleRenderSummary() {
+            var summary = wholesaleNormalizeSummary(wholesaleState.summary || wholesaleGetEmptySummary());
+            if (Q('wholesaleSummaryTotalAmount') != null) QH('wholesaleSummaryTotalAmount', '¥' + wholesaleFormatAmount(summary.totalAmount));
+            if (Q('wholesaleSummaryDeliveryFee') != null) QH('wholesaleSummaryDeliveryFee', '¥' + wholesaleFormatAmount(summary.totalDeliveryFee));
+            if (Q('wholesaleSummaryUnsettledAmount') != null) QH('wholesaleSummaryUnsettledAmount', '¥' + wholesaleFormatAmount(summary.unsettledAmount));
+            if (Q('wholesaleSummaryTodayAmount') != null) QH('wholesaleSummaryTodayAmount', '¥' + wholesaleFormatAmount(summary.todayAmount));
+        }
+
         function wholesaleRender() {
             if (Q('wholesaleToolbarMeta') != null) QH('wholesaleToolbarMeta', '共 ' + wholesaleState.total + ' 条批发记录');
+            wholesaleRenderSummary();
             var list = wholesaleState.items || [];
             if (list.length === 0) {
                 QH('wholesaleCardList', '');

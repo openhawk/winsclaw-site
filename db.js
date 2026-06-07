@@ -3778,15 +3778,22 @@ module.exports.CreateDB = function (parent, func) {
                 where.push('(shop_name ILIKE $' + args.length + ' OR material_name ILIKE $' + args.length + ')');
             }
             const whereSql = ' WHERE ' + where.join(' AND ');
-            Datastore.query('SELECT COUNT(*) AS count FROM flower_wholesale_records' + whereSql, args, function (err, countResults) {
+            Datastore.query('SELECT COUNT(*) AS count, COALESCE(SUM(total_price), 0) AS total_amount, COALESCE(SUM(delivery_fee), 0) AS total_delivery_fee, COALESCE(SUM(CASE WHEN is_settled = FALSE THEN total_price ELSE 0 END), 0) AS unsettled_amount, COALESCE(SUM(CASE WHEN business_date = CURRENT_DATE THEN total_price ELSE 0 END), 0) AS today_amount FROM flower_wholesale_records' + whereSql, args, function (err, summaryResults) {
                 if (err != null) { func(err); return; }
-                const total = parseInt(countResults.rows[0].count);
+                const summaryRow = (summaryResults.rows && summaryResults.rows[0]) ? summaryResults.rows[0] : {};
+                const total = parseInt(summaryRow.count || 0);
+                const summary = {
+                    totalAmount: parseFloat(summaryRow.total_amount || 0) || 0,
+                    totalDeliveryFee: parseFloat(summaryRow.total_delivery_fee || 0) || 0,
+                    unsettledAmount: parseFloat(summaryRow.unsettled_amount || 0) || 0,
+                    todayAmount: parseFloat(summaryRow.today_amount || 0) || 0
+                };
                 const listArgs = args.slice(0);
                 listArgs.push(limit);
                 listArgs.push((page - 1) * limit);
                 Datastore.query('SELECT id, business_date::text AS business_date, shop_name, material_name, quantity, unit_price, total_price, delivery_type, delivery_fee, is_settled, is_deleted, deleted_at, created_at, updated_at FROM flower_wholesale_records' + whereSql + ' ORDER BY business_date DESC, updated_at DESC, id DESC LIMIT $' + (args.length + 1) + ' OFFSET $' + (args.length + 2), listArgs, function (listErr, results) {
                     if (listErr != null) { func(listErr); return; }
-                    func(null, { total: total, records: results.rows || [] });
+                    func(null, { total: total, summary: summary, records: results.rows || [] });
                 });
             });
         };
