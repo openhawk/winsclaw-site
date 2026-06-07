@@ -5784,6 +5784,7 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         'wholesalecreate': serverCommandWholesaleCreate,
         'wholesaledelete': serverCommandWholesaleDelete,
         'wholesalelist': serverCommandWholesaleList,
+        'wholesaleshopsearch': serverCommandWholesaleShopSearch,
         'wholesaleupdate': serverCommandWholesaleUpdate,
         'shopcreate': serverCommandShopCreate,
         'shopdelete': serverCommandShopDelete,
@@ -7819,6 +7820,20 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         db.GetFlowerWholesaleRecordList(search, page, limit, function (err, result) {
             if (err != null) { obj.send({ action: 'wholesalelist', result: err.message ? err.message : 'Unable to load wholesale records.' }); return; }
             obj.send({ action: 'wholesalelist', search: search, page: page, limit: limit, total: result.total, summary: result.summary || null, records: result.records || [] });
+        });
+    }
+
+    function serverCommandWholesaleShopSearch(command) {
+        var search = '', limit = 8;
+        if (typeof command.search == 'string') {
+            search = command.search.trim();
+            if (search.length > 128) { obj.send({ action: 'wholesaleshopsearch', result: 'Invalid search.' }); return; }
+        }
+        if (common.validateInt(command.limit, 1, 20) == true) { limit = command.limit; }
+        if (search === '') { obj.send({ action: 'wholesaleshopsearch', search: '', shops: [] }); return; }
+        db.GetWholesaleShopSuggestions(search, limit, function (err, result) {
+            if (err != null) { obj.send({ action: 'wholesaleshopsearch', search: search, result: err.message ? err.message : 'Unable to search shops.' }); return; }
+            obj.send({ action: 'wholesaleshopsearch', search: search, shops: result.shops || [] });
         });
     }
 

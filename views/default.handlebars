@@ -3155,7 +3155,7 @@
         var collectState = { items: [], total: 0, page: 1, limit: 12, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, currentResultsTaskId: null, resultsPage: 1, resultsLimit: 10 };
         var scheduledState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, listTimer: null, pendingAction: null, currentRunsTaskId: null, runsPage: 1, runsLimit: 10, runSteps: {} };
         var operationState = { items: [], total: 0, page: 1, limit: 7, storeSearch: '', dateFrom: '', dateTo: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, pendingStoreName: '', editorDate: '', editorLoading: false, editorExistingRecords: [], editorLegacyRecordIds: [], editorSharedRecordId: '', monthIncome: 0, monthExpense: 0, batch: null };
-        var wholesaleState = { items: [], total: 0, page: 1, limit: 12, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, pendingMutationKind: null, shopSuggestions: [], hideSuggestTimer: null, summary: null, materialRows: [], nextMaterialRowSeq: 1 };
+        var wholesaleState = { items: [], total: 0, page: 1, limit: 12, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, pendingMutationKind: null, shopSuggestions: [], shopSuggestionKeyword: '', shopSuggestionTimer: null, hideSuggestTimer: null, summary: null, materialRows: [], nextMaterialRowSeq: 1 };
         var managerExecutionMap = {};
 
         function shopEnterPage() {
@@ -3201,7 +3201,6 @@
                     return;
                 }
             }
-            if (Q('wholesaleModalMask') != null && Q('wholesaleModalMask').style.display !== 'none') { wholesaleRefreshShopSuggestions(); wholesaleApplyLinkedShopDetails(false); }
             shopRender();
         }
 
@@ -3426,7 +3425,6 @@
                     return;
                 }
             }
-            if (Q('wholesaleModalMask') != null && Q('wholesaleModalMask').style.display !== 'none') { wholesaleRefreshShopSuggestions(); wholesaleApplyLinkedShopDetails(false); }
             myShopRender();
         }
 
@@ -3973,31 +3971,6 @@
             operationState.pendingStoreName = (selectedName != null) ? String(selectedName) : operationState.pendingStoreName;
             if ((myShopState.loaded !== true) || ((myShopState.items || []).length < myShopState.total)) {
                 meshserver.send({ action: 'myshoplist', search: '', page: 1, limit: Math.max(200, myShopState.total || 0) });
-            }
-        }
-        function managerGetWholesaleShopNames() {
-            var list = shopState.items || [], names = [], added = {};
-            for (var i = 0; i < list.length; i++) {
-                var shopName = (list[i].name || '').trim();
-                if (shopName === '' || added[shopName]) continue;
-                added[shopName] = true;
-                names.push(shopName);
-            }
-            return names;
-        }
-        function managerFindWholesaleShopByName(shopName) {
-            shopName = (typeof shopName === 'string') ? shopName.trim().toLowerCase() : '';
-            if (shopName === '') return null;
-            for (var i = 0; i < shopState.items.length; i++) {
-                var name = (shopState.items[i].name || '').trim().toLowerCase();
-                if (name === shopName) return shopState.items[i];
-            }
-            return null;
-        }
-        function managerEnsureWholesaleShopOptions(selectedName) {
-            operationState.pendingStoreName = (selectedName != null) ? String(selectedName) : operationState.pendingStoreName;
-            if ((shopState.loaded !== true) || ((shopState.items || []).length < shopState.total)) {
-                meshserver.send({ action: 'shoplist', search: '', page: 1, limit: Math.max(200, shopState.total || 0) });
             }
         }
         function managerTryParseCollectData(output) {
@@ -6032,8 +6005,10 @@
             Q('wholesaleFormDeliveryFee').value = record ? wholesaleFormatAmount(record.delivery_fee || record.deliveryFee) : '0.00';
             Q('wholesaleFormSettled').value = ((record && (record.is_settled === true || record.isSettled === true)) ? 'true' : 'false');
             QH('wholesaleModalTitle', record ? '编辑批发记录' : '新增批发记录');
-            managerEnsureWholesaleShopOptions(Q('wholesaleFormShopName').value);
-            wholesaleApplyLinkedShopDetails(false);
+            wholesaleState.shopSuggestions = [];
+            wholesaleState.shopSuggestionKeyword = '';
+            if (wholesaleState.shopSuggestionTimer != null) { clearTimeout(wholesaleState.shopSuggestionTimer); wholesaleState.shopSuggestionTimer = null; }
+            QH('wholesaleShopSuggest', '');
             wholesaleSyncTotals();
             wholesaleSetSubmitBusy(false);
             QV('wholesaleShopSuggest', false);
@@ -6044,6 +6019,9 @@
             if (event && !managerCanCloseModalMask(event, 'wholesaleModalMask')) return;
             QV('wholesaleModalMask', false);
             QV('wholesaleShopSuggest', false);
+            wholesaleState.shopSuggestions = [];
+            wholesaleState.shopSuggestionKeyword = '';
+            if (wholesaleState.shopSuggestionTimer != null) { clearTimeout(wholesaleState.shopSuggestionTimer); wholesaleState.shopSuggestionTimer = null; }
         }
 
         function wholesaleSetSubmitBusy(busy) {
@@ -6051,20 +6029,14 @@
             Q('wholesaleSubmitButton').value = Q('wholesaleSubmitButton').innerText = busy ? '保存中...' : '保存';
         }
 
-        function wholesaleGetShopSuggestions() {
-            var keyword = (Q('wholesaleFormShopName') != null ? Q('wholesaleFormShopName').value : '').trim().toLowerCase();
-            if (keyword === '') return [];
-            var names = managerGetWholesaleShopNames(), results = [], added = {};
-            for (var i = 0; i < names.length; i++) {
-                var name = names[i] || '';
-                var normalized = name.toLowerCase();
-                if (normalized.indexOf(keyword) < 0) continue;
-                if (added[name]) continue;
-                added[name] = true;
-                results.push(name);
-                if (results.length >= 8) break;
+        function wholesaleFindSuggestedShopByName(shopName) {
+            shopName = (typeof shopName === 'string') ? shopName.trim().toLowerCase() : '';
+            if (shopName === '') return null;
+            for (var i = 0; i < wholesaleState.shopSuggestions.length; i++) {
+                var shop = wholesaleState.shopSuggestions[i] || {};
+                if (String(shop.name || '').trim().toLowerCase() === shopName) return shop;
             }
-            return results;
+            return null;
         }
 
         function wholesaleRefreshShopSuggestions() {
@@ -6074,7 +6046,7 @@
             if (input == null) return;
             if (document.activeElement !== input) { QV('wholesaleShopSuggest', false); return; }
             if ((input.value || '').trim() === '') { QV('wholesaleShopSuggest', false); return; }
-            wholesaleState.shopSuggestions = wholesaleGetShopSuggestions();
+            if (wholesaleState.shopSuggestionKeyword !== input.value.trim()) return;
             if (wholesaleState.shopSuggestions.length === 0) {
                 QH('wholesaleShopSuggest', '<div class="flow-picker-empty">未匹配到花店，可继续手动输入。</div>');
                 QV('wholesaleShopSuggest', true);
@@ -6082,16 +6054,57 @@
             }
             var x = '';
             for (var i = 0; i < wholesaleState.shopSuggestions.length; i++) {
-                x += '<div class="flow-picker-item" onmousedown="wholesaleSelectShopSuggestion(' + i + '); return false;">' + EscapeHtml(wholesaleState.shopSuggestions[i]) + '</div>';
+                var shop = wholesaleState.shopSuggestions[i] || {};
+                x += '<div class="flow-picker-item" onmousedown="wholesaleSelectShopSuggestion(' + i + '); return false;">' + EscapeHtml(shop.name || '');
+                if ((shop.phone || shop.address || '') !== '') {
+                    x += '<div class="flow-picker-subitem">' + EscapeHtml(shop.phone || shop.address || '') + '</div>';
+                }
+                x += '</div>';
             }
             QH('wholesaleShopSuggest', x);
             QV('wholesaleShopSuggest', true);
         }
 
-        function wholesaleHandleShopInput() {
-            managerEnsureWholesaleShopOptions(Q('wholesaleFormShopName').value || '');
-            wholesaleApplyLinkedShopDetails(false);
+        function wholesaleRequestShopSuggestions() {
+            var input = Q('wholesaleFormShopName');
+            if (input == null) return;
+            var keyword = (input.value || '').trim();
+            if (keyword === '') {
+                wholesaleState.shopSuggestions = [];
+                wholesaleState.shopSuggestionKeyword = '';
+                QH('wholesaleShopSuggest', '');
+                QV('wholesaleShopSuggest', false);
+                return;
+            }
+            wholesaleState.shopSuggestionKeyword = keyword;
+            QH('wholesaleShopSuggest', '<div class="flow-picker-empty">正在匹配花店...</div>');
+            QV('wholesaleShopSuggest', true);
+            meshserver.send({ action: 'wholesaleshopsearch', search: keyword, limit: 8 });
+        }
+
+        function wholesaleHandleShopSuggestionResponse(message) {
+            var currentKeyword = (Q('wholesaleFormShopName') != null ? Q('wholesaleFormShopName').value : '').trim();
+            if ((message.search || '') !== currentKeyword) return;
+            if (message.result != null) {
+                wholesaleState.shopSuggestions = [];
+                wholesaleState.shopSuggestionKeyword = currentKeyword;
+                QH('wholesaleShopSuggest', '<div class="flow-picker-empty">花店查询失败，请稍后重试。</div>');
+                QV('wholesaleShopSuggest', currentKeyword !== '');
+                return;
+            }
+            wholesaleState.shopSuggestions = Array.isArray(message.shops) ? message.shops : [];
+            wholesaleState.shopSuggestionKeyword = currentKeyword;
             wholesaleRefreshShopSuggestions();
+            wholesaleApplyLinkedShopDetails(false);
+        }
+
+        function wholesaleHandleShopInput() {
+            wholesaleApplyLinkedShopDetails(false);
+            if (wholesaleState.shopSuggestionTimer != null) clearTimeout(wholesaleState.shopSuggestionTimer);
+            wholesaleState.shopSuggestionTimer = setTimeout(function () {
+                wholesaleState.shopSuggestionTimer = null;
+                wholesaleRequestShopSuggestions();
+            }, 220);
         }
 
         function wholesaleHideShopSuggestions() {
@@ -6100,15 +6113,15 @@
         }
 
         function wholesaleSelectShopSuggestion(index) {
-            var name = wholesaleState.shopSuggestions[index];
-            if (name == null) return;
-            Q('wholesaleFormShopName').value = name;
+            var shop = wholesaleState.shopSuggestions[index];
+            if (shop == null) return;
+            Q('wholesaleFormShopName').value = shop.name || '';
             wholesaleApplyLinkedShopDetails(true);
             QV('wholesaleShopSuggest', false);
         }
 
         function wholesaleApplyLinkedShopDetails(force) {
-            var shop = managerFindWholesaleShopByName(Q('wholesaleFormShopName') != null ? Q('wholesaleFormShopName').value : '');
+            var shop = wholesaleFindSuggestedShopByName(Q('wholesaleFormShopName') != null ? Q('wholesaleFormShopName').value : '');
             if (shop == null) return;
             if (Q('wholesaleFormDeliveryAddress') != null && (force === true || Q('wholesaleFormDeliveryAddress').value.trim() === '')) Q('wholesaleFormDeliveryAddress').value = shop.address || '';
             if (Q('wholesaleFormContactPhone') != null && (force === true || Q('wholesaleFormContactPhone').value.trim() === '')) Q('wholesaleFormContactPhone').value = shop.phone || '';
@@ -7285,6 +7298,10 @@
                 }
                 case 'wholesalelist': {
                     wholesaleHandleListResponse(message);
+                    break;
+                }
+                case 'wholesaleshopsearch': {
+                    wholesaleHandleShopSuggestionResponse(message);
                     break;
                 }
                 case 'wholesalecreate': {

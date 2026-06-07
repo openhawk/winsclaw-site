@@ -3414,6 +3414,23 @@ module.exports.CreateDB = function (parent, func) {
             });
         };
 
+        obj.GetWholesaleShopSuggestions = function (search, limit, func) {
+            if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Shop manager requires PostgreSQL.')); return; }
+            if (typeof search != 'string') { search = ''; }
+            if (typeof limit != 'number' || limit < 1) { limit = 8; }
+            search = search.trim();
+            if (search === '') { func(null, { shops: [] }); return; }
+            const keywordArg = '%' + search + '%';
+            Datastore.query(
+                'SELECT id, name, phone, address, category, updated_at FROM meituan_h5_shops WHERE is_deleted = FALSE AND name ILIKE $1 ORDER BY (CASE WHEN LOWER(name) = LOWER($2) THEN 0 WHEN LOWER(name) LIKE LOWER($3) THEN 1 ELSE 2 END), updated_at DESC NULLS LAST, id DESC LIMIT $4',
+                [keywordArg, search, search + '%', limit],
+                function (err, results) {
+                    if (err != null) { func(err); return; }
+                    func(null, { shops: results.rows || [] });
+                }
+            );
+        };
+
         obj.CreateShop = function (shop, func) {
             if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Shop manager requires PostgreSQL.')); return; }
             const now = new Date();
