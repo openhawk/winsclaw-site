@@ -4535,15 +4535,19 @@ a {
 #p102 .flow-card-grid {
     flex: 1 1 auto;
     align-content: start;
+    padding-bottom: 88px;
 }
 
 #p102 .flow-pagination {
     margin-top: auto;
-    padding-top: 18px;
-    position: static;
-    background: transparent;
-    border-top: 0;
-    box-shadow: none;
+    position: sticky;
+    bottom: 0;
+    z-index: 20;
+    margin: 18px -24px -24px -24px;
+    padding: 14px 24px;
+    background: rgba(255,255,255,0.96);
+    border-top: 1px solid #e5e7eb;
+    box-shadow: 0 -10px 24px rgba(17,24,39,0.08);
 }
 
 #p103 .collect-pagination {
