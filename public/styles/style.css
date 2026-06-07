@@ -4484,14 +4484,29 @@ a {
 .flow-page-subtitle, .flow-toolbar-meta, .flow-card-category, .flow-empty-text, .flow-modal-subtitle,
 .collect-page-subtitle, .collect-toolbar-meta, .collect-card-category, .collect-empty-text, .collect-modal-subtitle { color: #5e7187; }
 .flow-toolbar, .collect-toolbar { margin: 20px 0 16px; flex-wrap: wrap; padding: 16px 18px; border-radius: 18px; background: linear-gradient(135deg, rgba(58,128,204,0.12) 0%, rgba(244,249,255,0.95) 100%); border: 1px solid rgba(97,154,219,0.28); }
-.flow-search input, .flow-field input, .flow-field textarea, .flow-field select,
-.collect-search input, .collect-field input, .collect-field textarea, .collect-field select {
+.flow-search input, .flow-search select, .flow-field input, .flow-field textarea, .flow-field select,
+.collect-search input, .collect-search select, .collect-field input, .collect-field textarea, .collect-field select {
     width: 100%;
     border: 1px solid #cddded;
     border-radius: 12px;
     background: #fff;
     padding: 11px 14px;
     box-sizing: border-box;
+}
+
+.flow-search select, .collect-search select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    padding-right: 40px;
+    background-image:
+        linear-gradient(45deg, transparent 50%, #5e7187 50%),
+        linear-gradient(135deg, #5e7187 50%, transparent 50%);
+    background-position:
+        calc(100% - 18px) calc(50% - 2px),
+        calc(100% - 12px) calc(50% - 2px);
+    background-size: 6px 6px, 6px 6px;
+    background-repeat: no-repeat;
 }
 .flow-btn, .collect-btn { border: 1px solid #b7cde2; background: #f7fbff; color: #1e4468; border-radius: 12px; padding: 10px 16px; cursor: pointer; }
 .flow-btn-primary, .collect-btn-primary { background: #2f80ed; border-color: #2f80ed; color: #fff; font-weight: 700; }
