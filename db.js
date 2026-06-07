@@ -3789,34 +3789,43 @@ module.exports.CreateDB = function (parent, func) {
             });
         };
 
-        obj.GetFlowerWholesaleRecordList = function (search, page, limit, func) {
+        obj.GetFlowerWholesaleRecordList = function (search, businessDate, page, limit, func) {
             if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Wholesale manager requires PostgreSQL.')); return; }
             if (typeof search != 'string') { search = ''; }
+            if (typeof businessDate != 'string') { businessDate = ''; }
             if (typeof page != 'number' || page < 1) { page = 1; }
             if (typeof limit != 'number' || limit < 1) { limit = 12; }
             const args = [], where = ['is_deleted = FALSE'];
             search = search.trim();
+            businessDate = businessDate.trim();
             if (search !== '') {
                 args.push('%' + search + '%');
                 where.push('(shop_name ILIKE $' + args.length + ' OR material_name ILIKE $' + args.length + ')');
             }
+            if (businessDate !== '') {
+                args.push(businessDate);
+                where.push('business_date = $' + args.length);
+            }
             const whereSql = ' WHERE ' + where.join(' AND ');
-            Datastore.query('SELECT COUNT(*) AS count, COALESCE(SUM(total_price), 0) AS total_amount, COALESCE(SUM(delivery_fee), 0) AS total_delivery_fee, COALESCE(SUM(CASE WHEN is_settled = FALSE THEN total_price ELSE 0 END), 0) AS unsettled_amount, COALESCE(SUM(CASE WHEN business_date = CURRENT_DATE THEN total_price ELSE 0 END), 0) AS today_amount FROM flower_wholesale_records' + whereSql, args, function (err, summaryResults) {
+            Datastore.query("SELECT COALESCE(SUM(CASE WHEN business_date >= DATE_TRUNC('month', CURRENT_DATE)::date AND business_date < (DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month')::date THEN grand_total ELSE 0 END), 0) AS total_amount, COALESCE(SUM(CASE WHEN business_date >= DATE_TRUNC('month', CURRENT_DATE)::date AND business_date < (DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month')::date THEN delivery_fee ELSE 0 END), 0) AS total_delivery_fee, COALESCE(SUM(CASE WHEN is_settled = FALSE THEN grand_total ELSE 0 END), 0) AS unsettled_amount, COALESCE(SUM(CASE WHEN business_date = CURRENT_DATE THEN grand_total ELSE 0 END), 0) AS today_amount FROM flower_wholesale_records WHERE is_deleted = FALSE", [], function (err, summaryResults) {
                 if (err != null) { func(err); return; }
                 const summaryRow = (summaryResults.rows && summaryResults.rows[0]) ? summaryResults.rows[0] : {};
-                const total = parseInt(summaryRow.count || 0);
                 const summary = {
                     totalAmount: parseFloat(summaryRow.total_amount || 0) || 0,
                     totalDeliveryFee: parseFloat(summaryRow.total_delivery_fee || 0) || 0,
                     unsettledAmount: parseFloat(summaryRow.unsettled_amount || 0) || 0,
                     todayAmount: parseFloat(summaryRow.today_amount || 0) || 0
                 };
-                const listArgs = args.slice(0);
-                listArgs.push(limit);
-                listArgs.push((page - 1) * limit);
-                Datastore.query('SELECT id, business_date::text AS business_date, shop_name, material_name, materials_json, quantity, unit_price, total_price, grand_total, delivery_address, contact_phone, delivery_type, delivery_fee, is_settled, is_deleted, deleted_at, created_at, updated_at FROM flower_wholesale_records' + whereSql + ' ORDER BY business_date DESC, updated_at DESC, id DESC LIMIT $' + (args.length + 1) + ' OFFSET $' + (args.length + 2), listArgs, function (listErr, results) {
-                    if (listErr != null) { func(listErr); return; }
-                    func(null, { total: total, summary: summary, records: results.rows || [] });
+                Datastore.query('SELECT COUNT(*) AS count FROM flower_wholesale_records' + whereSql, args, function (countErr, countResults) {
+                    if (countErr != null) { func(countErr); return; }
+                    const total = parseInt(((countResults.rows && countResults.rows[0]) ? countResults.rows[0].count : 0) || 0);
+                    const listArgs = args.slice(0);
+                    listArgs.push(limit);
+                    listArgs.push((page - 1) * limit);
+                    Datastore.query('SELECT id, business_date::text AS business_date, shop_name, material_name, materials_json, quantity, unit_price, total_price, grand_total, delivery_address, contact_phone, delivery_type, delivery_fee, is_settled, is_deleted, deleted_at, created_at, updated_at FROM flower_wholesale_records' + whereSql + ' ORDER BY business_date DESC, updated_at DESC, id DESC LIMIT $' + (args.length + 1) + ' OFFSET $' + (args.length + 2), listArgs, function (listErr, results) {
+                        if (listErr != null) { func(listErr); return; }
+                        func(null, { total: total, summary: summary, records: results.rows || [] });
+                    });
                 });
             });
         };

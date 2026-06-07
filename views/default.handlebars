@@ -2010,24 +2010,27 @@
                         </div>
                     </div>
                     <div class="collect-toolbar">
-                        <div class="collect-search"><input id="wholesaleSearchInput" type="search" placeholder="搜索花店或花材" autocomplete="off" oninput="wholesaleHandleSearchInput()" /></div>
+                        <div class="wholesale-toolbar-filters">
+                            <div class="collect-search"><input id="wholesaleSearchInput" type="search" placeholder="搜索花店或花材" autocomplete="off" oninput="wholesaleHandleSearchInput()" /></div>
+                            <div class="collect-search"><input id="wholesaleDateFilterInput" type="date" oninput="wholesaleHandleDateFilterInput()" /></div>
+                        </div>
                         <div class="collect-toolbar-meta" id="wholesaleToolbarMeta">共 0 条批发记录</div>
                     </div>
                     <div class="wholesale-summary" id="wholesaleSummary">
                         <div class="wholesale-summary-card">
-                            <span class="wholesale-summary-label">采购总额</span>
+                            <span class="wholesale-summary-label">本月销售总额</span>
                             <strong id="wholesaleSummaryTotalAmount">¥0.00</strong>
                         </div>
                         <div class="wholesale-summary-card">
-                            <span class="wholesale-summary-label">配送总费</span>
+                            <span class="wholesale-summary-label">配送费用总费</span>
                             <strong id="wholesaleSummaryDeliveryFee">¥0.00</strong>
                         </div>
                         <div class="wholesale-summary-card">
-                            <span class="wholesale-summary-label">未结算采购额</span>
+                            <span class="wholesale-summary-label">未结算销售额</span>
                             <strong id="wholesaleSummaryUnsettledAmount">¥0.00</strong>
                         </div>
                         <div class="wholesale-summary-card">
-                            <span class="wholesale-summary-label">今日采购额</span>
+                            <span class="wholesale-summary-label">今日销售额</span>
                             <strong id="wholesaleSummaryTodayAmount">¥0.00</strong>
                         </div>
                     </div>
@@ -3155,7 +3158,7 @@
         var collectState = { items: [], total: 0, page: 1, limit: 12, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, currentResultsTaskId: null, resultsPage: 1, resultsLimit: 10 };
         var scheduledState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, listTimer: null, pendingAction: null, currentRunsTaskId: null, runsPage: 1, runsLimit: 10, runSteps: {} };
         var operationState = { items: [], total: 0, page: 1, limit: 7, storeSearch: '', dateFrom: '', dateTo: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, pendingStoreName: '', editorDate: '', editorLoading: false, editorExistingRecords: [], editorLegacyRecordIds: [], editorSharedRecordId: '', monthIncome: 0, monthExpense: 0, batch: null };
-        var wholesaleState = { items: [], total: 0, page: 1, limit: 12, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, pendingMutationKind: null, shopSuggestions: [], shopSuggestionKeyword: '', shopSuggestionTimer: null, hideSuggestTimer: null, summary: null, materialRows: [], nextMaterialRowSeq: 1 };
+        var wholesaleState = { items: [], total: 0, page: 1, limit: 12, search: '', filterDate: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, pendingMutationKind: null, shopSuggestions: [], shopSuggestionKeyword: '', shopSuggestionTimer: null, hideSuggestTimer: null, summary: null, materialRows: [], nextMaterialRowSeq: 1 };
         var managerExecutionMap = {};
 
         function shopEnterPage() {
@@ -5710,6 +5713,7 @@
             void Q('p107').offsetWidth;
             QC('p107').add('collect-page-active');
             if (Q('wholesaleSearchInput') != null) Q('wholesaleSearchInput').value = wholesaleState.search;
+            if (Q('wholesaleDateFilterInput') != null) Q('wholesaleDateFilterInput').value = wholesaleState.filterDate;
             if (wholesaleState.loaded !== true) wholesaleRefreshList(1); else wholesaleRender();
         }
 
@@ -5721,6 +5725,11 @@
             }, 260);
         }
 
+        function wholesaleHandleDateFilterInput() {
+            wholesaleState.filterDate = Q('wholesaleDateFilterInput').value || '';
+            wholesaleRefreshList(1);
+        }
+
         function wholesaleRefreshList(page) {
             if (typeof page === 'number') wholesaleState.page = page;
             wholesaleState.loaded = true;
@@ -5728,7 +5737,7 @@
             QV('wholesaleLoadingState', true);
             QV('wholesaleEmptyState', false);
             QH('wholesaleCardList', '');
-            meshserver.send({ action: 'wholesalelist', search: wholesaleState.search, page: wholesaleState.page, limit: wholesaleState.limit });
+            meshserver.send({ action: 'wholesalelist', search: wholesaleState.search, businessDate: wholesaleState.filterDate, page: wholesaleState.page, limit: wholesaleState.limit });
         }
 
         function wholesaleHandleListResponse(message) {

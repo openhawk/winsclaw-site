@@ -4647,6 +4647,17 @@ a {
     margin-bottom: 18px;
 }
 
+.wholesale-toolbar-filters {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.wholesale-toolbar-filters .collect-search {
+    min-width: 220px;
+}
+
 .wholesale-summary-card {
     padding: 16px 18px;
     border-radius: 18px;
