@@ -3191,6 +3191,7 @@
                     return;
                 }
             }
+            if (Q('wholesaleModalMask') != null && Q('wholesaleModalMask').style.display !== 'none') { wholesaleRefreshShopSuggestions(); wholesaleApplyLinkedShopDetails(false); }
             shopRender();
         }
 
@@ -3958,19 +3959,35 @@
             }
             return names;
         }
-        function managerFindMyShopByName(shopName) {
-            shopName = (typeof shopName === 'string') ? shopName.trim().toLowerCase() : '';
-            if (shopName === '') return null;
-            for (var i = 0; i < myShopState.items.length; i++) {
-                var name = (myShopState.items[i].name || '').trim().toLowerCase();
-                if (name === shopName) return myShopState.items[i];
-            }
-            return null;
-        }
         function managerEnsureOperationStoreOptions(selectedName) {
             operationState.pendingStoreName = (selectedName != null) ? String(selectedName) : operationState.pendingStoreName;
             if ((myShopState.loaded !== true) || ((myShopState.items || []).length < myShopState.total)) {
                 meshserver.send({ action: 'myshoplist', search: '', page: 1, limit: Math.max(200, myShopState.total || 0) });
+            }
+        }
+        function managerGetWholesaleShopNames() {
+            var list = shopState.items || [], names = [], added = {};
+            for (var i = 0; i < list.length; i++) {
+                var shopName = (list[i].name || '').trim();
+                if (shopName === '' || added[shopName]) continue;
+                added[shopName] = true;
+                names.push(shopName);
+            }
+            return names;
+        }
+        function managerFindWholesaleShopByName(shopName) {
+            shopName = (typeof shopName === 'string') ? shopName.trim().toLowerCase() : '';
+            if (shopName === '') return null;
+            for (var i = 0; i < shopState.items.length; i++) {
+                var name = (shopState.items[i].name || '').trim().toLowerCase();
+                if (name === shopName) return shopState.items[i];
+            }
+            return null;
+        }
+        function managerEnsureWholesaleShopOptions(selectedName) {
+            operationState.pendingStoreName = (selectedName != null) ? String(selectedName) : operationState.pendingStoreName;
+            if ((shopState.loaded !== true) || ((shopState.items || []).length < shopState.total)) {
+                meshserver.send({ action: 'shoplist', search: '', page: 1, limit: Math.max(200, shopState.total || 0) });
             }
         }
         function managerTryParseCollectData(output) {
@@ -5890,7 +5907,7 @@
             Q('wholesaleFormDeliveryFee').value = record ? wholesaleFormatAmount(record.delivery_fee || record.deliveryFee) : '0.00';
             Q('wholesaleFormSettled').value = ((record && (record.is_settled === true || record.isSettled === true)) ? 'true' : 'false');
             QH('wholesaleModalTitle', record ? '编辑批发记录' : '新增批发记录');
-            managerEnsureOperationStoreOptions(Q('wholesaleFormShopName').value);
+            managerEnsureWholesaleShopOptions(Q('wholesaleFormShopName').value);
             wholesaleRefreshShopSuggestions();
             wholesaleApplyLinkedShopDetails(false);
             wholesaleSyncTotals();
@@ -5911,7 +5928,7 @@
 
         function wholesaleGetShopSuggestions() {
             var keyword = (Q('wholesaleFormShopName') != null ? Q('wholesaleFormShopName').value : '').trim().toLowerCase();
-            var names = managerGetOperationStoreNames(), results = [], added = {};
+            var names = managerGetWholesaleShopNames(), results = [], added = {};
             for (var i = 0; i < names.length; i++) {
                 var name = names[i] || '';
                 var normalized = name.toLowerCase();
@@ -5942,7 +5959,7 @@
         }
 
         function wholesaleHandleShopInput() {
-            managerEnsureOperationStoreOptions(Q('wholesaleFormShopName').value || '');
+            managerEnsureWholesaleShopOptions(Q('wholesaleFormShopName').value || '');
             wholesaleApplyLinkedShopDetails(false);
             wholesaleRefreshShopSuggestions();
         }
@@ -5961,7 +5978,7 @@
         }
 
         function wholesaleApplyLinkedShopDetails(force) {
-            var shop = managerFindMyShopByName(Q('wholesaleFormShopName') != null ? Q('wholesaleFormShopName').value : '');
+            var shop = managerFindWholesaleShopByName(Q('wholesaleFormShopName') != null ? Q('wholesaleFormShopName').value : '');
             if (shop == null) return;
             if (Q('wholesaleFormDeliveryAddress') != null && (force === true || Q('wholesaleFormDeliveryAddress').value.trim() === '')) Q('wholesaleFormDeliveryAddress').value = shop.address || '';
             if (Q('wholesaleFormContactPhone') != null && (force === true || Q('wholesaleFormContactPhone').value.trim() === '')) Q('wholesaleFormContactPhone').value = shop.phone || '';
