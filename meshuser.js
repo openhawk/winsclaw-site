@@ -7810,7 +7810,7 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
     }
 
     function serverCommandWholesaleList(command) {
-        var search = '', businessDate = '', page = 1, limit = 12;
+        var search = '', businessDate = '', settlementStatus = 'all', page = 1, limit = 12;
         if (typeof command.search == 'string') {
             search = command.search.trim();
             if (search.length > 128) { obj.send({ action: 'wholesalelist', result: 'Invalid search.' }); return; }
@@ -7819,11 +7819,15 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
             businessDate = command.businessDate.trim();
             if ((businessDate !== '') && (/^\d{4}-\d{2}-\d{2}$/.test(businessDate) !== true)) { obj.send({ action: 'wholesalelist', result: 'Invalid business date.' }); return; }
         }
+        if (typeof command.settlementStatus == 'string') {
+            settlementStatus = command.settlementStatus.trim();
+            if (['all', 'settled', 'unsettled'].indexOf(settlementStatus) < 0) { obj.send({ action: 'wholesalelist', result: 'Invalid settlement status.' }); return; }
+        }
         if (common.validateInt(command.page, 1, 100000) == true) { page = command.page; }
         if (common.validateInt(command.limit, 1, 60) == true) { limit = command.limit; }
-        db.GetFlowerWholesaleRecordList(search, businessDate, page, limit, function (err, result) {
+        db.GetFlowerWholesaleRecordList(search, businessDate, settlementStatus, page, limit, function (err, result) {
             if (err != null) { obj.send({ action: 'wholesalelist', result: err.message ? err.message : 'Unable to load wholesale records.' }); return; }
-            obj.send({ action: 'wholesalelist', search: search, businessDate: businessDate, page: page, limit: limit, total: result.total, summary: result.summary || null, records: result.records || [] });
+            obj.send({ action: 'wholesalelist', search: search, businessDate: businessDate, settlementStatus: settlementStatus, page: page, limit: limit, total: result.total, summary: result.summary || null, records: result.records || [] });
         });
     }
 

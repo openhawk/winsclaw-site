@@ -3789,15 +3789,17 @@ module.exports.CreateDB = function (parent, func) {
             });
         };
 
-        obj.GetFlowerWholesaleRecordList = function (search, businessDate, page, limit, func) {
+        obj.GetFlowerWholesaleRecordList = function (search, businessDate, settlementStatus, page, limit, func) {
             if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Wholesale manager requires PostgreSQL.')); return; }
             if (typeof search != 'string') { search = ''; }
             if (typeof businessDate != 'string') { businessDate = ''; }
+            if (typeof settlementStatus != 'string') { settlementStatus = 'all'; }
             if (typeof page != 'number' || page < 1) { page = 1; }
             if (typeof limit != 'number' || limit < 1) { limit = 12; }
             const args = [], where = ['is_deleted = FALSE'];
             search = search.trim();
             businessDate = businessDate.trim();
+            settlementStatus = settlementStatus.trim();
             if (search !== '') {
                 args.push('%' + search + '%');
                 where.push('(shop_name ILIKE $' + args.length + ' OR material_name ILIKE $' + args.length + ')');
@@ -3805,6 +3807,11 @@ module.exports.CreateDB = function (parent, func) {
             if (businessDate !== '') {
                 args.push(businessDate);
                 where.push('business_date = $' + args.length);
+            }
+            if (settlementStatus === 'settled') {
+                where.push('is_settled = TRUE');
+            } else if (settlementStatus === 'unsettled') {
+                where.push('is_settled = FALSE');
             }
             const whereSql = ' WHERE ' + where.join(' AND ');
             Datastore.query("SELECT COALESCE(SUM(CASE WHEN business_date >= DATE_TRUNC('month', CURRENT_DATE)::date AND business_date < (DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month')::date THEN grand_total ELSE 0 END), 0) AS total_amount, COALESCE(SUM(CASE WHEN business_date >= DATE_TRUNC('month', CURRENT_DATE)::date AND business_date < (DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month')::date THEN delivery_fee ELSE 0 END), 0) AS total_delivery_fee, COALESCE(SUM(CASE WHEN is_settled = FALSE THEN grand_total ELSE 0 END), 0) AS unsettled_amount, COALESCE(SUM(CASE WHEN business_date = CURRENT_DATE THEN grand_total ELSE 0 END), 0) AS today_amount FROM flower_wholesale_records WHERE is_deleted = FALSE", [], function (err, summaryResults) {

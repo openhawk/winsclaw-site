@@ -2013,6 +2013,13 @@
                         <div class="wholesale-toolbar-filters">
                             <div class="collect-search"><input id="wholesaleSearchInput" type="search" placeholder="搜索花店或花材" autocomplete="off" oninput="wholesaleHandleSearchInput()" /></div>
                             <div class="collect-search"><input id="wholesaleDateFilterInput" type="date" oninput="wholesaleHandleDateFilterInput()" /></div>
+                            <div class="collect-search">
+                                <select id="wholesaleSettlementFilterInput" oninput="wholesaleHandleSettlementFilterInput()">
+                                    <option value="all" selected="selected">全部</option>
+                                    <option value="settled">已结束</option>
+                                    <option value="unsettled">未结算</option>
+                                </select>
+                            </div>
                         </div>
                         <div class="collect-toolbar-meta" id="wholesaleToolbarMeta">共 0 条批发记录</div>
                     </div>
@@ -3159,7 +3166,7 @@
         var collectState = { items: [], total: 0, page: 1, limit: 12, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, currentResultsTaskId: null, resultsPage: 1, resultsLimit: 10 };
         var scheduledState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, listTimer: null, pendingAction: null, currentRunsTaskId: null, runsPage: 1, runsLimit: 10, runSteps: {} };
         var operationState = { items: [], total: 0, page: 1, limit: 7, storeSearch: '', dateFrom: '', dateTo: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, pendingStoreName: '', editorDate: '', editorLoading: false, editorExistingRecords: [], editorLegacyRecordIds: [], editorSharedRecordId: '', monthIncome: 0, monthExpense: 0, batch: null };
-        var wholesaleState = { items: [], total: 0, page: 1, limit: 12, search: '', filterDate: '', loaded: false, loading: false, listTimer: null, searchTimer: null, toastTimer: null, pendingAction: null, pendingMutationKind: null, shopSuggestions: [], shopSuggestionKeyword: '', shopSuggestionTimer: null, hideSuggestTimer: null, summary: null, materialRows: [], nextMaterialRowSeq: 1 };
+        var wholesaleState = { items: [], total: 0, page: 1, limit: 12, search: '', filterDate: '', settlementFilter: 'all', loaded: false, loading: false, listTimer: null, searchTimer: null, toastTimer: null, pendingAction: null, pendingMutationKind: null, shopSuggestions: [], shopSuggestionKeyword: '', shopSuggestionTimer: null, hideSuggestTimer: null, summary: null, materialRows: [], nextMaterialRowSeq: 1 };
         var managerExecutionMap = {};
 
         function shopEnterPage() {
@@ -5715,6 +5722,7 @@
             QC('p107').add('collect-page-active');
             if (Q('wholesaleSearchInput') != null) Q('wholesaleSearchInput').value = wholesaleState.search;
             if (Q('wholesaleDateFilterInput') != null) Q('wholesaleDateFilterInput').value = wholesaleState.filterDate;
+            if (Q('wholesaleSettlementFilterInput') != null) Q('wholesaleSettlementFilterInput').value = wholesaleState.settlementFilter;
             wholesaleRefreshList(wholesaleState.loaded === true ? wholesaleState.page : 1);
         }
 
@@ -5728,6 +5736,11 @@
 
         function wholesaleHandleDateFilterInput() {
             wholesaleState.filterDate = Q('wholesaleDateFilterInput').value || '';
+            wholesaleRefreshList(1);
+        }
+
+        function wholesaleHandleSettlementFilterInput() {
+            wholesaleState.settlementFilter = Q('wholesaleSettlementFilterInput').value || 'all';
             wholesaleRefreshList(1);
         }
 
@@ -5746,7 +5759,7 @@
                 }, 300);
                 return;
             }
-            meshserver.send({ action: 'wholesalelist', search: wholesaleState.search, businessDate: wholesaleState.filterDate, page: wholesaleState.page, limit: wholesaleState.limit });
+            meshserver.send({ action: 'wholesalelist', search: wholesaleState.search, businessDate: wholesaleState.filterDate, settlementStatus: wholesaleState.settlementFilter, page: wholesaleState.page, limit: wholesaleState.limit });
             wholesaleState.listTimer = setTimeout(function () {
                 if (wholesaleState.loading !== true) return;
                 wholesaleState.loading = false;
