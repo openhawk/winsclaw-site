@@ -4717,20 +4717,20 @@ a {
 
 .wholesale-list-cell {
     color: #17324d;
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 600;
     word-break: break-word;
 }
 
 .wholesale-list-shop {
-    font-size: 22px;
-    font-weight: 800;
-    line-height: 1.25;
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.4;
 }
 
 .wholesale-list-money {
-    font-size: 22px;
-    font-weight: 800;
+    font-size: 16px;
+    font-weight: 600;
     color: #18324f;
 }
 
