@@ -3026,6 +3026,7 @@
                 if ('{{viewmode}}'.toLowerCase() == '') { go(1); }
                 authCookieRenewTimer = setInterval(function () { meshserver.send({ action: 'authcookie' }); }, 1800000); // Request a cookie refresh every 30 minutes.
                 if (xxcurrentView == 40) { refreshServerTimelineStats(); }
+                if (xxcurrentView == 107) { wholesaleRefreshList(wholesaleState.loaded === true ? wholesaleState.page : 1); }
             }
         }
 
@@ -5738,6 +5739,13 @@
             QV('wholesaleEmptyState', false);
             QH('wholesaleCardList', '');
             if (wholesaleState.listTimer != null) clearTimeout(wholesaleState.listTimer);
+            if ((meshserver == null) || (meshserver.State != 2)) {
+                wholesaleState.listTimer = setTimeout(function () {
+                    wholesaleState.listTimer = null;
+                    wholesaleRefreshList(wholesaleState.page);
+                }, 300);
+                return;
+            }
             meshserver.send({ action: 'wholesalelist', search: wholesaleState.search, businessDate: wholesaleState.filterDate, page: wholesaleState.page, limit: wholesaleState.limit });
             wholesaleState.listTimer = setTimeout(function () {
                 if (wholesaleState.loading !== true) return;
