@@ -3057,10 +3057,20 @@
             return (userAgent.indexOf('WINDOWS') >= 0) || (userAgent.indexOf('WIN32') >= 0) || (userAgent.indexOf('WIN64') >= 0);
         }
 
+        function isWholesaleOnlyUser() {
+            if ((userinfo == null) || (typeof userinfo != 'object')) return false;
+            var accountName = '';
+            try { accountName = ((userinfo._id || '').split('/')[2] || ''); } catch (ex) { }
+            accountName = accountName.toLowerCase();
+            var displayName = ((userinfo.name || '') + '').toLowerCase();
+            return (accountName === 'xianhuapifa') || (displayName === 'xianhuapifa');
+        }
+
         function updateSiteAdmin() {
             var serverFeatures = parseInt('{{{serverfeatures}}}');
             var siteRights = userinfo.siteadmin;
             var accountSettingsLocked = ((siteRights != 0xFFFFFFFF) && ((siteRights & 1024) != 0)) || ((features2 & 0x100) != 0); // Not admin and have account features locked, or using a loginToken
+            var wholesaleOnlyUser = isWholesaleOnlyUser();
 
             // Update account actions
             QV('p2AccountSecurity', ((features & 4) == 0) && (serverinfo.domainauth == false) && ((features & 4096) != 0) && (accountSettingsLocked == false)); // Hide Account Security if in single user mode or domain authentication, 2 factor auth not supported.
@@ -3075,23 +3085,37 @@
             QV('accountCreateLoginTokenSpan', features2 & 0x00000080);
             QV('p2AccountImageFrame', !accountSettingsLocked)
             QV('p2ServerActions', (siteRights & 21) && ((serverFeatures & 143) != 0));
-            QV('LeftMenuMyServer', (siteRights & 21) && ((serverFeatures & 64) != 0)); // 16 + 4 + 1
-            QV('MainMenuMyServer', siteRights & 21);
+            QV('LeftMenuMyServer', !wholesaleOnlyUser && (siteRights & 21) && ((serverFeatures & 64) != 0)); // 16 + 4 + 1
+            QV('MainMenuMyServer', !wholesaleOnlyUser && (siteRights & 21));
             QV('p2ServerActionsBackup', (siteRights & 1) && ((serverFeatures & 1) != 0));
             QV('p2ServerActionsRestore', (siteRights & 4) && ((serverFeatures & 2) != 0));
             QV('p2ServerActionsVersion', (siteRights & 16) && ((serverFeatures & 4) != 0));
             QV('p2ServerActionsErrors', (siteRights & 16) && ((serverFeatures & 8) != 0));
             QV('p2ServerActionsConfig', (siteRights & 16) && ((serverFeatures & 128) != 0));
-            QV('MainMenuMyFiles', siteRights & 8);
-            QV('LeftMenuMyFiles', siteRights & 8);
-            QV('MainMenuShopManager', true);
-            QV('LeftMenuShopManager', true);
-            QV('MainMenuMyShopManager', true);
-            QV('LeftMenuMyShopManager', true);
-            QV('MainMenuScheduledTaskManager', true);
-            QV('LeftMenuScheduledTaskManager', true);
-            QV('MainMenuOperationManager', true);
-            QV('LeftMenuOperationManager', true);
+            QV('MainMenuMyFiles', !wholesaleOnlyUser && (siteRights & 8));
+            QV('LeftMenuMyFiles', !wholesaleOnlyUser && (siteRights & 8));
+            QV('MainMenuMyDevices', !wholesaleOnlyUser);
+            QV('LeftMenuMyDevices', !wholesaleOnlyUser);
+            QV('MainMenuMyAccount', !wholesaleOnlyUser);
+            QV('LeftMenuMyAccount', !wholesaleOnlyUser);
+            QV('MainMenuMyEvents', !wholesaleOnlyUser);
+            QV('LeftMenuMyEvents', !wholesaleOnlyUser);
+            QV('MainMenuMyUsers', !wholesaleOnlyUser && (((users != null) && ((features & 4) == 0)) || (((userinfo.siteadmin & 512) != 0) && ((features & 0x08000000) != 0))));
+            QV('LeftMenuMyUsers', !wholesaleOnlyUser && (((users != null) && ((features & 4) == 0)) || (((userinfo.siteadmin & 512) != 0) && ((features & 0x08000000) != 0))));
+            QV('MainMenuShopManager', !wholesaleOnlyUser);
+            QV('LeftMenuShopManager', !wholesaleOnlyUser);
+            QV('MainMenuMyShopManager', !wholesaleOnlyUser);
+            QV('LeftMenuMyShopManager', !wholesaleOnlyUser);
+            QV('MainMenuProductManager', !wholesaleOnlyUser);
+            QV('LeftMenuProductManager', !wholesaleOnlyUser);
+            QV('MainMenuFlowManager', !wholesaleOnlyUser);
+            QV('LeftMenuFlowManager', !wholesaleOnlyUser);
+            QV('MainMenuCollectManager', !wholesaleOnlyUser);
+            QV('LeftMenuCollectManager', !wholesaleOnlyUser);
+            QV('MainMenuScheduledTaskManager', !wholesaleOnlyUser);
+            QV('LeftMenuScheduledTaskManager', !wholesaleOnlyUser);
+            QV('MainMenuOperationManager', !wholesaleOnlyUser);
+            QV('LeftMenuOperationManager', !wholesaleOnlyUser);
             QV('MainMenuWholesaleManager', true);
             QV('LeftMenuWholesaleManager', true);
             if (((siteRights & 8) == 0) && (xxcurrentView == 5)) { setDialogMode(0); go(1); }
@@ -3123,6 +3147,7 @@
             QV('ServerTrace', (userinfo.siteadmin === 0xFFFFFFFF) && ((serverFeatures & 32) != 0));
             if ((xxcurrentView == 115) && (userinfo.siteadmin != 0xFFFFFFFF)) { go(6); }
             if ((xxcurrentView == 6) && ((userinfo.siteadmin & 21) == 0)) { go(1); }
+            if (wholesaleOnlyUser && (xxcurrentView != 107)) { go(107); }
 
             // If we are site administrator, register to get server statistics
             if ((siteRights & 21) != 0) { meshserver.send({ action: 'serverstats', interval: 10000 }); }
@@ -6467,8 +6492,8 @@
             }
 
             // Adjust "My Users" tabs
-            QV('MainMenuMyUsers', ((users != null) && ((features & 4) == 0)) || (((userinfo.siteadmin & 512) != 0) && ((features & 0x08000000) != 0)));
-            QV('LeftMenuMyUsers', ((users != null) && ((features & 4) == 0)) || (((userinfo.siteadmin & 512) != 0) && ((features & 0x08000000) != 0)));
+            QV('MainMenuMyUsers', !isWholesaleOnlyUser() && ((((users != null) && ((features & 4) == 0)) || (((userinfo.siteadmin & 512) != 0) && ((features & 0x08000000) != 0)))));
+            QV('LeftMenuMyUsers', !isWholesaleOnlyUser() && ((((users != null) && ((features & 4) == 0)) || (((userinfo.siteadmin & 512) != 0) && ((features & 0x08000000) != 0)))));
             QV('UsersGeneral', ((users != null) && ((features & 4) == 0)));
             QV('UsersGroups', ((users != null) && ((features & 4) == 0)));
             QV('UsersRecordings', ((userinfo.siteadmin & 512) != 0) && ((features & 0x08000000) != 0));
@@ -23266,6 +23291,8 @@
             if(event && ((event.which == 3) || (event.button == 2))) return; // ignore right clicks as they are handled elsewhere
             // Remind the user to add two factor authentication
             if ((features & 0x00040000) && (count2factoraAuths() == 0) && (x > 2)) { x = 2; setDialogMode(2, "账户安全", 1, null, "在启用两因素身份验证之前，无法访问此功能。这是额外的安全性所必需的。转到“我的帐户”标签，然后查看“帐户安全性”部分。"); }
+
+            if (isWholesaleOnlyUser() && (x != 107)) { x = 107; }
 
             if (pluginHandler != null) pluginHandler.callHook('goPageStart', x, event);
             setSessionActivity();
