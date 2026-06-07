@@ -4370,7 +4370,7 @@ a {
 #p101 .product-card-grid {
     flex: 1 1 auto;
     align-content: start;
-    padding-bottom: 76px;
+    padding-bottom: 40px;
 }
 
 #p101 .product-pagination {
