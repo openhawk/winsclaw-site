@@ -2060,10 +2060,20 @@
                                         <div id="wholesaleShopSuggest" class="flow-picker-suggest" style="display:none"></div>
                                     </div>
                                 </label>
-                                <label class="collect-field wholesale-span-1"><span>花材 <b>*</b></span><input id="wholesaleFormMaterialName" type="text" maxlength="256" placeholder="例如：粉玫瑰、向日葵、洋桔梗" /></label>
-                                <label class="collect-field wholesale-span-1"><span>数量 <b>*</b></span><input id="wholesaleFormQuantity" type="number" min="0.01" step="0.01" oninput="wholesaleSyncTotals()" /></label>
-                                <label class="collect-field wholesale-span-1"><span>单价 <b>*</b></span><input id="wholesaleFormUnitPrice" type="number" min="0" step="0.01" oninput="wholesaleSyncTotals()" /></label>
-                                <label class="collect-field wholesale-span-1"><span>金额</span><input id="wholesaleFormAmount" class="wholesale-total-input" type="number" min="0" step="0.01" readonly /></label>
+                                <div class="wholesale-material-editor wholesale-span-4">
+                                    <div class="wholesale-material-head">
+                                        <strong>花材明细</strong>
+                                        <button type="button" class="collect-btn" onclick="wholesaleAddMaterialRow()">新增一行</button>
+                                    </div>
+                                    <div class="wholesale-material-grid wholesale-material-grid-head">
+                                        <div>花材 *</div>
+                                        <div>数量 *</div>
+                                        <div>单价 *</div>
+                                        <div>金额</div>
+                                        <div>操作</div>
+                                    </div>
+                                    <div id="wholesaleMaterialRows" class="wholesale-material-list"></div>
+                                </div>
                                 <label class="collect-field wholesale-span-2"><span>总金额</span><input id="wholesaleFormGrandTotal" class="wholesale-total-input" type="number" min="0" step="0.01" readonly /></label>
                                 <label class="collect-field wholesale-span-2"><span>是否结算</span><select id="wholesaleFormSettled"><option value="false">否</option><option value="true">是</option></select></label>
                                 <label class="collect-field wholesale-span-2"><span>配送地址</span><input id="wholesaleFormDeliveryAddress" type="text" maxlength="512" placeholder="自动带出，可继续编辑" /></label>
@@ -3145,7 +3155,7 @@
         var collectState = { items: [], total: 0, page: 1, limit: 12, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, currentResultsTaskId: null, resultsPage: 1, resultsLimit: 10 };
         var scheduledState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, listTimer: null, pendingAction: null, currentRunsTaskId: null, runsPage: 1, runsLimit: 10, runSteps: {} };
         var operationState = { items: [], total: 0, page: 1, limit: 7, storeSearch: '', dateFrom: '', dateTo: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, pendingStoreName: '', editorDate: '', editorLoading: false, editorExistingRecords: [], editorLegacyRecordIds: [], editorSharedRecordId: '', monthIncome: 0, monthExpense: 0, batch: null };
-        var wholesaleState = { items: [], total: 0, page: 1, limit: 12, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, shopSuggestions: [], hideSuggestTimer: null, summary: null };
+        var wholesaleState = { items: [], total: 0, page: 1, limit: 12, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, shopSuggestions: [], hideSuggestTimer: null, summary: null, materialRows: [], nextMaterialRowSeq: 1 };
         var managerExecutionMap = {};
 
         function shopEnterPage() {
@@ -5817,6 +5827,67 @@
             return String(Math.round(num * 100) / 100);
         }
 
+        function wholesaleMakeMaterialRow(line) {
+            line = line || {};
+            return {
+                rowId: 'wmr_' + (wholesaleState.nextMaterialRowSeq++),
+                materialName: String(line.materialName || line.material_name || ''),
+                quantity: (line.quantity == null || line.quantity === '') ? '' : wholesaleFormatQuantity(line.quantity),
+                unitPrice: (line.unitPrice == null && line.unit_price == null) ? '' : wholesaleFormatAmount(line.unitPrice != null ? line.unitPrice : line.unit_price),
+                totalPrice: (line.totalPrice == null && line.total_price == null) ? '' : wholesaleFormatAmount(line.totalPrice != null ? line.totalPrice : line.total_price)
+            };
+        }
+
+        function wholesaleNormalizeMaterialRows(record) {
+            var lines = [];
+            if (record != null) {
+                lines = managerParseJson(typeof record.materials_json === 'string' ? record.materials_json : JSON.stringify(record.materials_json || []), []);
+                if (Array.isArray(lines) !== true || lines.length === 0) {
+                    lines = [{ materialName: record.material_name || record.materialName || '', quantity: record.quantity, unitPrice: record.unit_price || record.unitPrice, totalPrice: record.total_price || record.totalPrice }];
+                }
+            }
+            if (Array.isArray(lines) !== true || lines.length === 0) lines = [{}];
+            var rows = [];
+            for (var i = 0; i < lines.length; i++) rows.push(wholesaleMakeMaterialRow(lines[i]));
+            return rows;
+        }
+
+        function wholesaleRenderMaterialRows() {
+            var x = '';
+            for (var i = 0; i < wholesaleState.materialRows.length; i++) {
+                var row = wholesaleState.materialRows[i];
+                x += '<div class="wholesale-material-grid wholesale-material-row">';
+                x += '<input type="text" maxlength="256" placeholder="例如：粉玫瑰、向日葵、洋桔梗" value="' + EscapeHtml(row.materialName || '') + '" oninput="wholesaleUpdateMaterialRow(' + i + ', \'materialName\', this.value)" />';
+                x += '<input type="number" min="0.01" step="0.01" value="' + EscapeHtml(row.quantity || '') + '" oninput="wholesaleUpdateMaterialRow(' + i + ', \'quantity\', this.value)" />';
+                x += '<input type="number" min="0" step="0.01" value="' + EscapeHtml(row.unitPrice || '') + '" oninput="wholesaleUpdateMaterialRow(' + i + ', \'unitPrice\', this.value)" />';
+                x += '<input id="wholesaleMaterialAmount_' + i + '" class="wholesale-total-input" type="number" min="0" step="0.01" value="' + EscapeHtml(row.totalPrice || '') + '" readonly />';
+                x += '<button type="button" class="collect-btn collect-btn-danger" onclick="wholesaleRemoveMaterialRow(' + i + ')">删除</button>';
+                x += '</div>';
+            }
+            QH('wholesaleMaterialRows', x);
+        }
+
+        function wholesaleAddMaterialRow() {
+            wholesaleState.materialRows.push(wholesaleMakeMaterialRow({}));
+            wholesaleRenderMaterialRows();
+        }
+
+        function wholesaleRemoveMaterialRow(index) {
+            if (wholesaleState.materialRows.length <= 1) {
+                wholesaleState.materialRows[0] = wholesaleMakeMaterialRow({});
+            } else {
+                wholesaleState.materialRows.splice(index, 1);
+            }
+            wholesaleRenderMaterialRows();
+            wholesaleSyncTotals();
+        }
+
+        function wholesaleUpdateMaterialRow(index, field, value) {
+            if (wholesaleState.materialRows[index] == null) return;
+            wholesaleState.materialRows[index][field] = value;
+            wholesaleSyncTotals();
+        }
+
         function wholesaleDeliveryLabel(value) {
             return value === 'rider' ? '骑手' : '自配';
         }
@@ -5846,18 +5917,18 @@
             QV('wholesaleEmptyState', false);
             var x = '';
             for (var i = 0; i < list.length; i++) {
-                var record = list[i];
+                var record = list[i], materialLines = wholesaleNormalizeMaterialRows(list[i]), materialHint = materialLines.length > 1 ? ('共 ' + materialLines.length + ' 行明细') : (materialLines[0].materialName || '');
                 x += '<article class="collect-card"><div class="collect-card-body">';
                 x += '<div class="collect-card-head"><div><h3>' + EscapeHtml(record.shop_name || record.shopName || '') + '</h3><div class="collect-card-category">' + EscapeHtml(wholesaleFormatDate(record.business_date || record.businessDate || '')) + ' · ' + EscapeHtml(record.material_name || record.materialName || '') + '</div></div><div class="collect-card-badges">' + wholesaleSettlementBadge(record.is_settled === true || record.isSettled === true) + '</div></div>';
-                x += '<div class="collect-card-meta"><span>数量</span><strong>' + EscapeHtml(wholesaleFormatQuantity(record.quantity)) + '</strong></div>';
-                x += '<div class="collect-card-meta"><span>单价</span><strong>¥' + EscapeHtml(wholesaleFormatAmount(record.unit_price || record.unitPrice)) + '</strong></div>';
+                x += '<div class="collect-card-meta"><span>明细行数</span><strong>' + EscapeHtml(String(materialLines.length)) + '</strong></div>';
+                x += '<div class="collect-card-meta"><span>数量合计</span><strong>' + EscapeHtml(wholesaleFormatQuantity(record.quantity)) + '</strong></div>';
                 x += '<div class="collect-card-meta"><span>金额</span><strong>¥' + EscapeHtml(wholesaleFormatAmount(record.total_price || record.totalPrice)) + '</strong></div>';
                 x += '<div class="collect-card-meta"><span>总金额</span><strong>¥' + EscapeHtml(wholesaleFormatAmount(record.grand_total || record.grandTotal)) + '</strong></div>';
                 x += '<div class="collect-card-meta"><span>配送方式</span><strong>' + EscapeHtml(wholesaleDeliveryLabel(record.delivery_type || record.deliveryType)) + '</strong></div>';
                 x += '<div class="collect-card-meta"><span>配送费</span><strong>¥' + EscapeHtml(wholesaleFormatAmount(record.delivery_fee || record.deliveryFee)) + '</strong></div>';
                 x += '<div class="collect-card-meta"><span>联系电话</span><strong>' + EscapeHtml(record.contact_phone || record.contactPhone || '未填写') + '</strong></div>';
                 x += '<div class="collect-card-meta"><span>更新时间</span><strong>' + EscapeHtml(record.updated_at ? new Date(record.updated_at).toLocaleString() : '') + '</strong></div>';
-                x += '<div class="collect-card-footer"><div class="collect-card-hints"><span>' + EscapeHtml(record.material_name || record.materialName || '') + '</span><span>' + EscapeHtml(record.delivery_address || record.deliveryAddress || '未填写配送地址') + '</span></div><div class="collect-card-actions">';
+                x += '<div class="collect-card-footer"><div class="collect-card-hints"><span>' + EscapeHtml(materialHint) + '</span><span>' + EscapeHtml(record.delivery_address || record.deliveryAddress || '未填写配送地址') + '</span></div><div class="collect-card-actions">';
                 x += '<button type="button" class="collect-btn" onclick="wholesaleOpenEditorById(\'' + EscapeHtml(String(record.id)) + '\')">编辑</button>';
                 x += '<button type="button" class="collect-btn collect-btn-danger" onclick="wholesaleConfirmDelete(\'' + EscapeHtml(String(record.id)) + '\')">删除</button>';
                 x += '</div></div></div></article>';
@@ -5896,10 +5967,8 @@
             Q('wholesaleFormId').value = record ? String(record.id || '') : '';
             Q('wholesaleFormBusinessDate').value = record ? wholesaleFormatDate(record.business_date || record.businessDate || wholesaleGetTodayValue()) : wholesaleGetTodayValue();
             Q('wholesaleFormShopName').value = record ? (record.shop_name || record.shopName || '') : '';
-            Q('wholesaleFormMaterialName').value = record ? (record.material_name || record.materialName || '') : '';
-            Q('wholesaleFormQuantity').value = record ? wholesaleFormatQuantity(record.quantity) : '';
-            Q('wholesaleFormUnitPrice').value = record ? wholesaleFormatAmount(record.unit_price || record.unitPrice) : '';
-            Q('wholesaleFormAmount').value = record ? wholesaleFormatAmount(record.total_price || record.totalPrice) : '';
+            wholesaleState.materialRows = wholesaleNormalizeMaterialRows(record);
+            wholesaleRenderMaterialRows();
             Q('wholesaleFormGrandTotal').value = record ? wholesaleFormatAmount(record.grand_total || record.grandTotal) : '';
             Q('wholesaleFormDeliveryAddress').value = record ? (record.delivery_address || record.deliveryAddress || '') : '';
             Q('wholesaleFormContactPhone').value = record ? (record.contact_phone || record.contactPhone || '') : '';
@@ -5985,32 +6054,37 @@
         }
 
         function wholesaleSyncTotals() {
-            var quantity = Number(Q('wholesaleFormQuantity').value || 0);
-            var unitPrice = Number(Q('wholesaleFormUnitPrice').value || 0);
             var deliveryFee = Number(Q('wholesaleFormDeliveryFee').value || 0);
-            if (isFinite(quantity) !== true || isFinite(unitPrice) !== true || quantity <= 0 || unitPrice < 0) {
-                Q('wholesaleFormAmount').value = '';
-                Q('wholesaleFormGrandTotal').value = '';
-                return;
+            var totalAmount = 0;
+            for (var i = 0; i < wholesaleState.materialRows.length; i++) {
+                var row = wholesaleState.materialRows[i];
+                var quantity = Number(row.quantity || 0);
+                var unitPrice = Number(row.unitPrice || 0);
+                if (isFinite(quantity) === true && isFinite(unitPrice) === true && quantity > 0 && unitPrice >= 0) {
+                    row.totalPrice = wholesaleFormatAmount(quantity * unitPrice);
+                    totalAmount += (quantity * unitPrice);
+                } else {
+                    row.totalPrice = '';
+                }
+                if (Q('wholesaleMaterialAmount_' + i) != null) Q('wholesaleMaterialAmount_' + i).value = row.totalPrice;
             }
-            var amount = quantity * unitPrice;
-            Q('wholesaleFormAmount').value = wholesaleFormatAmount(amount);
             if (isFinite(deliveryFee) !== true || deliveryFee < 0) {
-                Q('wholesaleFormGrandTotal').value = wholesaleFormatAmount(amount);
+                Q('wholesaleFormGrandTotal').value = wholesaleFormatAmount(totalAmount);
                 return;
             }
-            Q('wholesaleFormGrandTotal').value = wholesaleFormatAmount(amount + deliveryFee);
+            Q('wholesaleFormGrandTotal').value = wholesaleFormatAmount(totalAmount + deliveryFee);
         }
 
         function wholesaleSubmitEditor() {
+            var materialLines = [];
+            for (var i = 0; i < wholesaleState.materialRows.length; i++) {
+                materialLines.push({ materialName: wholesaleState.materialRows[i].materialName, quantity: wholesaleState.materialRows[i].quantity, unitPrice: wholesaleState.materialRows[i].unitPrice, totalPrice: wholesaleState.materialRows[i].totalPrice });
+            }
             var payload = {
                 id: Q('wholesaleFormId').value,
                 businessDate: Q('wholesaleFormBusinessDate').value,
                 shopName: Q('wholesaleFormShopName').value.trim(),
-                materialName: Q('wholesaleFormMaterialName').value.trim(),
-                quantity: Q('wholesaleFormQuantity').value.trim(),
-                unitPrice: Q('wholesaleFormUnitPrice').value.trim(),
-                totalPrice: Q('wholesaleFormAmount').value.trim(),
+                materialLines: materialLines,
                 grandTotal: Q('wholesaleFormGrandTotal').value.trim(),
                 deliveryAddress: Q('wholesaleFormDeliveryAddress').value.trim(),
                 contactPhone: Q('wholesaleFormContactPhone').value.trim(),
@@ -6020,12 +6094,9 @@
             };
             if (payload.businessDate === '') { wholesaleShowToast('日期不能为空。', true); return; }
             if (payload.shopName === '') { wholesaleShowToast('花店不能为空。', true); return; }
-            if (payload.materialName === '') { wholesaleShowToast('花材不能为空。', true); return; }
-            if (payload.quantity === '') { wholesaleShowToast('数量不能为空。', true); return; }
-            if (payload.unitPrice === '') { wholesaleShowToast('单价不能为空。', true); return; }
             wholesaleSetSubmitBusy(true);
             wholesaleState.pendingAction = (payload.id !== '') ? 'wholesaleupdate' : 'wholesalecreate';
-            meshserver.send({ action: wholesaleState.pendingAction, id: payload.id, businessDate: payload.businessDate, shopName: payload.shopName, materialName: payload.materialName, quantity: payload.quantity, unitPrice: payload.unitPrice, totalPrice: payload.totalPrice, grandTotal: payload.grandTotal, deliveryAddress: payload.deliveryAddress, contactPhone: payload.contactPhone, deliveryType: payload.deliveryType, deliveryFee: payload.deliveryFee, isSettled: payload.isSettled });
+            meshserver.send({ action: wholesaleState.pendingAction, id: payload.id, businessDate: payload.businessDate, shopName: payload.shopName, materialLines: payload.materialLines, grandTotal: payload.grandTotal, deliveryAddress: payload.deliveryAddress, contactPhone: payload.contactPhone, deliveryType: payload.deliveryType, deliveryFee: payload.deliveryFee, isSettled: payload.isSettled });
         }
 
         function wholesaleConfirmDelete(id) {

@@ -7750,12 +7750,44 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         return null;
     }
 
+    function getWholesaleMaterialLines(command) {
+        var rows = managerGetJsonField(command.materialLines || '[]', []);
+        if (Array.isArray(rows) !== true || rows.length === 0) {
+            rows = [{ materialName: command.materialName, quantity: command.quantity, unitPrice: command.unitPrice, totalPrice: command.totalPrice }];
+        }
+        var normalized = [], totalQuantity = 0, totalAmount = 0;
+        for (var i = 0; i < rows.length; i++) {
+            var row = rows[i] || {};
+            var materialName = managerGetTextField(row.materialName || '', 256, false);
+            var quantity = getWholesaleQuantityField(row.quantity);
+            var unitPrice = getWholesaleAmountField(row.unitPrice, false);
+            var totalPrice = getWholesaleAmountField(row.totalPrice, true);
+            if ((materialName == null) || (materialName.length === 0)) return { error: '每一行都需要填写花材。' };
+            if (quantity == null) return { error: '每一行的数量都必须大于 0。' };
+            if (unitPrice == null) return { error: '每一行的单价都不能为空。' };
+            if (totalPrice == null) totalPrice = Math.round(quantity * unitPrice * 100) / 100;
+            normalized.push({ materialName: materialName, quantity: quantity, unitPrice: unitPrice, totalPrice: totalPrice });
+            totalQuantity += quantity;
+            totalAmount += totalPrice;
+        }
+        totalQuantity = Math.round(totalQuantity * 100) / 100;
+        totalAmount = Math.round(totalAmount * 100) / 100;
+        var summaryNames = [];
+        for (var j = 0; j < normalized.length; j++) { summaryNames.push(normalized[j].materialName); }
+        var summaryName = summaryNames.join(' / ');
+        return {
+            lines: normalized,
+            totalQuantity: totalQuantity,
+            totalAmount: totalAmount,
+            summaryName: summaryName,
+            singleUnitPrice: (normalized.length === 1) ? normalized[0].unitPrice : 0
+        };
+    }
+
     function getWholesalePayload(command) {
         var businessDate = getOperationDateField(command.businessDate);
         var shopName = managerGetTextField(command.shopName || '', 256, false);
-        var materialName = managerGetTextField(command.materialName || '', 256, false);
-        var quantity = getWholesaleQuantityField(command.quantity);
-        var unitPrice = getWholesaleAmountField(command.unitPrice, false);
+        var materialLines = getWholesaleMaterialLines(command);
         var deliveryAddress = managerGetTextField(command.deliveryAddress || '', 512, true);
         var contactPhone = managerGetTextField(command.contactPhone || '', 64, true);
         var deliveryType = getWholesaleDeliveryType(command.deliveryType);
@@ -7765,17 +7797,15 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         var grandTotal = getWholesaleAmountField(command.grandTotal, true);
         if (businessDate == null) return { error: '日期格式无效，请使用 YYYY-MM-DD。' };
         if ((shopName == null) || (shopName.length === 0)) return { error: '花店不能为空。' };
-        if ((materialName == null) || (materialName.length === 0)) return { error: '花材不能为空。' };
-        if (quantity == null) return { error: '数量必须大于 0。' };
-        if (unitPrice == null) return { error: '单价不能为空。' };
+        if (materialLines.error != null) return { error: materialLines.error };
         if (deliveryAddress == null) return { error: '配送地址格式无效。' };
         if (contactPhone == null) return { error: '联系电话格式无效。' };
         if (deliveryType == null) return { error: '配送方式无效。' };
         if (deliveryFee == null) return { error: '配送费无效。' };
         if (isSettled == null) return { error: '结算状态无效。' };
-        if (totalPrice == null) totalPrice = Math.round(quantity * unitPrice * 100) / 100;
+        if (totalPrice == null) totalPrice = materialLines.totalAmount;
         if (grandTotal == null) grandTotal = Math.round((totalPrice + deliveryFee) * 100) / 100;
-        return { businessDate: businessDate, shopName: shopName, materialName: materialName, quantity: quantity, unitPrice: unitPrice, totalPrice: totalPrice, grandTotal: grandTotal, deliveryAddress: deliveryAddress, contactPhone: contactPhone, deliveryType: deliveryType, deliveryFee: deliveryFee, isSettled: isSettled };
+        return { businessDate: businessDate, shopName: shopName, materialName: materialLines.summaryName, materialLines: materialLines.lines, quantity: materialLines.totalQuantity, unitPrice: materialLines.singleUnitPrice, totalPrice: totalPrice, grandTotal: grandTotal, deliveryAddress: deliveryAddress, contactPhone: contactPhone, deliveryType: deliveryType, deliveryFee: deliveryFee, isSettled: isSettled };
     }
 
     function serverCommandWholesaleList(command) {
