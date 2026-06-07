@@ -5781,6 +5781,10 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         'operationrecorddelete': serverCommandOperationRecordDelete,
         'operationrecordlist': serverCommandOperationRecordList,
         'operationrecordupdate': serverCommandOperationRecordUpdate,
+        'wholesalecreate': serverCommandWholesaleCreate,
+        'wholesaledelete': serverCommandWholesaleDelete,
+        'wholesalelist': serverCommandWholesaleList,
+        'wholesaleupdate': serverCommandWholesaleUpdate,
         'shopcreate': serverCommandShopCreate,
         'shopdelete': serverCommandShopDelete,
         'shoplist': serverCommandShopList,
@@ -7707,6 +7711,107 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         db.DeleteFlowerOperationRecord(recordId, function (err, deletedId) {
             if (err != null) { obj.send({ action: 'operationrecorddelete', result: err.message ? err.message : '删除失败。' }); return; }
             obj.send({ action: 'operationrecorddelete', success: true, id: deletedId });
+        });
+    }
+
+    function getWholesaleRecordId(value) {
+        return getOperationRecordId(value);
+    }
+
+    function getWholesaleQuantityField(value) {
+        if (value == null || value === '') return null;
+        var num = Number(value);
+        if ((isFinite(num) !== true) || (num <= 0) || (num > 99999999)) return null;
+        return Math.round(num * 100) / 100;
+    }
+
+    function getWholesaleAmountField(value, allowZero) {
+        if (value == null || value === '') return allowZero === true ? 0 : null;
+        var num = Number(value);
+        if ((isFinite(num) !== true) || (num < 0) || (num > 99999999)) return null;
+        return Math.round(num * 100) / 100;
+    }
+
+    function getWholesaleDeliveryType(value) {
+        value = managerGetTextField(value || '', 16, false);
+        if (value == null) return null;
+        value = value.toLowerCase();
+        if (value === 'self' || value === 'rider') return value;
+        return null;
+    }
+
+    function getWholesaleSettledField(value) {
+        if (typeof value === 'boolean') return value;
+        if (typeof value === 'string') {
+            value = value.trim().toLowerCase();
+            if (value === 'true' || value === 'yes' || value === '1') return true;
+            if (value === 'false' || value === 'no' || value === '0') return false;
+        }
+        return null;
+    }
+
+    function getWholesalePayload(command) {
+        var businessDate = getOperationDateField(command.businessDate);
+        var shopName = managerGetTextField(command.shopName || '', 256, false);
+        var materialName = managerGetTextField(command.materialName || '', 256, false);
+        var quantity = getWholesaleQuantityField(command.quantity);
+        var unitPrice = getWholesaleAmountField(command.unitPrice, false);
+        var deliveryType = getWholesaleDeliveryType(command.deliveryType);
+        var deliveryFee = getWholesaleAmountField(command.deliveryFee, true);
+        var isSettled = getWholesaleSettledField(command.isSettled);
+        var totalPrice = getWholesaleAmountField(command.totalPrice, true);
+        if (businessDate == null) return { error: '日期格式无效，请使用 YYYY-MM-DD。' };
+        if ((shopName == null) || (shopName.length === 0)) return { error: '花店不能为空。' };
+        if ((materialName == null) || (materialName.length === 0)) return { error: '花材不能为空。' };
+        if (quantity == null) return { error: '数量必须大于 0。' };
+        if (unitPrice == null) return { error: '单价不能为空。' };
+        if (deliveryType == null) return { error: '配送方式无效。' };
+        if (deliveryFee == null) return { error: '配送费无效。' };
+        if (isSettled == null) return { error: '结算状态无效。' };
+        if (totalPrice == null) totalPrice = Math.round(quantity * unitPrice * 100) / 100;
+        return { businessDate: businessDate, shopName: shopName, materialName: materialName, quantity: quantity, unitPrice: unitPrice, totalPrice: totalPrice, deliveryType: deliveryType, deliveryFee: deliveryFee, isSettled: isSettled };
+    }
+
+    function serverCommandWholesaleList(command) {
+        var search = '', page = 1, limit = 12;
+        if (typeof command.search == 'string') {
+            search = command.search.trim();
+            if (search.length > 128) { obj.send({ action: 'wholesalelist', result: 'Invalid search.' }); return; }
+        }
+        if (common.validateInt(command.page, 1, 100000) == true) { page = command.page; }
+        if (common.validateInt(command.limit, 1, 60) == true) { limit = command.limit; }
+        db.GetFlowerWholesaleRecordList(search, page, limit, function (err, result) {
+            if (err != null) { obj.send({ action: 'wholesalelist', result: err.message ? err.message : 'Unable to load wholesale records.' }); return; }
+            obj.send({ action: 'wholesalelist', search: search, page: page, limit: limit, total: result.total, records: result.records || [] });
+        });
+    }
+
+    function serverCommandWholesaleCreate(command) {
+        var payload = getWholesalePayload(command);
+        if (payload.error != null) { obj.send({ action: 'wholesalecreate', result: payload.error }); return; }
+        db.CreateFlowerWholesaleRecord(payload, function (err, record) {
+            if (err != null) { obj.send({ action: 'wholesalecreate', result: err.message ? err.message : '新增失败。' }); return; }
+            obj.send({ action: 'wholesalecreate', success: true, record: record });
+        });
+    }
+
+    function serverCommandWholesaleUpdate(command) {
+        var recordId = getWholesaleRecordId(command.id);
+        if (recordId == null) { obj.send({ action: 'wholesaleupdate', result: '无效的记录编号。' }); return; }
+        var payload = getWholesalePayload(command);
+        if (payload.error != null) { obj.send({ action: 'wholesaleupdate', result: payload.error }); return; }
+        db.UpdateFlowerWholesaleRecord(recordId, payload, function (err, record) {
+            if (err != null) { obj.send({ action: 'wholesaleupdate', result: err.message ? err.message : '保存失败。' }); return; }
+            obj.send({ action: 'wholesaleupdate', success: true, record: record });
+        });
+    }
+
+    function serverCommandWholesaleDelete(command) {
+        var recordId = getWholesaleRecordId(command.id);
+        if (recordId == null) { obj.send({ action: 'wholesaledelete', result: '无效的记录编号。' }); return; }
+        db.DeleteFlowerWholesaleRecord(recordId, function (err, deletedId) {
+            if (err != null) { obj.send({ action: 'wholesaledelete', result: err.message ? err.message : '删除失败。' }); return; }
+            obj.send({ action: 'wholesaledelete', success: true, id: deletedId });
         });
     }
 

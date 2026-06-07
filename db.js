@@ -1500,6 +1500,7 @@ module.exports.CreateDB = function (parent, func) {
             'CREATE TABLE IF NOT EXISTS my_shops (id VARCHAR(64) PRIMARY KEY, name TEXT NOT NULL, scheme TEXT NOT NULL DEFAULT \'\', poi_id_str TEXT, source_page_url TEXT NOT NULL DEFAULT \'\', category TEXT NOT NULL DEFAULT \'\', distance_text TEXT NOT NULL DEFAULT \'\', distance_km DOUBLE PRECISION NOT NULL DEFAULT 0, rating_text TEXT NOT NULL DEFAULT \'\', monthly_sales_text TEXT NOT NULL DEFAULT \'\', min_price_tip TEXT NOT NULL DEFAULT \'\', delivery_fee_tip TEXT NOT NULL DEFAULT \'\', delivery_time_tip TEXT NOT NULL DEFAULT \'\', review_highlight TEXT NOT NULL DEFAULT \'\', promo_tags_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, platform_tags_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, phone TEXT NOT NULL DEFAULT \'\', address TEXT NOT NULL DEFAULT \'\', detail_fetched BOOLEAN NOT NULL DEFAULT FALSE, detail_fetched_at TIMESTAMP WITH TIME ZONE, created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(), updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(), detail_status TEXT NOT NULL DEFAULT \'manual\', detail_started_at TIMESTAMP WITH TIME ZONE, detail_last_attempt_at TIMESTAMP WITH TIME ZONE, detail_attempt_count INTEGER NOT NULL DEFAULT 0, detail_error_message TEXT NOT NULL DEFAULT \'\', is_deleted BOOLEAN NOT NULL DEFAULT FALSE, deleted_at TIMESTAMP WITH TIME ZONE)',
             'CREATE TABLE IF NOT EXISTS meituan_h5_products (id BIGINT PRIMARY KEY, name TEXT NOT NULL, price NUMERIC(10,2), original_price NUMERIC(10,2), description TEXT, inventory INTEGER, image_paths_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, image_urls_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, sku_json JSONB NOT NULL DEFAULT \'{}\'::jsonb, sku_list_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, category_path_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, store_category_path_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, required_attributes_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, entry_url TEXT, use_existing_options_only BOOLEAN DEFAULT FALSE, publish_history_json JSONB NOT NULL DEFAULT \'[]\'::jsonb, source_url TEXT, collect_task_id VARCHAR(64), collect_result_id VARCHAR(64), collect_source_key VARCHAR(256), source_type VARCHAR(32), created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(), updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(), is_deleted BOOLEAN NOT NULL DEFAULT FALSE, deleted_at TIMESTAMP WITH TIME ZONE)',
             'CREATE TABLE IF NOT EXISTS flower_operation_records (id BIGSERIAL PRIMARY KEY, business_date DATE NOT NULL, store_name TEXT NOT NULL, meituan_orders INTEGER NULL, meituan_amount NUMERIC(12,2) NULL, taobao_orders INTEGER NULL, taobao_amount NUMERIC(12,2) NULL, jd_orders INTEGER NULL, jd_amount NUMERIC(12,2) NULL, douyin_orders INTEGER NULL, douyin_amount NUMERIC(12,2) NULL, offline_orders INTEGER NULL, offline_amount NUMERIC(12,2) NULL, expense_category TEXT NOT NULL DEFAULT \'\', expense_amount NUMERIC(12,2) NULL, is_deleted BOOLEAN NOT NULL DEFAULT FALSE, deleted_at TIMESTAMP WITH TIME ZONE NULL, created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(), updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW())',
+            'CREATE TABLE IF NOT EXISTS flower_wholesale_records (id BIGSERIAL PRIMARY KEY, business_date DATE NOT NULL, shop_name TEXT NOT NULL, material_name TEXT NOT NULL, quantity NUMERIC(12,2) NOT NULL DEFAULT 0, unit_price NUMERIC(12,2) NOT NULL DEFAULT 0, total_price NUMERIC(12,2) NOT NULL DEFAULT 0, delivery_type TEXT NOT NULL DEFAULT \'self\', delivery_fee NUMERIC(12,2) NOT NULL DEFAULT 0, is_settled BOOLEAN NOT NULL DEFAULT FALSE, is_deleted BOOLEAN NOT NULL DEFAULT FALSE, deleted_at TIMESTAMP WITH TIME ZONE NULL, created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(), updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW())',
             'CREATE TABLE IF NOT EXISTS flower_ledger_records (id BIGSERIAL PRIMARY KEY, business_date DATE NOT NULL, shop_name TEXT NOT NULL, record_type TEXT NOT NULL, major_category TEXT NOT NULL DEFAULT \'\', minor_category TEXT NOT NULL DEFAULT \'\', amount NUMERIC(12,2) NOT NULL, payment_method TEXT NOT NULL DEFAULT \'\', handler_name TEXT NOT NULL DEFAULT \'\', reimbursement_status TEXT NOT NULL DEFAULT \'\', remark TEXT NOT NULL DEFAULT \'\', is_deleted BOOLEAN NOT NULL DEFAULT FALSE, deleted_at TIMESTAMP WITH TIME ZONE NULL, created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(), updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW())',
             'ALTER TABLE IF EXISTS collect_tasks ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN NOT NULL DEFAULT FALSE',
             'ALTER TABLE IF EXISTS collect_tasks ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP NULL',
@@ -1559,6 +1560,7 @@ module.exports.CreateDB = function (parent, func) {
             sqlDbExec('CREATE INDEX IF NOT EXISTS ndx_meituan_h5_products_name ON meituan_h5_products (name)', null, function (err, response) { });
             sqlDbExec('CREATE INDEX IF NOT EXISTS ndx_products_collect_source ON meituan_h5_products (collect_result_id, collect_source_key)', null, function (err, response) { });
             sqlDbExec('CREATE INDEX IF NOT EXISTS ndx_flower_operation_records_date_store ON flower_operation_records (business_date DESC, store_name)', null, function (err, response) { });
+            sqlDbExec('CREATE INDEX IF NOT EXISTS ndx_flower_wholesale_records_date_shop ON flower_wholesale_records (business_date DESC, shop_name)', null, function (err, response) { });
             sqlDbExec('CREATE INDEX IF NOT EXISTS ndx_flower_ledger_records_date_shop ON flower_ledger_records (business_date DESC, shop_name)', null, function (err, response) { });
 
 
@@ -3760,6 +3762,60 @@ module.exports.CreateDB = function (parent, func) {
             Datastore.query('UPDATE flower_operation_records SET is_deleted = TRUE, deleted_at = $2, updated_at = $2 WHERE id = $1 AND is_deleted = FALSE RETURNING id', [recordId, new Date()], function (err, results) {
                 if (err != null) { func(err); return; }
                 if ((results.rows == null) || (results.rows.length === 0)) { func(new Error('Operation record not found.')); return; }
+                func(null, results.rows[0].id);
+            });
+        };
+
+        obj.GetFlowerWholesaleRecordList = function (search, page, limit, func) {
+            if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Wholesale manager requires PostgreSQL.')); return; }
+            if (typeof search != 'string') { search = ''; }
+            if (typeof page != 'number' || page < 1) { page = 1; }
+            if (typeof limit != 'number' || limit < 1) { limit = 12; }
+            const args = [], where = ['is_deleted = FALSE'];
+            search = search.trim();
+            if (search !== '') {
+                args.push('%' + search + '%');
+                where.push('(shop_name ILIKE $' + args.length + ' OR material_name ILIKE $' + args.length + ')');
+            }
+            const whereSql = ' WHERE ' + where.join(' AND ');
+            Datastore.query('SELECT COUNT(*) AS count FROM flower_wholesale_records' + whereSql, args, function (err, countResults) {
+                if (err != null) { func(err); return; }
+                const total = parseInt(countResults.rows[0].count);
+                const listArgs = args.slice(0);
+                listArgs.push(limit);
+                listArgs.push((page - 1) * limit);
+                Datastore.query('SELECT id, business_date::text AS business_date, shop_name, material_name, quantity, unit_price, total_price, delivery_type, delivery_fee, is_settled, is_deleted, deleted_at, created_at, updated_at FROM flower_wholesale_records' + whereSql + ' ORDER BY business_date DESC, updated_at DESC, id DESC LIMIT $' + (args.length + 1) + ' OFFSET $' + (args.length + 2), listArgs, function (listErr, results) {
+                    if (listErr != null) { func(listErr); return; }
+                    func(null, { total: total, records: results.rows || [] });
+                });
+            });
+        };
+
+        obj.CreateFlowerWholesaleRecord = function (record, func) {
+            if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Wholesale manager requires PostgreSQL.')); return; }
+            const now = new Date();
+            const values = [record.businessDate, record.shopName, record.materialName, record.quantity, record.unitPrice, record.totalPrice, record.deliveryType, record.deliveryFee, record.isSettled, now, now];
+            Datastore.query('INSERT INTO flower_wholesale_records (business_date, shop_name, material_name, quantity, unit_price, total_price, delivery_type, delivery_fee, is_settled, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id, business_date::text AS business_date, shop_name, material_name, quantity, unit_price, total_price, delivery_type, delivery_fee, is_settled, is_deleted, deleted_at, created_at, updated_at', values, function (err, results) {
+                if (err != null) { func(err); return; }
+                func(null, results.rows[0]);
+            });
+        };
+
+        obj.UpdateFlowerWholesaleRecord = function (recordId, record, func) {
+            if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Wholesale manager requires PostgreSQL.')); return; }
+            const values = [recordId, record.businessDate, record.shopName, record.materialName, record.quantity, record.unitPrice, record.totalPrice, record.deliveryType, record.deliveryFee, record.isSettled, new Date()];
+            Datastore.query('UPDATE flower_wholesale_records SET business_date = $2, shop_name = $3, material_name = $4, quantity = $5, unit_price = $6, total_price = $7, delivery_type = $8, delivery_fee = $9, is_settled = $10, updated_at = $11 WHERE id = $1 AND is_deleted = FALSE RETURNING id, business_date::text AS business_date, shop_name, material_name, quantity, unit_price, total_price, delivery_type, delivery_fee, is_settled, is_deleted, deleted_at, created_at, updated_at', values, function (err, results) {
+                if (err != null) { func(err); return; }
+                if ((results.rows == null) || (results.rows.length === 0)) { func(new Error('Wholesale record not found.')); return; }
+                func(null, results.rows[0]);
+            });
+        };
+
+        obj.DeleteFlowerWholesaleRecord = function (recordId, func) {
+            if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Wholesale manager requires PostgreSQL.')); return; }
+            Datastore.query('UPDATE flower_wholesale_records SET is_deleted = TRUE, deleted_at = $2, updated_at = $2 WHERE id = $1 AND is_deleted = FALSE RETURNING id', [recordId, new Date()], function (err, results) {
+                if (err != null) { func(err); return; }
+                if ((results.rows == null) || (results.rows.length === 0)) { func(new Error('Wholesale record not found.')); return; }
                 func(null, results.rows[0].id);
             });
         };
