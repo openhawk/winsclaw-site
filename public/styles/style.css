@@ -4670,6 +4670,16 @@ a {
     letter-spacing: 0.01em;
 }
 
+.wholesale-form-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.8fr) minmax(140px, 0.8fr) minmax(140px, 0.8fr) minmax(160px, 0.9fr);
+    gap: 14px;
+}
+
+.wholesale-span-1 { grid-column: span 1; }
+.wholesale-span-2 { grid-column: span 2; }
+.wholesale-span-3 { grid-column: span 3; }
+
 #p102.flow-page-active .flow-page-shell,
 #p103.collect-page-active .collect-page-shell,
 #p107.collect-page-active .collect-page-shell {
@@ -5162,6 +5172,12 @@ a {
     .wholesale-summary {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
+    .wholesale-form-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .wholesale-span-1, .wholesale-span-2, .wholesale-span-3 {
+        grid-column: span 1;
+    }
 
     .flow-form-grid, .collect-form-grid, .ops-form-grid {
         grid-template-columns: 1fr;
@@ -5194,6 +5210,9 @@ a {
 
 @media (max-width: 560px) {
     .wholesale-summary {
+        grid-template-columns: 1fr;
+    }
+    .wholesale-form-grid {
         grid-template-columns: 1fr;
     }
 }

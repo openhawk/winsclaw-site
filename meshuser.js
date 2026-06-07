@@ -7756,20 +7756,26 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         var materialName = managerGetTextField(command.materialName || '', 256, false);
         var quantity = getWholesaleQuantityField(command.quantity);
         var unitPrice = getWholesaleAmountField(command.unitPrice, false);
+        var deliveryAddress = managerGetTextField(command.deliveryAddress || '', 512, true);
+        var contactPhone = managerGetTextField(command.contactPhone || '', 64, true);
         var deliveryType = getWholesaleDeliveryType(command.deliveryType);
         var deliveryFee = getWholesaleAmountField(command.deliveryFee, true);
         var isSettled = getWholesaleSettledField(command.isSettled);
         var totalPrice = getWholesaleAmountField(command.totalPrice, true);
+        var grandTotal = getWholesaleAmountField(command.grandTotal, true);
         if (businessDate == null) return { error: '日期格式无效，请使用 YYYY-MM-DD。' };
         if ((shopName == null) || (shopName.length === 0)) return { error: '花店不能为空。' };
         if ((materialName == null) || (materialName.length === 0)) return { error: '花材不能为空。' };
         if (quantity == null) return { error: '数量必须大于 0。' };
         if (unitPrice == null) return { error: '单价不能为空。' };
+        if (deliveryAddress == null) return { error: '配送地址格式无效。' };
+        if (contactPhone == null) return { error: '联系电话格式无效。' };
         if (deliveryType == null) return { error: '配送方式无效。' };
         if (deliveryFee == null) return { error: '配送费无效。' };
         if (isSettled == null) return { error: '结算状态无效。' };
         if (totalPrice == null) totalPrice = Math.round(quantity * unitPrice * 100) / 100;
-        return { businessDate: businessDate, shopName: shopName, materialName: materialName, quantity: quantity, unitPrice: unitPrice, totalPrice: totalPrice, deliveryType: deliveryType, deliveryFee: deliveryFee, isSettled: isSettled };
+        if (grandTotal == null) grandTotal = Math.round((totalPrice + deliveryFee) * 100) / 100;
+        return { businessDate: businessDate, shopName: shopName, materialName: materialName, quantity: quantity, unitPrice: unitPrice, totalPrice: totalPrice, grandTotal: grandTotal, deliveryAddress: deliveryAddress, contactPhone: contactPhone, deliveryType: deliveryType, deliveryFee: deliveryFee, isSettled: isSettled };
     }
 
     function serverCommandWholesaleList(command) {
