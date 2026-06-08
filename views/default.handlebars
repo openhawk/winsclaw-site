@@ -5078,11 +5078,12 @@
             if (results.length === 0) { x = '<div class="collect-history-empty">暂无采集结果。</div>'; } else {
                 for (var i = 0; i < results.length; i++) {
                     var data = managerParseJson(typeof results[i].data === 'string' ? results[i].data : JSON.stringify(results[i].data || []), []);
+                    var rawOutput = [results[i].stdout || '', results[i].stderr || ''].filter(function (value) { return String(value || '').trim() !== ''; }).join('\n');
                     x += '<div class="collect-history-item"><div class="collect-history-head"><div>' + managerRenderStatusBadge('collect', results[i].status || 'idle', results[i].sync_status || '') + '</div><strong>' + EscapeHtml(results[i].collected_at ? new Date(results[i].collected_at).toLocaleString() : '') + '</strong></div>';
                     x += '<div class="collect-history-meta"><span>数据条数</span><strong>' + EscapeHtml(String(results[i].data_count || 0)) + '</strong></div>';
                     x += '<div class="collect-history-meta"><span>退出码</span><strong>' + EscapeHtml(String(results[i].exit_code == null ? '' : results[i].exit_code)) + '</strong></div>';
                     x += '<div class="collect-history-meta"><span>同步错误</span><strong>' + EscapeHtml(results[i].sync_error || '无') + '</strong></div>';
-                    x += '<details class="collect-history-raw"><summary>查看原始输出</summary><pre>' + EscapeHtml(results[i].stdout || '') + '</pre></details>';
+                    x += '<details class="collect-history-raw"><summary>查看原始输出</summary><pre>' + EscapeHtml(rawOutput) + '</pre></details>';
                     x += '<details class="collect-history-raw"><summary>查看原始数据 JSON</summary><pre>' + EscapeHtml(JSON.stringify(data, null, 2)) + '</pre></details></div>';
                 }
             }
