@@ -7383,6 +7383,53 @@ module.exports.CreateWebServer = function (parent, db, args, certificates, doneF
             });
         }
 
+        function getNodeJobJsonField(value, fallback) {
+            if (value == null) return fallback;
+            if (typeof value == 'object') return value;
+            try { return JSON.parse(String(value)); } catch (ex) { return fallback; }
+        }
+
+        function makeNodeJobRerunKey(prefix) {
+            return prefix + ':' + Date.now().toString(36) + ':' + obj.crypto.randomBytes(5).toString('hex');
+        }
+
+        function handleNodeJobRerunRequest(req, res) {
+            var request = validateNodeJobRequest(req, res);
+            if (request == null) return;
+            if (obj.scheduledTaskManager == null) { res.status(503).json({ success: false, result: 'Node job manager is not running.' }); return; }
+            if ((obj.db == null) || (typeof obj.db.GetNodeJob != 'function')) { res.status(503).json({ success: false, result: 'Node job lookup is unavailable.' }); return; }
+            var jobId = String(request.body.jobId || request.body.job_id || '').trim();
+            if (jobId === '') { res.status(400).json({ success: false, result: 'jobId is required.' }); return; }
+            obj.db.GetNodeJob(jobId, function (err, job) {
+                if (err != null) { sendNodeJobError(res, err, 404); return; }
+                if ((String(job.target_node_id || '') !== request.nodeId) && (String(job.leased_by || '') !== request.nodeId)) {
+                    res.status(403).json({ success: false, result: 'Node job does not belong to this node.' });
+                    return;
+                }
+                var payload = getNodeJobJsonField(job.payload, {});
+                var config = getNodeJobJsonField(payload.config, {});
+                var meshCollect = getNodeJobJsonField(config._meshCollect, {});
+                var meshFlow = getNodeJobJsonField(config._meshFlow, {});
+                if (payload.kind === 'collect') {
+                    var taskId = String(meshCollect.taskId || payload.collectTaskId || payload.taskId || '').trim();
+                    if (taskId === '') { res.status(400).json({ success: false, result: 'Collect job does not contain a task id.' }); return; }
+                    obj.scheduledTaskManager.enqueueCollectTask(taskId, { idempotencyKey: makeNodeJobRerunKey('local-ui-rerun-collect') }).then(function (result) {
+                        res.json({ success: true, queued: true, kind: 'collect', taskId: taskId, resultId: result.collectResultId, nodeJobId: result.nodeJobId });
+                    }).catch(function (enqueueErr) { sendNodeJobError(res, enqueueErr); });
+                    return;
+                }
+                if (payload.kind === 'flow') {
+                    var flowId = String(meshFlow.flowId || payload.flowId || '').trim();
+                    if (flowId === '') { res.status(400).json({ success: false, result: 'Flow job does not contain a flow id.' }); return; }
+                    obj.scheduledTaskManager.enqueueFlow(flowId, { idempotencyKey: makeNodeJobRerunKey('local-ui-rerun-flow') }).then(function (result) {
+                        res.json({ success: true, queued: true, kind: 'flow', flowId: flowId, runId: result.flowRunId, nodeJobId: result.nodeJobId, runMode: result.background === true ? 'background' : 'foreground' });
+                    }).catch(function (enqueueErr) { sendNodeJobError(res, enqueueErr); });
+                    return;
+                }
+                res.status(400).json({ success: false, result: 'Only collect and flow node jobs can be rerun.' });
+            });
+        }
+
         obj.getNodeWorkerWarningStates = function () {
             var now = Date.now();
             var states = [];
@@ -7468,6 +7515,7 @@ module.exports.CreateWebServer = function (parent, db, args, certificates, doneF
                 obj.app.post(url + 'api/node-workers/heartbeat', obj.bodyParser.json({ limit: '2mb' }), handleNodeWorkerHeartbeatRequest);
                 obj.app.post(url + 'api/node-workers/recent-jobs', obj.bodyParser.json({ limit: '2mb' }), handleNodeWorkerRecentJobsRequest);
                 obj.app.post(url + 'api/node-jobs/poll', obj.bodyParser.json({ limit: '2mb' }), handleNodeJobPollRequest);
+                obj.app.post(url + 'api/node-jobs/rerun', obj.bodyParser.json({ limit: '2mb' }), handleNodeJobRerunRequest);
                 obj.app.post(url + 'api/node-jobs/:id/heartbeat', obj.bodyParser.json({ limit: '2mb' }), handleNodeJobHeartbeatRequest);
                 obj.app.post(url + 'api/node-jobs/:id/complete', obj.bodyParser.json({ limit: '10mb' }), handleNodeJobCompleteRequest);
                 obj.app.post(url + 'api/node-jobs/:id/fail', obj.bodyParser.json({ limit: '10mb' }), handleNodeJobFailRequest);

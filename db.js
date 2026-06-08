@@ -4478,6 +4478,16 @@ module.exports.CreateDB = function (parent, func) {
             );
         };
 
+        obj.GetNodeJob = function (jobId, func) {
+            if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Node job manager requires PostgreSQL.')); return; }
+            Datastore.query('SELECT * FROM node_jobs WHERE id = $1', [jobId], function (err, results) {
+                if (err != null) { func(err); return; }
+                const row = results.rows && results.rows[0];
+                if (!row) { func(new Error('Node job not found.')); return; }
+                func(null, row);
+            });
+        };
+
         obj.ClaimNodeJob = function (nodeId, leaseSeconds, func) {
             if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Node job manager requires PostgreSQL.')); return; }
             leaseSeconds = Math.max(60, Math.min(3600, Number(leaseSeconds || 600)));
