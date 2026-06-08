@@ -8028,6 +8028,9 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         if ((flowType === 'publish') && (scriptPath != null) && (scriptPath.replace(/\\/g, '/').toLowerCase().endsWith('/scripts/run-publish-product.ps1'))) {
             scriptPath = scriptPath.substring(0, scriptPath.length - 'scripts/run-publish-product.ps1'.length) + (scriptPath.indexOf('\\') >= 0 ? 'app\\cli.py' : 'app/cli.py');
         }
+        if ((flowType === 'pricing') && (scriptPath != null) && (scriptPath.replace(/\\/g, '/').toLowerCase().endsWith('/scripts/run-pricing.ps1'))) {
+            scriptPath = scriptPath.substring(0, scriptPath.length - 'scripts/run-pricing.ps1'.length) + (scriptPath.indexOf('\\') >= 0 ? 'app\\pricing.py' : 'app/pricing.py');
+        }
         if (name == null) return { error: '流程名称不能为空。' };
         if (deviceId == null) return { error: '目标设备不能为空。' };
         if (deviceOs == null) return { error: '目标设备系统无效。' };

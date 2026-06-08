@@ -3625,7 +3625,7 @@
         function managerDefaultFlowScriptPath(flowType, deviceOs) {
             var base = managerDefaultProjectRoot(deviceOs);
             if (deviceOs === 'windows') {
-                if (flowType === 'pricing') return base + '\\scripts\\run-pricing.ps1';
+                if (flowType === 'pricing') return base + '\\app\\pricing.py';
                 if (flowType === 'auto_reply') return base + '\\scripts\\run-resident-auto-reply.ps1';
                 return base + '\\scripts\\run-publish-product.ps1';
             }

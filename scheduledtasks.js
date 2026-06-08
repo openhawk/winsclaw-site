@@ -32,10 +32,12 @@ module.exports.CreateScheduledTaskManager = function (parent, db) {
     function normalizeFlowScriptPath(flow, scriptPath) {
         const flowType = flow.flow_type || flow.flowType;
         let value = text(scriptPath, 2048);
-        if (flowType !== 'publish') return value;
         const normalized = value.replace(/\\/g, '/').toLowerCase();
-        if (normalized.endsWith('/scripts/run-publish-product.ps1')) {
+        if (flowType === 'publish' && normalized.endsWith('/scripts/run-publish-product.ps1')) {
             return value.substring(0, value.length - 'scripts/run-publish-product.ps1'.length) + (value.indexOf('\\') >= 0 ? 'app\\cli.py' : 'app/cli.py');
+        }
+        if (flowType === 'pricing' && normalized.endsWith('/scripts/run-pricing.ps1')) {
+            return value.substring(0, value.length - 'scripts/run-pricing.ps1'.length) + (value.indexOf('\\') >= 0 ? 'app\\pricing.py' : 'app/pricing.py');
         }
         return value;
     }
