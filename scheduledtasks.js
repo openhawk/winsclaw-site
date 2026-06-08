@@ -29,6 +29,16 @@ module.exports.CreateScheduledTaskManager = function (parent, db) {
         value = String(value).trim();
         return value.length > maxLen ? value.substring(0, maxLen) : value;
     }
+    function normalizeFlowScriptPath(flow, scriptPath) {
+        const flowType = flow.flow_type || flow.flowType;
+        let value = text(scriptPath, 2048);
+        if (flowType !== 'publish') return value;
+        const normalized = value.replace(/\\/g, '/').toLowerCase();
+        if (normalized.endsWith('/scripts/run-publish-product.ps1')) {
+            return value.substring(0, value.length - 'scripts/run-publish-product.ps1'.length) + (value.indexOf('\\') >= 0 ? 'app\\cli.py' : 'app/cli.py');
+        }
+        return value;
+    }
     function arrayField(value) {
         if (Array.isArray(value)) return value;
         if (typeof value === 'string') { try { const parsed = JSON.parse(value); return Array.isArray(parsed) ? parsed : []; } catch (ex) { return []; } }
@@ -222,8 +232,9 @@ module.exports.CreateScheduledTaskManager = function (parent, db) {
         if ((flow.last_run_status || flow.lastRunStatus) === 'running' || flow.active_run_id || flow.running_run_id) throw new Error('流程正在执行中，请先停止后再执行。');
         const runId = makeId('flowrun');
         const prepared = await prepareFlow(flow);
-        const runRow = await dbPromise('StartFlowRun', flow, { id: runId, collectBindings: prepared.bindings, scriptPath: flow.script_path || flow.scriptPath, arguments: [], resultSummary: '节点任务等待领取。' });
         const flowType = flow.flow_type || flow.flowType;
+        const scriptPath = normalizeFlowScriptPath(flow, flow.script_path || flow.scriptPath);
+        const runRow = await dbPromise('StartFlowRun', flow, { id: runId, collectBindings: prepared.bindings, scriptPath: scriptPath, arguments: [], resultSummary: '节点任务等待领取。' });
         const nodeJob = await dbPromise('CreateNodeJob', {
             jobType: flowType === 'publish' ? 'publish_flow' : (flowType === 'pricing' ? 'pricing_flow' : flowType),
             targetNodeId: flow.device_id || flow.deviceId,
@@ -236,7 +247,7 @@ module.exports.CreateScheduledTaskManager = function (parent, db) {
                 taskName: flow.name || '',
                 taskTime: new Date().toISOString(),
                 recordId: runRow.id,
-                scriptPath: flow.script_path || flow.scriptPath,
+                scriptPath: scriptPath,
                 deviceOs: flow.device_os || flow.deviceOs,
                 config: prepared.config,
                 collectBindings: prepared.bindings || null,
