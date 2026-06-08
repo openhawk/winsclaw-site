@@ -39,6 +39,16 @@ module.exports.CreateScheduledTaskManager = function (parent, db) {
         }
         return value;
     }
+    function normalizeCollectScriptPath(task, scriptPath) {
+        const collectType = task.collect_type || task.collectType;
+        let value = text(scriptPath, 2048);
+        if (collectType !== 'collect_shop') return value;
+        const normalized = value.replace(/\\/g, '/').toLowerCase();
+        if (normalized.endsWith('/scripts/run-collect-shop.ps1')) {
+            return value.substring(0, value.length - 'scripts/run-collect-shop.ps1'.length) + (value.indexOf('\\') >= 0 ? 'app\\collect_shop.py' : 'app/collect_shop.py');
+        }
+        return value;
+    }
     function arrayField(value) {
         if (Array.isArray(value)) return value;
         if (typeof value === 'string') { try { const parsed = JSON.parse(value); return Array.isArray(parsed) ? parsed : []; } catch (ex) { return []; } }
@@ -204,6 +214,7 @@ module.exports.CreateScheduledTaskManager = function (parent, db) {
         const collectType = task.collect_type || task.collectType;
         const config = jsonField(task.config, {});
         config._meshCollect = { taskId: task.id, collectType: collectType, requestedAt: new Date().toISOString() };
+        const scriptPath = normalizeCollectScriptPath(task, task.script_path || task.scriptPath);
         const runRow = await dbPromise('StartCollectRun', task, 'node_job_pending');
         const nodeJob = await dbPromise('CreateNodeJob', {
             jobType: collectType,
@@ -217,7 +228,7 @@ module.exports.CreateScheduledTaskManager = function (parent, db) {
                 taskName: task.name || '',
                 taskTime: new Date().toISOString(),
                 recordId: runRow.id,
-                scriptPath: task.script_path || task.scriptPath,
+                scriptPath: scriptPath,
                 deviceOs: task.device_os || task.deviceOs,
                 config: config,
                 scheduledRunId: context.scheduledRunId || null,

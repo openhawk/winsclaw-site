@@ -1733,7 +1733,7 @@
                                 <label class="collect-field"><span>采集类型 <b>*</b></span><select id="collectFormType" onchange="collectHandleTypeChange()"><option value="collect_shop">collect_shop</option></select></label>
                                 <label class="collect-field"><span>目标设备 <b>*</b></span><select id="collectFormDeviceId" onchange="collectHandleDeviceChange()"></select></label>
                                 <label class="collect-field"><span>目标系统 <b>*</b></span><select id="collectFormDeviceOs"><option value="macos">macOS</option><option value="windows">Windows</option></select></label>
-                                <label class="collect-field collect-field-full"><span>脚本路径 <b>*</b></span><input id="collectFormScriptPath" type="text" maxlength="2048" placeholder="例如：D:\winsclaw-work\aibot\scripts\run-collect-shop.ps1" /></label>
+                                <label class="collect-field collect-field-full"><span>脚本路径 <b>*</b></span><input id="collectFormScriptPath" type="text" maxlength="2048" placeholder="例如：D:\winsclaw-work\aibot\app\collect_shop.py" /></label>
                                 <input id="collectFormConfig" type="hidden" />
                                 <div class="collect-field collect-field-full manager-fieldset">
                                     <div class="manager-fieldset-title">基础配置</div>
@@ -3619,7 +3619,7 @@
         function managerDefaultProjectRoot(deviceOs) { return (deviceOs === 'windows') ? 'D:\\winsclaw-work\\aibot' : '/Users/<user>/Documents/ai-bot'; }
         function managerDefaultCollectScriptPath(collectType, deviceOs) {
             var base = managerDefaultProjectRoot(deviceOs);
-            if (deviceOs === 'windows') return base + '\\scripts\\' + (collectType === 'collect_price' ? 'run-collect-price.ps1' : 'run-collect-shop.ps1');
+            if (deviceOs === 'windows') return collectType === 'collect_shop' ? base + '\\app\\collect_shop.py' : base + '\\scripts\\run-collect-price.ps1';
             return base + '/scripts-mac/' + (collectType === 'collect_price' ? 'run-collect-price.sh' : 'run-collect-shop.sh');
         }
         function managerDefaultFlowScriptPath(flowType, deviceOs) {
