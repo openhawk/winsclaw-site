@@ -29,9 +29,25 @@ module.exports.CreateScheduledTaskManager = function (parent, db) {
         value = String(value).trim();
         return value.length > maxLen ? value.substring(0, maxLen) : value;
     }
+    function defaultProjectRoot(deviceOs) {
+        return deviceOs === 'windows' ? 'D:\\winsclaw-work\\aibot' : '/Users/<user>/Documents/ai-bot';
+    }
+    function defaultFlowScriptPath(flowType, deviceOs) {
+        const base = defaultProjectRoot(deviceOs);
+        if (deviceOs === 'windows') {
+            if (flowType === 'pricing') return base + '\\app\\pricing.py';
+            if (flowType === 'auto_reply') return base + '\\scripts\\run-resident-auto-reply.ps1';
+            return base + '\\app\\cli.py';
+        }
+        if (flowType === 'pricing') return base + '/app/pricing.py';
+        if (flowType === 'auto_reply') return base + '/scripts-mac/run-resident-auto-reply.sh';
+        return base + '/app/cli.py';
+    }
     function normalizeFlowScriptPath(flow, scriptPath) {
         const flowType = flow.flow_type || flow.flowType;
+        const deviceOs = flow.device_os || flow.deviceOs || 'windows';
         let value = text(scriptPath, 2048);
+        if (value === '') return defaultFlowScriptPath(flowType, deviceOs);
         const normalized = value.replace(/\\/g, '/').toLowerCase();
         if (flowType === 'publish' && normalized.endsWith('/scripts/run-publish-product.ps1')) {
             return value.substring(0, value.length - 'scripts/run-publish-product.ps1'.length) + (value.indexOf('\\') >= 0 ? 'app\\cli.py' : 'app/cli.py');

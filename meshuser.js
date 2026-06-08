@@ -7896,6 +7896,22 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         return null;
     }
 
+    function managerDefaultProjectRoot(deviceOs) {
+        return (deviceOs === 'windows') ? 'D:\\winsclaw-work\\aibot' : '/Users/<user>/Documents/ai-bot';
+    }
+
+    function managerDefaultFlowScriptPath(flowType, deviceOs) {
+        var base = managerDefaultProjectRoot(deviceOs);
+        if (deviceOs === 'windows') {
+            if (flowType === 'pricing') return base + '\\app\\pricing.py';
+            if (flowType === 'auto_reply') return base + '\\scripts\\run-resident-auto-reply.ps1';
+            return base + '\\app\\cli.py';
+        }
+        if (flowType === 'pricing') return base + '/app/pricing.py';
+        if (flowType === 'auto_reply') return base + '/scripts-mac/run-resident-auto-reply.sh';
+        return base + '/app/cli.py';
+    }
+
     function managerDbPromise(fnName) {
         var args = Array.prototype.slice.call(arguments, 1);
         return new Promise(function (resolve, reject) {
@@ -8021,10 +8037,12 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         var shopCategory = managerGetTextField(command.shopCategory || '', 256, true) || '';
         var productName = managerGetTextField(command.productName || '', 512, true) || '';
         var myProductName = managerGetTextField(command.myProductName || '', 512, true) || '';
-        var scriptPath = managerGetTextField(command.scriptPath || '', 2048, false);
+        var scriptPath = managerGetTextField(command.scriptPath || '', 2048, true) || '';
         var config = managerGetJsonField(command.config || '{}', {});
         var remark = managerGetTextField(command.remark || '', 4096, true) || '';
         if ((flowType !== 'publish') && (flowType !== 'pricing') && (flowType !== 'auto_reply')) return { error: '无效的流程类型。' };
+        if (deviceOs == null) return { error: '目标设备系统无效。' };
+        if (scriptPath === '') scriptPath = managerDefaultFlowScriptPath(flowType, deviceOs);
         if ((flowType === 'publish') && (scriptPath != null) && (scriptPath.replace(/\\/g, '/').toLowerCase().endsWith('/scripts/run-publish-product.ps1'))) {
             scriptPath = scriptPath.substring(0, scriptPath.length - 'scripts/run-publish-product.ps1'.length) + (scriptPath.indexOf('\\') >= 0 ? 'app\\cli.py' : 'app/cli.py');
         }
@@ -8033,8 +8051,6 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         }
         if (name == null) return { error: '流程名称不能为空。' };
         if (deviceId == null) return { error: '目标设备不能为空。' };
-        if (deviceOs == null) return { error: '目标设备系统无效。' };
-        if (scriptPath == null || scriptPath === '') return { error: '脚本路径不能为空。' };
         if (config == null || typeof config !== 'object') return { error: '流程配置 JSON 无效。' };
         if (((flowType === 'publish') || (flowType === 'pricing')) && (productName === '')) return { error: '商品名称不能为空。' };
         return { name: name, flowType: flowType, deviceId: deviceId, deviceOs: deviceOs, myShopId: myShopId, shopCategory: shopCategory, productName: productName, myProductName: myProductName, scriptPath: scriptPath, config: config, remark: remark };
