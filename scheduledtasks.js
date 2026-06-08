@@ -204,6 +204,8 @@ module.exports.CreateScheduledTaskManager = function (parent, db) {
             payload: {
                 kind: 'collect',
                 collectType: collectType,
+                taskName: task.name || '',
+                taskTime: new Date().toISOString(),
                 recordId: runRow.id,
                 scriptPath: task.script_path || task.scriptPath,
                 deviceOs: task.device_os || task.deviceOs,
@@ -231,6 +233,8 @@ module.exports.CreateScheduledTaskManager = function (parent, db) {
             payload: {
                 kind: 'flow',
                 flowType: flowType,
+                taskName: flow.name || '',
+                taskTime: new Date().toISOString(),
                 recordId: runRow.id,
                 scriptPath: flow.script_path || flow.scriptPath,
                 deviceOs: flow.device_os || flow.deviceOs,
@@ -260,6 +264,8 @@ module.exports.CreateScheduledTaskManager = function (parent, db) {
             payload: {
                 kind: 'flow_stop',
                 flowType: flowType,
+                taskName: (flow.name || '') + ' 停止',
+                taskTime: new Date().toISOString(),
                 flowId: flow.id,
                 runId: run.id,
                 recordId: run.id,

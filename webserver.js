@@ -7379,7 +7379,7 @@ module.exports.CreateWebServer = function (parent, db, args, certificates, doneF
             if (obj.scheduledTaskManager == null) { res.status(503).json({ success: false, result: 'Node job manager is not running.' }); return; }
             obj.scheduledTaskManager.claimNodeJob(request.nodeId, request.body.leaseSeconds || request.body.lease_seconds || 600).then(function (job) {
                 if (job == null) { res.json({ success: true, job: null }); return; }
-                res.json({ success: true, job: { id: job.id, jobType: job.job_type, status: job.status, leaseToken: job.lease_token, leaseUntil: job.lease_until, attemptCount: job.attempt_count, payload: job.payload } });
+                res.json({ success: true, job: { id: job.id, jobType: job.job_type, status: job.status, leaseToken: job.lease_token, leaseUntil: job.lease_until, createdAt: job.created_at, startedAt: job.started_at, attemptCount: job.attempt_count, payload: job.payload } });
             }).catch(function (err) { sendNodeJobError(res, err); });
         }
 
