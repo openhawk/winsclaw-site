@@ -4514,6 +4514,21 @@ module.exports.CreateDB = function (parent, func) {
             });
         };
 
+        obj.GetRecentNodeJobs = function (nodeId, limit, func) {
+            if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Node job manager requires PostgreSQL.')); return; }
+            limit = Math.max(1, Math.min(20, Number(limit || 5)));
+            Datastore.query(
+                'SELECT id, job_type, target_node_id, status, payload, leased_by, heartbeat_at, created_at, started_at, finished_at, exit_code, result_json, related_type, related_id ' +
+                'FROM node_jobs WHERE target_node_id = $1 OR leased_by = $1 ' +
+                'ORDER BY COALESCE(finished_at, heartbeat_at, started_at, created_at) DESC, created_at DESC LIMIT $2',
+                [nodeId, limit],
+                function (err, results) {
+                    if (err != null) { func(err); return; }
+                    func(null, results.rows || []);
+                }
+            );
+        };
+
         obj.FailExpiredNodeJobs = function (func) {
             if (obj.databaseType != DB_POSTGRESQL) { if (func) func(new Error('Node job manager requires PostgreSQL.')); return; }
             (async function () {

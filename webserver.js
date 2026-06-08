@@ -7349,6 +7349,40 @@ module.exports.CreateWebServer = function (parent, db, args, certificates, doneF
             });
         }
 
+        function handleNodeWorkerRecentJobsRequest(req, res) {
+            var request = validateNodeJobRequest(req, res);
+            if (request == null) return;
+            if ((obj.db == null) || (typeof obj.db.GetRecentNodeJobs != 'function')) {
+                res.status(503).json({ success: false, result: 'Node job manager is not running.' });
+                return;
+            }
+            var limit = Math.max(1, Math.min(20, Number(request.body.limit || 5)));
+            obj.db.GetRecentNodeJobs(request.nodeId, limit, function (err, jobs) {
+                if (err != null) { sendNodeJobError(res, err, 500); return; }
+                res.json({
+                    success: true,
+                    jobs: (jobs || []).map(function (job) {
+                        return {
+                            id: job.id,
+                            jobType: job.job_type,
+                            targetNodeId: job.target_node_id,
+                            status: job.status,
+                            payload: job.payload,
+                            leasedBy: job.leased_by,
+                            heartbeatAt: job.heartbeat_at,
+                            createdAt: job.created_at,
+                            startedAt: job.started_at,
+                            finishedAt: job.finished_at,
+                            exitCode: job.exit_code,
+                            resultJson: job.result_json,
+                            relatedType: job.related_type,
+                            relatedId: job.related_id
+                        };
+                    })
+                });
+            });
+        }
+
         obj.getNodeWorkerWarningStates = function () {
             var now = Date.now();
             var states = [];
@@ -7432,6 +7466,7 @@ module.exports.CreateWebServer = function (parent, db, args, certificates, doneF
                 obj.app.get(url + 'api/node-workers/status', handleNodeWorkerStatusRequest);
                 obj.app.post(url + 'api/node-workers/resolve', obj.bodyParser.json({ limit: '2mb' }), handleNodeWorkerResolveRequest);
                 obj.app.post(url + 'api/node-workers/heartbeat', obj.bodyParser.json({ limit: '2mb' }), handleNodeWorkerHeartbeatRequest);
+                obj.app.post(url + 'api/node-workers/recent-jobs', obj.bodyParser.json({ limit: '2mb' }), handleNodeWorkerRecentJobsRequest);
                 obj.app.post(url + 'api/node-jobs/poll', obj.bodyParser.json({ limit: '2mb' }), handleNodeJobPollRequest);
                 obj.app.post(url + 'api/node-jobs/:id/heartbeat', obj.bodyParser.json({ limit: '2mb' }), handleNodeJobHeartbeatRequest);
                 obj.app.post(url + 'api/node-jobs/:id/complete', obj.bodyParser.json({ limit: '10mb' }), handleNodeJobCompleteRequest);
