@@ -7987,17 +7987,13 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         var name = managerGetTextField(command.name || '', 256, false);
         var deviceId = managerGetTextField(command.deviceId || '', 256, false);
         var deviceOs = managerNormalizeDeviceOs(command.deviceOs);
-        var scriptPath = managerGetTextField(command.scriptPath || '', 2048, false);
+        var scriptPath = '';
         var config = managerGetJsonField(command.config || '{}', {});
         var remark = managerGetTextField(command.remark || '', 4096, true) || '';
         if ((collectType !== 'collect_shop') && (collectType !== 'collect_price')) return { error: '无效的采集类型。' };
-        if ((collectType === 'collect_shop') && (scriptPath != null) && (scriptPath.replace(/\\/g, '/').toLowerCase().endsWith('/scripts/run-collect-shop.ps1'))) {
-            scriptPath = scriptPath.substring(0, scriptPath.length - 'scripts/run-collect-shop.ps1'.length) + (scriptPath.indexOf('\\') >= 0 ? 'app\\collect_shop.py' : 'app/collect_shop.py');
-        }
         if (name == null) return { error: '任务名称不能为空。' };
         if (deviceId == null) return { error: '目标设备不能为空。' };
         if (deviceOs == null) return { error: '目标设备系统无效。' };
-        if (scriptPath == null || scriptPath === '') return { error: '脚本路径不能为空。' };
         if (config == null || typeof config !== 'object') return { error: '采集配置 JSON 无效。' };
         config = managerNormalizeCollectConfig(collectType, config);
         if (config == null) return { error: '采集配置 JSON 无效。' };

@@ -1721,7 +1721,7 @@
                         <div class="collect-modal-header">
                             <div>
                                 <div id="collectModalTitle" class="collect-modal-title">新增采集任务</div>
-                                <div class="collect-modal-subtitle">配置目标设备、脚本路径和采集字段。</div>
+                                <div class="collect-modal-subtitle">配置目标设备和采集字段。</div>
                             </div>
                             <button type="button" class="collect-modal-close" onclick="collectCloseEditor()">×</button>
                         </div>
@@ -1732,7 +1732,6 @@
                                 <label class="collect-field"><span>采集类型 <b>*</b></span><select id="collectFormType" onchange="collectHandleTypeChange()"><option value="collect_shop">collect_shop</option></select></label>
                                 <label class="collect-field"><span>目标设备 <b>*</b></span><select id="collectFormDeviceId" onchange="collectHandleDeviceChange()"></select></label>
                                 <label class="collect-field"><span>目标系统 <b>*</b></span><select id="collectFormDeviceOs"><option value="macos">macOS</option><option value="windows">Windows</option></select></label>
-                                <label class="collect-field collect-field-full"><span>脚本路径 <b>*</b></span><input id="collectFormScriptPath" type="text" maxlength="2048" placeholder="例如：D:\winsclaw-work\aibot\app\collect_shop.py" /></label>
                                 <input id="collectFormConfig" type="hidden" />
                                 <div class="collect-field collect-field-full manager-fieldset">
                                     <div class="manager-fieldset-title">基础配置</div>
@@ -3616,11 +3615,6 @@
             return r;
         }
         function managerDefaultProjectRoot(deviceOs) { return (deviceOs === 'windows') ? 'D:\\winsclaw-work\\aibot' : '/Users/<user>/Documents/ai-bot'; }
-        function managerDefaultCollectScriptPath(collectType, deviceOs) {
-            var base = managerDefaultProjectRoot(deviceOs);
-            if (deviceOs === 'windows') return collectType === 'collect_shop' ? base + '\\app\\collect_shop.py' : base + '\\scripts\\run-collect-price.ps1';
-            return base + '/scripts-mac/' + (collectType === 'collect_price' ? 'run-collect-price.sh' : 'run-collect-shop.sh');
-        }
         function managerDefaultCollectConfig(collectType) {
             if (collectType === 'collect_price') return { city: '苏州市', myLocationAddress: '合景·峰汇国际三期', priceTasks: [] };
             return { city: '苏州市', myLocationAddress: '合景·峰汇国际三期', targetShops: [] };
@@ -4116,7 +4110,6 @@
                 x += '<div class="collect-card-body">';
                 x += '<div class="collect-card-head"><div><h3>' + EscapeHtml(task.name || '') + '</h3><div class="collect-card-category">' + EscapeHtml(collectType || '') + ' · ' + EscapeHtml(managerGetNodeLabel(task.device_id || task.deviceId)) + '</div></div><div class="collect-card-badges">' + managerRenderStatusBadge('collect', task.last_run_status || task.lastRunStatus || 'idle', task.last_sync_status || task.lastSyncStatus || '') + '</div></div>';
                 x += '<div class="collect-card-meta"><span>系统</span><strong>' + EscapeHtml(deviceOs || '未知') + '</strong></div>';
-                x += '<div class="collect-card-meta"><span>脚本路径</span><strong>' + EscapeHtml(managerCurrentScriptPath(task.script_path || task.scriptPath)) + '</strong></div>';
                 x += '<div class="collect-card-meta"><span>上次采集</span><strong>' + EscapeHtml(task.last_run_at ? new Date(task.last_run_at).toLocaleString() : '从未执行') + '</strong></div>';
                 x += '<div class="collect-card-meta"><span>数据条数</span><strong>' + EscapeHtml(String(task.last_data_count || task.lastDataCount || 0)) + '</strong></div>';
                 x += '<div class="collect-card-footer"><div class="collect-card-hints"><span>' + EscapeHtml(task.collect_type || task.collectType || '') + '</span></div><div class="collect-card-actions">';
@@ -4143,7 +4136,6 @@
             QV('collectShopFields', collectType === 'collect_shop');
             QV('collectPriceFields', collectType === 'collect_price');
         }
-        function collectGetScriptPathValue() { return Q('collectFormScriptPath').value.trim(); }
         function collectAddTargetShopRow(shop) {
             shop = (typeof shop === 'string') ? { shopName: shop } : (shop || {});
             var id = 'collectShopRow_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
@@ -4227,13 +4219,11 @@
         function collectHandleTypeChange() {
             var collectType = Q('collectFormType').value;
             collectSetSectionVisibility(collectType);
-            if (Q('collectFormId').value === '') Q('collectFormScriptPath').value = managerDefaultCollectScriptPath(collectType, Q('collectFormDeviceOs').value);
             collectLoadConfigToFields(managerParseJson(Q('collectFormConfig').value || '{}', managerDefaultCollectConfig(collectType)), collectType);
         }
         function collectHandleDeviceChange() {
             var deviceId = Q('collectFormDeviceId').value, node = getNodeFromId(deviceId), os = managerInferDeviceOs(node);
             if (os) Q('collectFormDeviceOs').value = os;
-            if (Q('collectFormScriptPath').value.trim() === '') Q('collectFormScriptPath').value = managerDefaultCollectScriptPath(Q('collectFormType').value, os);
         }
         function collectOpenEditorById(id) { for (var i = 0; i < collectState.items.length; i++) { if (String(collectState.items[i].id) === String(id)) { collectOpenEditor(collectState.items[i]); return; } } }
         function collectOpenEditor(task) {
@@ -4242,7 +4232,6 @@
             Q('collectFormName').value = task ? (task.name || '') : '';
             Q('collectFormType').value = 'collect_shop';
             Q('collectFormDeviceOs').value = task ? (task.device_os || task.deviceOs || 'windows') : 'windows';
-            Q('collectFormScriptPath').value = task ? (task.script_path || task.scriptPath || '') : managerDefaultCollectScriptPath(Q('collectFormType').value, Q('collectFormDeviceOs').value);
             Q('collectFormConfig').value = managerPrettyJson(managerParseJson(typeof (task ? task.config : null) === 'string' ? task.config : JSON.stringify((task ? task.config : managerDefaultCollectConfig(Q('collectFormType').value))), managerDefaultCollectConfig(Q('collectFormType').value)));
             Q('collectFormRemark').value = task ? (task.remark || '') : '';
             QH('collectModalTitle', task ? '编辑采集任务' : '新增采集任务');
@@ -4254,11 +4243,10 @@
             var collectType = Q('collectFormType').value;
             var config = collectBuildConfigFromFields(collectType);
             Q('collectFormConfig').value = managerPrettyJson(config);
-            var payload = { id: Q('collectFormId').value, name: Q('collectFormName').value.trim(), collectType: collectType, deviceId: Q('collectFormDeviceId').value, deviceOs: Q('collectFormDeviceOs').value, scriptPath: collectGetScriptPathValue(), config: Q('collectFormConfig').value.trim(), remark: Q('collectFormRemark').value.trim() };
+            var payload = { id: Q('collectFormId').value, name: Q('collectFormName').value.trim(), collectType: collectType, deviceId: Q('collectFormDeviceId').value, deviceOs: Q('collectFormDeviceOs').value, config: Q('collectFormConfig').value.trim(), remark: Q('collectFormRemark').value.trim() };
             if (payload.name === '') { collectShowToast('任务名称不能为空。', true); return; }
             if (payload.deviceId === '') { collectShowToast('目标设备不能为空。', true); return; }
-            if (payload.scriptPath === '') { collectShowToast('脚本路径不能为空。', true); return; }
-            collectSetSubmitBusy(true); collectState.pendingAction = payload.id !== '' ? 'collectupdate' : 'collectcreate'; meshserver.send({ action: collectState.pendingAction, id: payload.id, name: payload.name, collectType: payload.collectType, deviceId: payload.deviceId, deviceOs: payload.deviceOs, scriptPath: payload.scriptPath, config: payload.config, remark: payload.remark });
+            collectSetSubmitBusy(true); collectState.pendingAction = payload.id !== '' ? 'collectupdate' : 'collectcreate'; meshserver.send({ action: collectState.pendingAction, id: payload.id, name: payload.name, collectType: payload.collectType, deviceId: payload.deviceId, deviceOs: payload.deviceOs, config: payload.config, remark: payload.remark });
         }
         function collectConfirmDelete(id) {
             setDialogMode(2, '删除采集任务', 3, function (button, tag) {

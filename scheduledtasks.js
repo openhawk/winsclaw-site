@@ -58,14 +58,7 @@ module.exports.CreateScheduledTaskManager = function (parent, db) {
         return value;
     }
     function normalizeCollectScriptPath(task, scriptPath) {
-        const collectType = task.collect_type || task.collectType;
-        let value = text(scriptPath, 2048);
-        if (collectType !== 'collect_shop') return value;
-        const normalized = value.replace(/\\/g, '/').toLowerCase();
-        if (normalized.endsWith('/scripts/run-collect-shop.ps1')) {
-            return value.substring(0, value.length - 'scripts/run-collect-shop.ps1'.length) + (value.indexOf('\\') >= 0 ? 'app\\collect_shop.py' : 'app/collect_shop.py');
-        }
-        return value;
+        return '';
     }
     function arrayField(value) {
         if (Array.isArray(value)) return value;
