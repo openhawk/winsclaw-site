@@ -7239,6 +7239,27 @@ module.exports.CreateWebServer = function (parent, db, args, certificates, doneF
             return false;
         }
 
+        function getNodeJobTokenFingerprint(token) {
+            token = String(token || '').trim();
+            if (token === '') return '';
+            return obj.crypto.createHash('sha256').update(token).digest('hex').substring(0, 12);
+        }
+
+        function getNodeJobRequestIp(req) {
+            var forwarded = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+            return forwarded || req.ip || (req.connection ? req.connection.remoteAddress : '') || '';
+        }
+
+        function logInvalidNodeJobToken(req, nodeId, reason) {
+            console.log('NODE_JOB_AUTH_FAIL ' + JSON.stringify({
+                nodeIdSuffix: String(nodeId || '').split('/').pop(),
+                path: req.originalUrl || req.url || '',
+                ip: getNodeJobRequestIp(req),
+                tokenHash: getNodeJobTokenFingerprint(getNodeJobRequestToken(req)),
+                reason: reason
+            }));
+        }
+
         function validateNodeJobRequest(req, res) {
             var body = req.body || {};
             var nodeId = String(body.nodeId || body.node_id || '').trim();
@@ -7246,8 +7267,9 @@ module.exports.CreateWebServer = function (parent, db, args, certificates, doneF
             var requestToken = getNodeJobRequestToken(req);
             var configuredToken = getConfiguredNodeJobToken(nodeId);
             if (configuredToken !== '') {
-                if (requestToken !== configuredToken) { res.status(403).json({ success: false, result: 'Invalid node token.' }); return null; }
+                if (requestToken !== configuredToken) { logInvalidNodeJobToken(req, nodeId, 'token-node-mismatch'); res.status(403).json({ success: false, result: 'Invalid node token.' }); return null; }
             } else if (isConfiguredNodeJobToken(requestToken) !== true) {
+                logInvalidNodeJobToken(req, nodeId, 'unknown-token');
                 res.status(403).json({ success: false, result: 'Invalid node token.' }); return null;
             }
             return { nodeId: nodeId, body: body };
