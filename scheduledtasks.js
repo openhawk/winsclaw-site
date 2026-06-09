@@ -255,7 +255,7 @@ module.exports.CreateScheduledTaskManager = function (parent, db) {
         const runId = makeId('flowrun');
         const prepared = await prepareFlow(flow);
         const flowType = flow.flow_type || flow.flowType;
-        const scriptPath = normalizeFlowScriptPath(flow, flow.script_path || flow.scriptPath);
+        const scriptPath = '';
         const runRow = await dbPromise('StartFlowRun', flow, { id: runId, collectBindings: prepared.bindings, scriptPath: scriptPath, arguments: [], resultSummary: '节点任务等待领取。' });
         const nodeJob = await dbPromise('CreateNodeJob', {
             jobType: flowType === 'publish' ? 'publish_flow' : (flowType === 'pricing' ? 'pricing_flow' : flowType),
