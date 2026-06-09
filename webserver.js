@@ -7194,51 +7194,6 @@ module.exports.CreateWebServer = function (parent, db, args, certificates, doneF
             return String(req.headers['x-node-token'] || '').trim();
         }
 
-        function getConfiguredNodeJobToken(nodeId) {
-            var settings = parent.config && parent.config.settings ? parent.config.settings : {};
-            var tokens = settings.nodeJobTokens || settings.nodejobtokens || {};
-            if (tokens && typeof tokens == 'object') {
-                if (typeof tokens[nodeId] == 'string') return tokens[nodeId];
-                var shortId = String(nodeId || '').split('/').pop();
-                if (typeof tokens[shortId] == 'string') return tokens[shortId];
-                var nodeIdLower = String(nodeId || '').toLowerCase();
-                var shortIdLower = shortId.toLowerCase();
-                for (var key in tokens) {
-                    var keyLower = String(key || '').toLowerCase();
-                    if ((keyLower === nodeIdLower) || (keyLower === shortIdLower)) return tokens[key];
-                }
-            }
-            return '';
-        }
-
-        function getConfiguredNodeJobTokens() {
-            var settings = parent.config && parent.config.settings ? parent.config.settings : {};
-            var tokens = settings.nodeJobTokens || settings.nodejobtokens || settings.nodeJobToken || settings.nodejobtoken || [];
-            var results = [], seen = {};
-            function addToken(token) {
-                token = String(token || '').trim();
-                if ((token === '') || (seen[token] === 1)) return;
-                seen[token] = 1;
-                results.push(token);
-            }
-            if (typeof tokens == 'string') {
-                addToken(tokens);
-            } else if (Array.isArray(tokens)) {
-                for (var i in tokens) { addToken(tokens[i]); }
-            } else if (tokens && typeof tokens == 'object') {
-                for (var key in tokens) { addToken(tokens[key]); }
-            }
-            return results;
-        }
-
-        function isConfiguredNodeJobToken(token) {
-            token = String(token || '').trim();
-            if (token === '') return false;
-            var tokens = getConfiguredNodeJobTokens();
-            for (var i in tokens) { if (tokens[i] === token) return true; }
-            return false;
-        }
-
         function getNodeJobTokenFingerprint(token) {
             token = String(token || '').trim();
             if (token === '') return '';
@@ -7265,11 +7220,8 @@ module.exports.CreateWebServer = function (parent, db, args, certificates, doneF
             var nodeId = String(body.nodeId || body.node_id || '').trim();
             if (nodeId === '') { res.status(400).json({ success: false, result: 'nodeId is required.' }); return null; }
             var requestToken = getNodeJobRequestToken(req);
-            var configuredToken = getConfiguredNodeJobToken(nodeId);
-            if (configuredToken !== '') {
-                if (requestToken !== configuredToken) { logInvalidNodeJobToken(req, nodeId, 'token-node-mismatch'); res.status(403).json({ success: false, result: 'Invalid node token.' }); return null; }
-            } else if (isConfiguredNodeJobToken(requestToken) !== true) {
-                logInvalidNodeJobToken(req, nodeId, 'unknown-token');
+            if (requestToken !== nodeId) {
+                logInvalidNodeJobToken(req, nodeId, 'token-must-equal-node-id');
                 res.status(403).json({ success: false, result: 'Invalid node token.' }); return null;
             }
             return { nodeId: nodeId, body: body };
@@ -7288,9 +7240,6 @@ module.exports.CreateWebServer = function (parent, db, args, certificates, doneF
             var body = req.body || {};
             var deviceName = String(body.deviceName || body.device_name || body.computerName || body.computer_name || '').trim().toLowerCase();
             if (deviceName === '') { res.status(400).json({ success: false, result: 'deviceName is required.' }); return; }
-            var token = getNodeJobRequestToken(req);
-            if (token === '') { res.status(403).json({ success: false, result: 'Node job API token is required.' }); return; }
-            if (isConfiguredNodeJobToken(token) !== true) { res.status(403).json({ success: false, result: 'Invalid node token.' }); return; }
             obj.db.GetAllType('node', function (err, nodes) {
                 if (err != null) { sendNodeJobError(res, err, 500); return; }
                 var matches = [];
@@ -7309,19 +7258,6 @@ module.exports.CreateWebServer = function (parent, db, args, certificates, doneF
                 matches.sort(function (a, b) { return getNodeWorkerResolveScore(b) - getNodeWorkerResolveScore(a); });
                 res.json({ success: true, nodeId: matches[0]._id, name: matches[0].name || matches[0].rname || deviceName });
             });
-        }
-
-        function getConfiguredNodeJobNodeIds() {
-            var settings = parent.config && parent.config.settings ? parent.config.settings : {};
-            var tokens = settings.nodeJobTokens || settings.nodejobtokens || {};
-            var nodeIds = [];
-            if (tokens && typeof tokens == 'object') {
-                for (var key in tokens) {
-                    if (typeof tokens[key] != 'string') continue;
-                    nodeIds.push(String(key));
-                }
-            }
-            return nodeIds;
         }
 
         function sendNodeJobError(res, err, code) {
