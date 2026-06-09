@@ -1,0 +1,294 @@
+- generic [ref=e2]:
+  - paragraph [ref=e4]:
+    - generic [ref=e5]:
+      - text: 欢迎admin。
+      - link "登出" [ref=e6] [cursor=pointer]:
+        - /url: /logout?0.8561549464986561
+  - generic [ref=e7]:
+    - generic "店铺管理" [ref=e9] [cursor=pointer]
+    - generic "大明的店铺" [ref=e11] [cursor=pointer]:
+      - generic [ref=e12]: ★
+    - generic "商品管理" [ref=e13] [cursor=pointer]:
+      - generic [ref=e14]: 🌺
+    - generic "流程管理" [ref=e15] [cursor=pointer]
+    - generic "采集管理" [ref=e17] [cursor=pointer]
+    - generic "定时任务" [ref=e19] [cursor=pointer]
+    - generic "经营日报" [ref=e21] [cursor=pointer]
+    - generic "鲜花批发" [ref=e23] [cursor=pointer]
+    - generic "我的设备" [ref=e25] [cursor=pointer]
+    - generic "我的帐户" [ref=e27] [cursor=pointer]
+    - generic "我的事件" [ref=e29] [cursor=pointer]
+    - generic "我的文件" [ref=e31] [cursor=pointer]
+    - generic "我的用户" [ref=e33] [cursor=pointer]
+    - generic "我的服务器" [ref=e35] [cursor=pointer]
+  - generic "用户界面选择" [ref=e38] [cursor=pointer]: ♦
+  - generic [ref=e503]:
+    - generic [ref=e504]:
+      - generic [ref=e505]:
+        - generic [ref=e506]:
+          - heading "采集管理" [level=1] [ref=e507]
+          - generic [ref=e508]: 统一管理店铺采集和价格采集任务，支持执行、历史查看和结果追溯。
+        - button "新增采集任务" [ref=e510] [cursor=pointer]
+      - generic [ref=e511]:
+        - searchbox "搜索任务名称" [ref=e513]
+        - generic [ref=e514]: 共 34 条采集任务
+      - generic [ref=e515]:
+        - article [ref=e1080]:
+          - generic [ref=e1081]:
+            - generic [ref=e1082]:
+              - generic [ref=e1083]:
+                - heading "花伴鲜花" [level=3] [ref=e1084]
+                - generic [ref=e1085]: collect_shop · DESKTOP-9SRJNSJ · Microsoft Windows 10 专业版 - 22H2/19045
+              - generic [ref=e1087]: running
+            - generic [ref=e1088]:
+              - generic [ref=e1089]: 系统
+              - strong [ref=e1090]: windows
+            - generic [ref=e1091]:
+              - generic [ref=e1092]: 上次采集
+              - strong [ref=e1093]: 2026/6/9 10:17:05
+            - generic [ref=e1094]:
+              - generic [ref=e1095]: 数据条数
+              - strong [ref=e1096]: "0"
+            - generic [ref=e1098]:
+              - button "编辑" [ref=e1099] [cursor=pointer]
+              - button "删除" [ref=e1100] [cursor=pointer]
+              - button "执行采集" [ref=e1101] [cursor=pointer]
+              - button "查看结果" [ref=e1102] [cursor=pointer]
+        - article [ref=e1103]:
+          - generic [ref=e1104]:
+            - generic [ref=e1105]:
+              - generic [ref=e1106]:
+                - heading "知瑶--纯玫瑰花" [level=3] [ref=e1107]
+                - generic [ref=e1108]: collect_shop · IT-202101191432 · Microsoft Windows 10 企业版 - 22H2/19045
+              - generic [ref=e1110]: failed
+            - generic [ref=e1111]:
+              - generic [ref=e1112]: 系统
+              - strong [ref=e1113]: windows
+            - generic [ref=e1114]:
+              - generic [ref=e1115]: 上次采集
+              - strong [ref=e1116]: 2026/6/9 08:58:54
+            - generic [ref=e1117]:
+              - generic [ref=e1118]: 数据条数
+              - strong [ref=e1119]: "0"
+            - generic [ref=e1121]:
+              - button "编辑" [ref=e1122] [cursor=pointer]
+              - button "删除" [ref=e1123] [cursor=pointer]
+              - button "执行采集" [ref=e1124] [cursor=pointer]
+              - button "查看结果" [ref=e1125] [cursor=pointer]
+        - article [ref=e1126]:
+          - generic [ref=e1127]:
+            - generic [ref=e1128]:
+              - generic [ref=e1129]:
+                - heading "知瑶--雅致真情" [level=3] [ref=e1130]
+                - generic [ref=e1131]: collect_shop · IT-202101191432 · Microsoft Windows 10 企业版 - 22H2/19045
+              - generic [ref=e1133]: failed
+            - generic [ref=e1134]:
+              - generic [ref=e1135]: 系统
+              - strong [ref=e1136]: windows
+            - generic [ref=e1137]:
+              - generic [ref=e1138]: 上次采集
+              - strong [ref=e1139]: 2026/6/9 08:48:54
+            - generic [ref=e1140]:
+              - generic [ref=e1141]: 数据条数
+              - strong [ref=e1142]: "0"
+            - generic [ref=e1144]:
+              - button "编辑" [ref=e1145] [cursor=pointer]
+              - button "删除" [ref=e1146] [cursor=pointer]
+              - button "执行采集" [ref=e1147] [cursor=pointer]
+              - button "查看结果" [ref=e1148] [cursor=pointer]
+        - article [ref=e1149]:
+          - generic [ref=e1150]:
+            - generic [ref=e1151]:
+              - generic [ref=e1152]:
+                - heading "花语时光鲜花店---高中状元" [level=3] [ref=e1153]
+                - generic [ref=e1154]: collect_shop · DESKTOP-9SRJNSJ · Microsoft Windows 10 专业版 - 22H2/19045
+              - generic [ref=e1156]: success
+            - generic [ref=e1157]:
+              - generic [ref=e1158]: 系统
+              - strong [ref=e1159]: windows
+            - generic [ref=e1160]:
+              - generic [ref=e1161]: 上次采集
+              - strong [ref=e1162]: 2026/6/8 19:11:36
+            - generic [ref=e1163]:
+              - generic [ref=e1164]: 数据条数
+              - strong [ref=e1165]: "1"
+            - generic [ref=e1167]:
+              - button "编辑" [ref=e1168] [cursor=pointer]
+              - button "删除" [ref=e1169] [cursor=pointer]
+              - button "执行采集" [ref=e1170] [cursor=pointer]
+              - button "查看结果" [ref=e1171] [cursor=pointer]
+        - article [ref=e1172]:
+          - generic [ref=e1173]:
+            - generic [ref=e1174]:
+              - generic [ref=e1175]:
+                - heading "苏州--少年有花" [level=3] [ref=e1176]
+                - generic [ref=e1177]: collect_shop · IT-202101191432 · Microsoft Windows 10 企业版 - 22H2/19045
+              - generic [ref=e1179]: success
+            - generic [ref=e1180]:
+              - generic [ref=e1181]: 系统
+              - strong [ref=e1182]: windows
+            - generic [ref=e1183]:
+              - generic [ref=e1184]: 上次采集
+              - strong [ref=e1185]: 2026/6/8 00:57:37
+            - generic [ref=e1186]:
+              - generic [ref=e1187]: 数据条数
+              - strong [ref=e1188]: "1"
+            - generic [ref=e1190]:
+              - button "编辑" [ref=e1191] [cursor=pointer]
+              - button "删除" [ref=e1192] [cursor=pointer]
+              - button "执行采集" [ref=e1193] [cursor=pointer]
+              - button "查看结果" [ref=e1194] [cursor=pointer]
+        - article [ref=e1195]:
+          - generic [ref=e1196]:
+            - generic [ref=e1197]:
+              - generic [ref=e1198]:
+                - heading "麓可花园鲜花店" [level=3] [ref=e1199]
+                - generic [ref=e1200]: collect_shop · IT-202101191432 · Microsoft Windows 10 企业版 - 22H2/19045
+              - generic [ref=e1202]: success
+            - generic [ref=e1203]:
+              - generic [ref=e1204]: 系统
+              - strong [ref=e1205]: windows
+            - generic [ref=e1206]:
+              - generic [ref=e1207]: 上次采集
+              - strong [ref=e1208]: 2026/6/8 00:00:50
+            - generic [ref=e1209]:
+              - generic [ref=e1210]: 数据条数
+              - strong [ref=e1211]: "1"
+            - generic [ref=e1213]:
+              - button "编辑" [ref=e1214] [cursor=pointer]
+              - button "删除" [ref=e1215] [cursor=pointer]
+              - button "执行采集" [ref=e1216] [cursor=pointer]
+              - button "查看结果" [ref=e1217] [cursor=pointer]
+        - article [ref=e1218]:
+          - generic [ref=e1219]:
+            - generic [ref=e1220]:
+              - generic [ref=e1221]:
+                - heading "花梦谷鲜花店-可喜可贺" [level=3] [ref=e1222]
+                - generic [ref=e1223]: collect_shop · IT-202101191432 · Microsoft Windows 10 企业版 - 22H2/19045
+              - generic [ref=e1225]: success
+            - generic [ref=e1226]:
+              - generic [ref=e1227]: 系统
+              - strong [ref=e1228]: windows
+            - generic [ref=e1229]:
+              - generic [ref=e1230]: 上次采集
+              - strong [ref=e1231]: 2026/6/7 23:31:52
+            - generic [ref=e1232]:
+              - generic [ref=e1233]: 数据条数
+              - strong [ref=e1234]: "1"
+            - generic [ref=e1236]:
+              - button "编辑" [ref=e1237] [cursor=pointer]
+              - button "删除" [ref=e1238] [cursor=pointer]
+              - button "执行采集" [ref=e1239] [cursor=pointer]
+              - button "查看结果" [ref=e1240] [cursor=pointer]
+        - article [ref=e1241]:
+          - generic [ref=e1242]:
+            - generic [ref=e1243]:
+              - generic [ref=e1244]:
+                - heading "MR.ROSE玫瑰先生花店----梵高油画" [level=3] [ref=e1245]
+                - generic [ref=e1246]: collect_shop · IT-202101191432 · Microsoft Windows 10 企业版 - 22H2/19045
+              - generic [ref=e1248]: success
+            - generic [ref=e1249]:
+              - generic [ref=e1250]: 系统
+              - strong [ref=e1251]: windows
+            - generic [ref=e1252]:
+              - generic [ref=e1253]: 上次采集
+              - strong [ref=e1254]: 2026/6/7 22:27:14
+            - generic [ref=e1255]:
+              - generic [ref=e1256]: 数据条数
+              - strong [ref=e1257]: "1"
+            - generic [ref=e1259]:
+              - button "编辑" [ref=e1260] [cursor=pointer]
+              - button "删除" [ref=e1261] [cursor=pointer]
+              - button "执行采集" [ref=e1262] [cursor=pointer]
+              - button "查看结果" [ref=e1263] [cursor=pointer]
+        - article [ref=e1264]:
+          - generic [ref=e1265]:
+            - generic [ref=e1266]:
+              - generic [ref=e1267]:
+                - heading "成都--梵花礼" [level=3] [ref=e1268]
+                - generic [ref=e1269]: collect_shop · IT-202101191432 · Microsoft Windows 10 企业版 - 22H2/19045
+              - generic [ref=e1271]: success
+            - generic [ref=e1272]:
+              - generic [ref=e1273]: 系统
+              - strong [ref=e1274]: windows
+            - generic [ref=e1275]:
+              - generic [ref=e1276]: 上次采集
+              - strong [ref=e1277]: 2026/6/7 11:44:29
+            - generic [ref=e1278]:
+              - generic [ref=e1279]: 数据条数
+              - strong [ref=e1280]: "1"
+            - generic [ref=e1282]:
+              - button "编辑" [ref=e1283] [cursor=pointer]
+              - button "删除" [ref=e1284] [cursor=pointer]
+              - button "执行采集" [ref=e1285] [cursor=pointer]
+              - button "查看结果" [ref=e1286] [cursor=pointer]
+        - article [ref=e1287]:
+          - generic [ref=e1288]:
+            - generic [ref=e1289]:
+              - generic [ref=e1290]:
+                - heading "喵小妹鲜花店--紫定能行" [level=3] [ref=e1291]
+                - generic [ref=e1292]: collect_shop · IT-202101191432 · Microsoft Windows 10 企业版 - 22H2/19045
+              - generic [ref=e1294]: success
+            - generic [ref=e1295]:
+              - generic [ref=e1296]: 系统
+              - strong [ref=e1297]: windows
+            - generic [ref=e1298]:
+              - generic [ref=e1299]: 上次采集
+              - strong [ref=e1300]: 2026/6/6 22:15:50
+            - generic [ref=e1301]:
+              - generic [ref=e1302]: 数据条数
+              - strong [ref=e1303]: "1"
+            - generic [ref=e1305]:
+              - button "编辑" [ref=e1306] [cursor=pointer]
+              - button "删除" [ref=e1307] [cursor=pointer]
+              - button "执行采集" [ref=e1308] [cursor=pointer]
+              - button "查看结果" [ref=e1309] [cursor=pointer]
+        - article [ref=e1310]:
+          - generic [ref=e1311]:
+            - generic [ref=e1312]:
+              - generic [ref=e1313]:
+                - heading "毕业季--肆月" [level=3] [ref=e1314]
+                - generic [ref=e1315]: collect_shop · IT-202101191432 · Microsoft Windows 10 企业版 - 22H2/19045
+              - generic [ref=e1317]: success
+            - generic [ref=e1318]:
+              - generic [ref=e1319]: 系统
+              - strong [ref=e1320]: windows
+            - generic [ref=e1321]:
+              - generic [ref=e1322]: 上次采集
+              - strong [ref=e1323]: 2026/6/6 21:48:49
+            - generic [ref=e1324]:
+              - generic [ref=e1325]: 数据条数
+              - strong [ref=e1326]: "1"
+            - generic [ref=e1328]:
+              - button "编辑" [ref=e1329] [cursor=pointer]
+              - button "删除" [ref=e1330] [cursor=pointer]
+              - button "执行采集" [ref=e1331] [cursor=pointer]
+              - button "查看结果" [ref=e1332] [cursor=pointer]
+        - article [ref=e1333]:
+          - generic [ref=e1334]:
+            - generic [ref=e1335]:
+              - generic [ref=e1336]:
+                - heading "录取吧---北京" [level=3] [ref=e1337]
+                - generic [ref=e1338]: collect_shop · IT-202101191432 · Microsoft Windows 10 企业版 - 22H2/19045
+              - generic [ref=e1340]: success
+            - generic [ref=e1341]:
+              - generic [ref=e1342]: 系统
+              - strong [ref=e1343]: windows
+            - generic [ref=e1344]:
+              - generic [ref=e1345]: 上次采集
+              - strong [ref=e1346]: 2026/6/6 21:45:01
+            - generic [ref=e1347]:
+              - generic [ref=e1348]: 数据条数
+              - strong [ref=e1349]: "1"
+            - generic [ref=e1351]:
+              - button "编辑" [ref=e1352] [cursor=pointer]
+              - button "删除" [ref=e1353] [cursor=pointer]
+              - button "执行采集" [ref=e1354] [cursor=pointer]
+              - button "查看结果" [ref=e1355] [cursor=pointer]
+      - generic [ref=e792]:
+        - button "首页" [disabled] [ref=e1356]
+        - button "上一页" [disabled] [ref=e1357]
+        - generic [ref=e1358]: 第 1 / 3 页，显示 1-12，共 34 条
+        - button "下一页" [ref=e1359]
+        - button "末页" [ref=e1360]
+    - generic [ref=e1079]: 采集任务已提交到节点任务队列。

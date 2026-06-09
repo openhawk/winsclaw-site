@@ -7243,7 +7243,13 @@ module.exports.CreateWebServer = function (parent, db, args, certificates, doneF
             var body = req.body || {};
             var nodeId = String(body.nodeId || body.node_id || '').trim();
             if (nodeId === '') { res.status(400).json({ success: false, result: 'nodeId is required.' }); return null; }
-            if (isConfiguredNodeJobToken(getNodeJobRequestToken(req)) !== true) { res.status(403).json({ success: false, result: 'Invalid node token.' }); return null; }
+            var requestToken = getNodeJobRequestToken(req);
+            var configuredToken = getConfiguredNodeJobToken(nodeId);
+            if (configuredToken !== '') {
+                if (requestToken !== configuredToken) { res.status(403).json({ success: false, result: 'Invalid node token.' }); return null; }
+            } else if (isConfiguredNodeJobToken(requestToken) !== true) {
+                res.status(403).json({ success: false, result: 'Invalid node token.' }); return null;
+            }
             return { nodeId: nodeId, body: body };
         }
 
