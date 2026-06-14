@@ -2082,6 +2082,8 @@
                                     </div>
                                     <div id="wholesaleMaterialRows" class="wholesale-material-list"></div>
                                 </div>
+                                <label class="collect-field wholesale-span-2"><span>优惠活动</span><input id="wholesaleFormPromotionActivity" type="text" maxlength="256" placeholder="例如：满减、会员折扣" /></label>
+                                <label class="collect-field wholesale-span-2"><span>优惠金额</span><input id="wholesaleFormDiscountAmount" type="number" min="0" step="0.01" oninput="wholesaleSyncTotals()" /></label>
                                 <label class="collect-field wholesale-span-2"><span>总金额</span><input id="wholesaleFormGrandTotal" class="wholesale-total-input" type="number" min="0" step="0.01" readonly /></label>
                                 <label class="collect-field wholesale-span-2"><span>是否结算</span><select id="wholesaleFormSettled"><option value="false">否</option><option value="true">是</option></select></label>
                                 <label class="collect-field wholesale-span-2"><span>配送地址</span><input id="wholesaleFormDeliveryAddress" type="text" maxlength="512" placeholder="自动带出，可继续编辑" /></label>
@@ -6033,6 +6035,8 @@
                 contactPhone: record.contact_phone || record.contactPhone || '',
                 deliveryType: record.delivery_type || record.deliveryType || 'self',
                 deliveryFee: wholesaleFormatAmount(record.delivery_fee || record.deliveryFee),
+                promotionActivity: record.promotion_activity || record.promotionActivity || '',
+                discountAmount: wholesaleFormatAmount(record.discount_amount || record.discountAmount),
                 remark: record.remark || '',
                 isSettled: true
             });
@@ -6050,6 +6054,8 @@
             wholesaleState.materialRows = wholesaleNormalizeMaterialRows(record);
             wholesaleRenderMaterialRows();
             Q('wholesaleFormGrandTotal').value = record ? wholesaleFormatAmount(record.grand_total || record.grandTotal) : '';
+            Q('wholesaleFormPromotionActivity').value = record ? (record.promotion_activity || record.promotionActivity || '') : '';
+            Q('wholesaleFormDiscountAmount').value = record ? wholesaleFormatAmount(record.discount_amount || record.discountAmount) : '0.00';
             Q('wholesaleFormDeliveryAddress').value = record ? (record.delivery_address || record.deliveryAddress || '') : '';
             Q('wholesaleFormContactPhone').value = record ? (record.contact_phone || record.contactPhone || '') : '';
             Q('wholesaleFormDeliveryType').value = record ? (record.delivery_type || record.deliveryType || 'self') : 'self';
@@ -6180,7 +6186,7 @@
         }
 
         function wholesaleSyncTotals() {
-            var deliveryFee = Number(Q('wholesaleFormDeliveryFee').value || 0);
+            var discountAmount = Number(Q('wholesaleFormDiscountAmount').value || 0);
             var totalAmount = 0;
             for (var i = 0; i < wholesaleState.materialRows.length; i++) {
                 var row = wholesaleState.materialRows[i];
@@ -6194,11 +6200,11 @@
                 }
                 if (Q('wholesaleMaterialAmount_' + i) != null) Q('wholesaleMaterialAmount_' + i).value = row.totalPrice;
             }
-            if (isFinite(deliveryFee) !== true || deliveryFee < 0) {
+            if (isFinite(discountAmount) !== true || discountAmount < 0) {
                 Q('wholesaleFormGrandTotal').value = wholesaleFormatAmount(totalAmount);
                 return;
             }
-            Q('wholesaleFormGrandTotal').value = wholesaleFormatAmount(totalAmount + deliveryFee);
+            Q('wholesaleFormGrandTotal').value = wholesaleFormatAmount(Math.max(0, totalAmount - discountAmount));
         }
 
         function wholesaleSubmitEditor() {
@@ -6212,6 +6218,8 @@
                 shopName: Q('wholesaleFormShopName').value.trim(),
                 materialLines: materialLines,
                 grandTotal: Q('wholesaleFormGrandTotal').value.trim(),
+                promotionActivity: Q('wholesaleFormPromotionActivity').value.trim(),
+                discountAmount: Q('wholesaleFormDiscountAmount').value.trim(),
                 deliveryAddress: Q('wholesaleFormDeliveryAddress').value.trim(),
                 contactPhone: Q('wholesaleFormContactPhone').value.trim(),
                 deliveryType: Q('wholesaleFormDeliveryType').value,
@@ -6224,7 +6232,7 @@
             wholesaleSetSubmitBusy(true);
             wholesaleState.pendingAction = (payload.id !== '') ? 'wholesaleupdate' : 'wholesalecreate';
             wholesaleState.pendingMutationKind = (payload.id !== '') ? 'update' : 'create';
-            meshserver.send({ action: wholesaleState.pendingAction, id: payload.id, businessDate: payload.businessDate, shopName: payload.shopName, materialLines: payload.materialLines, grandTotal: payload.grandTotal, deliveryAddress: payload.deliveryAddress, contactPhone: payload.contactPhone, deliveryType: payload.deliveryType, deliveryFee: payload.deliveryFee, remark: payload.remark, isSettled: payload.isSettled });
+            meshserver.send({ action: wholesaleState.pendingAction, id: payload.id, businessDate: payload.businessDate, shopName: payload.shopName, materialLines: payload.materialLines, grandTotal: payload.grandTotal, promotionActivity: payload.promotionActivity, discountAmount: payload.discountAmount, deliveryAddress: payload.deliveryAddress, contactPhone: payload.contactPhone, deliveryType: payload.deliveryType, deliveryFee: payload.deliveryFee, remark: payload.remark, isSettled: payload.isSettled });
         }
 
         function wholesaleConfirmDelete(id) {
