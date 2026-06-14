@@ -7504,6 +7504,25 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         return defaultValue;
     }
 
+    var DEFAULT_PUBLISH_INVENTORY = 999;
+
+    function getProductInventoryField(value, defaultValue) {
+        var fallback = (typeof defaultValue == 'number') ? defaultValue : DEFAULT_PUBLISH_INVENTORY;
+        var num = getProductNumberField(value, 0, 999999, true);
+        return (num == null) ? fallback : Math.max(0, Math.floor(num));
+    }
+
+    function normalizeProductSkuListInventory(skuList, defaultInventory) {
+        var inventory = getProductInventoryField(defaultInventory, DEFAULT_PUBLISH_INVENTORY);
+        if (Array.isArray(skuList) == false) return [];
+        for (var i = 0; i < skuList.length; i++) {
+            var item = skuList[i];
+            if ((item == null) || (typeof item !== 'object') || Array.isArray(item)) continue;
+            if ((item.inventory == null) || (item.inventory === '')) item.inventory = inventory;
+        }
+        return skuList;
+    }
+
     function getProductPayload(command) {
         var name = getShopTextField(command.name, 256);
         var storeName = getShopTextField(command.storeName || '', 256);
@@ -7534,7 +7553,9 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         if (categoryPath.length === 0) { categoryPath = ['花卉园艺', '礼品花', '礼品鲜花']; }
         if (storeCategoryPath.length === 0) return { error: '店内分类不能为空。' };
         if (sku.length === 0) { sku = [{ name: '规格', value: '默认规格' }]; }
-        return { name: name, price: price, originalPrice: originalPrice, description: description, inventory: (inventory == null) ? 1 : inventory, imagePaths: imagePaths, imageUrls: imageUrls, sku: sku, skuList: skuList, categoryPath: categoryPath, storeCategoryPath: storeCategoryPath, requiredAttributes: { mainFlower: mainFlower, color: color, audience: audience, style: style, quantity: quantity, storeName: storeName }, entryUrl: entryUrl || '', useExistingOptionsOnly: getProductBoolField(command.useExistingOptionsOnly, true), publishHistory: publishHistory, sourceUrl: sourceUrl || '' };
+        inventory = getProductInventoryField(inventory, DEFAULT_PUBLISH_INVENTORY);
+        skuList = normalizeProductSkuListInventory(skuList, inventory);
+        return { name: name, price: price, originalPrice: originalPrice, description: description, inventory: inventory, imagePaths: imagePaths, imageUrls: imageUrls, sku: sku, skuList: skuList, categoryPath: categoryPath, storeCategoryPath: storeCategoryPath, requiredAttributes: { mainFlower: mainFlower, color: color, audience: audience, style: style, quantity: quantity, storeName: storeName }, entryUrl: entryUrl || '', useExistingOptionsOnly: getProductBoolField(command.useExistingOptionsOnly, true), publishHistory: publishHistory, sourceUrl: sourceUrl || '' };
     }
 
     function serverCommandProductList(command) {
@@ -8187,6 +8208,7 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         if (flow.my_shop_id || flow.myShopId) myShop = await managerDbPromise('GetMyShop', flow.my_shop_id || flow.myShopId);
         cloned.merchant = cloned.merchant || {};
         if (myShop != null) cloned.merchant.storeName = myShop.name || cloned.merchant.storeName || '';
+        var publishInventory = getProductInventoryField(product.inventory, DEFAULT_PUBLISH_INVENTORY);
         cloned.publishProduct = {
             name: managerNormalizeCollectText(flow.my_product_name || flow.myProductName || product.name, 512),
             entryUrl: managerNormalizeCollectText(product.entry_url, 2048) || null,
@@ -8197,10 +8219,10 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
             useExistingOptionsOnly: product.use_existing_options_only !== false,
             price: Number(product.price || 0),
             originalPrice: product.original_price == null ? null : Number(product.original_price),
-            inventory: Number(product.inventory || 0),
+            inventory: publishInventory,
             description: product.description || '',
             sku: managerFlowJsonArray(product.sku_json),
-            skuList: managerFlowJsonArray(product.sku_list_json),
+            skuList: normalizeProductSkuListInventory(managerFlowJsonArray(product.sku_list_json), publishInventory),
             imagePaths: managerPublishImagePaths(product.image_paths_json),
             imageUrls: managerFlowJsonArray(product.image_urls_json)
         };

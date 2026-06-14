@@ -98,6 +98,22 @@ module.exports.CreateDB = function (parent, func) {
         return Array.isArray(value) ? value : [];
     }
 
+    function managerCollectInventory(value, fallback) {
+        const resolvedFallback = Math.max(0, Math.floor(managerCollectNumber(fallback, defaultCollectInventory) || defaultCollectInventory));
+        const number = managerCollectNumber(value, null);
+        return (number == null) ? resolvedFallback : Math.max(0, Math.floor(number));
+    }
+
+    function managerCollectSkuList(value, fallbackInventory) {
+        const inventory = managerCollectInventory(fallbackInventory, defaultCollectInventory);
+        return managerCollectArray(value).map(function (item) {
+            if ((item == null) || (typeof item !== 'object') || Array.isArray(item)) return item;
+            const cloned = Object.assign({}, item);
+            if (cloned.inventory == null || cloned.inventory === '') cloned.inventory = inventory;
+            return cloned;
+        });
+    }
+
     function managerIsPublishPlaceholder(value) {
         const text = managerCollectText(value, 128);
         if (text === '') return true;
@@ -4081,17 +4097,18 @@ module.exports.CreateDB = function (parent, func) {
                 const shop = (item.shop && typeof item.shop === 'object') ? item.shop : {};
                 const productShopName = managerCollectText(requiredAttributes.storeName || shop.name || item.matchedShopName || item.shopName, 256);
                 if (productShopName !== '') requiredAttributes.storeName = productShopName;
+                const inventory = managerCollectInventory(item.inventory, defaultCollectInventory);
                 const values = [
                     nextId++,
                     name,
                     price,
                     managerCollectNumber(item.originalPrice, null),
                     description,
-                    Math.max(0, Math.floor(managerCollectNumber(item.inventory, defaultCollectInventory) || defaultCollectInventory)),
+                    inventory,
                     JSON.stringify(managerCollectArray(item.imagePaths)),
                     JSON.stringify(imageUrls),
                     JSON.stringify(managerCollectArray(item.sku)),
-                    JSON.stringify(managerCollectArray(item.skuList)),
+                    JSON.stringify(managerCollectSkuList(item.skuList, inventory)),
                     JSON.stringify(managerCollectArray(item.categoryPath)),
                     JSON.stringify(managerNormalizePublishStoreCategoryPath(item.storeCategoryPath, name, description)),
                     JSON.stringify(requiredAttributes),

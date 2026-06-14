@@ -1557,7 +1557,7 @@
                                 <label class="product-field product-field-full"><span>商品描述</span><textarea id="productFormDescription" rows="3" maxlength="2048"></textarea></label>
                                 <label class="product-field"><span>活动价 <b>*</b></span><input id="productFormPrice" type="number" min="0" step="0.01" /></label>
                                 <label class="product-field"><span>划线价</span><input id="productFormOriginalPrice" type="number" min="0" step="0.01" /></label>
-                                <label class="product-field"><span>库存</span><input id="productFormInventory" type="number" min="0" step="1" value="1" /></label>
+                                <label class="product-field"><span>库存</span><input id="productFormInventory" type="number" min="0" step="1" value="999" /></label>
                                 <label class="product-field"><span>类目路径</span><input id="productFormCategoryPath" type="text" maxlength="512" value="花卉园艺 > 礼品花 > 礼品鲜花" /></label>
                                 <label class="product-field"><span>主花材 <b>*</b></span><input id="productFormMainFlower" type="text" maxlength="128" /></label>
                                 <label class="product-field"><span>色系 <b>*</b></span><input id="productFormColor" type="text" maxlength="128" /></label>
@@ -3722,7 +3722,7 @@
                 x += '<article class="product-card" onclick="productOpenEditorById(\'' + EscapeHtml(String(product.id)) + '\')">';
                 x += '<div class="product-card-body">';
                 x += '<div class="product-card-head"><div><h3>' + EscapeHtml(product.name || '') + '</h3><div class="product-card-category">' + EscapeHtml((attrs.storeName || '未设置店铺') + ' · ' + ((Array.isArray(storeCategoryPath) && storeCategoryPath.length > 0) ? storeCategoryPath.join(' / ') : '未设置分类')) + '</div></div><div class="product-card-prices"><span class="product-price-now">¥' + EscapeHtml(String(product.price == null ? 0 : product.price)) + '</span><span class="product-price-old">' + (product.original_price != null ? ('¥' + EscapeHtml(String(product.original_price))) : '无划线价') + '</span></div></div>';
-                x += '<div class="product-card-meta"><span>库存</span><strong>' + EscapeHtml(String(product.inventory == null ? 1 : product.inventory)) + '</strong></div>';
+                x += '<div class="product-card-meta"><span>库存</span><strong>' + EscapeHtml(String(product.inventory == null ? 999 : product.inventory)) + '</strong></div>';
                 x += '<div class="product-card-meta"><span>规格数</span><strong>' + EscapeHtml(String(Array.isArray(skuList) && skuList.length > 0 ? skuList.length : 1)) + '</strong></div>';
                 x += '<div class="product-card-meta"><span>主花材</span><strong>' + EscapeHtml(attrs.mainFlower || '待补充') + '</strong></div>';
                 x += '<div class="product-card-meta"><span>适用人群</span><strong>' + EscapeHtml(attrs.audience || '待补充') + '</strong></div>';
@@ -3748,7 +3748,7 @@
         }
 
         function productOpenEditorById(id) { for (var i = 0; i < productState.items.length; i++) { if (String(productState.items[i].id) === String(id)) { productOpenEditor(productState.items[i]); return; } } }
-        function productBuildSkuRow(specName, specValue, price, originalPrice, inventory) { return '<div class="product-sku-row"><input class="product-sku-spec-name" type="text" maxlength="64" placeholder="规格名" value="' + EscapeHtml(specName || '规格') + '"><input class="product-sku-spec-value" type="text" maxlength="128" placeholder="规格值" value="' + EscapeHtml(specValue || '') + '"><input class="product-sku-price" type="number" min="0" step="0.01" placeholder="活动价" value="' + EscapeHtml(price == null ? '' : String(price)) + '"><input class="product-sku-original-price" type="number" min="0" step="0.01" placeholder="划线价" value="' + EscapeHtml(originalPrice == null ? '' : String(originalPrice)) + '"><input class="product-sku-inventory" type="number" min="0" step="1" placeholder="库存" value="' + EscapeHtml(inventory == null ? '1' : String(inventory)) + '"><button type="button" class="product-btn product-btn-danger" onclick="productRemoveSkuRow(this)">删除</button></div>'; }
+        function productBuildSkuRow(specName, specValue, price, originalPrice, inventory) { return '<div class="product-sku-row"><input class="product-sku-spec-name" type="text" maxlength="64" placeholder="规格名" value="' + EscapeHtml(specName || '规格') + '"><input class="product-sku-spec-value" type="text" maxlength="128" placeholder="规格值" value="' + EscapeHtml(specValue || '') + '"><input class="product-sku-price" type="number" min="0" step="0.01" placeholder="活动价" value="' + EscapeHtml(price == null ? '' : String(price)) + '"><input class="product-sku-original-price" type="number" min="0" step="0.01" placeholder="划线价" value="' + EscapeHtml(originalPrice == null ? '' : String(originalPrice)) + '"><input class="product-sku-inventory" type="number" min="0" step="1" placeholder="库存" value="' + EscapeHtml(inventory == null ? '999' : String(inventory)) + '"><button type="button" class="product-btn product-btn-danger" onclick="productRemoveSkuRow(this)">删除</button></div>'; }
 
         function productRenderSkuRows(skuList) {
             var x = '';
@@ -3757,11 +3757,11 @@
                     var item = skuList[i] || {}, specs = Array.isArray(item.specs) ? item.specs : [], spec = specs.length > 0 ? specs[0] : { name: '规格', value: '' };
                     x += productBuildSkuRow(spec.name, spec.value, item.price, item.originalPrice, item.inventory);
                 }
-            } else { x = productBuildSkuRow('规格', '默认规格', '', '', 1); }
+            } else { x = productBuildSkuRow('规格', '默认规格', '', '', 999); }
             QH('productSkuList', x);
         }
 
-        function productAddSkuRow() { Q('productSkuList').insertAdjacentHTML('beforeend', productBuildSkuRow('规格', '', '', '', 1)); }
+        function productAddSkuRow() { Q('productSkuList').insertAdjacentHTML('beforeend', productBuildSkuRow('规格', '', '', '', 999)); }
         function productRemoveSkuRow(button) { var row = button.parentNode; if ((row != null) && (row.parentNode != null) && (row.parentNode.children.length > 1)) { row.parentNode.removeChild(row); } }
         function productReadLines(id) { var lines = Q(id).value.replace(/\r/g, '').split('\n'), result = []; for (var i = 0; i < lines.length; i++) { var line = lines[i].trim(); if (line !== '') result.push(line); } return result; }
 
@@ -3773,10 +3773,10 @@
                 requiredAttributes: { mainFlower: '其他主花材', color: '其他', audience: '' },
                 price: 500,
                 originalPrice: '',
-                inventory: 1,
+                inventory: 999,
                 description: '上架商品',
                 sku: [{ name: '规格', value: '默认规格' }],
-                skuList: [{ specs: [{ name: '规格', value: '默认规格' }], price: 500, originalPrice: null, inventory: 1 }],
+                skuList: [{ specs: [{ name: '规格', value: '默认规格' }], price: 500, originalPrice: null, inventory: 999 }],
                 imagePaths: ['Product1-main.jpg'],
                 useExistingOptionsOnly: true
             };
@@ -3821,7 +3821,7 @@
                 var originalPrice = rows[i].getElementsByClassName('product-sku-original-price')[0].value.trim();
                 var inventory = rows[i].getElementsByClassName('product-sku-inventory')[0].value.trim();
                 if (specValue === '') continue;
-                result.push({ specs: [{ name: specName, value: specValue }], price: price === '' ? null : Number(price), originalPrice: originalPrice === '' ? null : Number(originalPrice), inventory: inventory === '' ? 1 : Number(inventory) });
+                result.push({ specs: [{ name: specName, value: specValue }], price: price === '' ? null : Number(price), originalPrice: originalPrice === '' ? null : Number(originalPrice), inventory: inventory === '' ? 999 : Number(inventory) });
             }
             return result;
         }
