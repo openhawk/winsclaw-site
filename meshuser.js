@@ -7793,6 +7793,7 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         var contactPhone = managerGetTextField(command.contactPhone || '', 64, true);
         var deliveryType = getWholesaleDeliveryType(command.deliveryType);
         var deliveryFee = getWholesaleAmountField(command.deliveryFee, true);
+        var remark = managerGetTextField(command.remark || '', 4096, true);
         var isSettled = getWholesaleSettledField(command.isSettled);
         var totalPrice = getWholesaleAmountField(command.totalPrice, true);
         var grandTotal = getWholesaleAmountField(command.grandTotal, true);
@@ -7803,10 +7804,11 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         if (contactPhone == null) return { error: '联系电话格式无效。' };
         if (deliveryType == null) return { error: '配送方式无效。' };
         if (deliveryFee == null) return { error: '配送费无效。' };
+        if (remark == null) return { error: '备注格式无效。' };
         if (isSettled == null) return { error: '结算状态无效。' };
         if (totalPrice == null) totalPrice = materialLines.totalAmount;
         if (grandTotal == null) grandTotal = Math.round((totalPrice + deliveryFee) * 100) / 100;
-        return { businessDate: businessDate, shopName: shopName, materialName: materialLines.summaryName, materialLines: materialLines.lines, quantity: materialLines.totalQuantity, unitPrice: materialLines.singleUnitPrice, totalPrice: totalPrice, grandTotal: grandTotal, deliveryAddress: deliveryAddress, contactPhone: contactPhone, deliveryType: deliveryType, deliveryFee: deliveryFee, isSettled: isSettled };
+        return { businessDate: businessDate, shopName: shopName, materialName: materialLines.summaryName, materialLines: materialLines.lines, quantity: materialLines.totalQuantity, unitPrice: materialLines.singleUnitPrice, totalPrice: totalPrice, grandTotal: grandTotal, deliveryAddress: deliveryAddress, contactPhone: contactPhone, deliveryType: deliveryType, deliveryFee: deliveryFee, remark: remark, isSettled: isSettled };
     }
 
     function serverCommandWholesaleList(command) {

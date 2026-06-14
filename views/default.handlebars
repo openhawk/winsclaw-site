@@ -2088,6 +2088,7 @@
                                 <label class="collect-field wholesale-span-2"><span>联系电话</span><input id="wholesaleFormContactPhone" type="text" maxlength="64" placeholder="自动带出，可继续编辑" /></label>
                                 <label class="collect-field wholesale-span-2"><span>配送方式</span><select id="wholesaleFormDeliveryType" onchange="wholesaleSyncTotals()"><option value="self">自配</option><option value="rider">骑手</option></select></label>
                                 <label class="collect-field wholesale-span-2"><span>配送费</span><input id="wholesaleFormDeliveryFee" type="number" min="0" step="0.01" oninput="wholesaleSyncTotals()" /></label>
+                                <label class="collect-field wholesale-span-4"><span>备注</span><textarea id="wholesaleFormRemark" rows="4" maxlength="4096" placeholder="请输入备注"></textarea></label>
                             </div>
                         </div>
                         <div class="collect-modal-footer">
@@ -6032,6 +6033,7 @@
                 contactPhone: record.contact_phone || record.contactPhone || '',
                 deliveryType: record.delivery_type || record.deliveryType || 'self',
                 deliveryFee: wholesaleFormatAmount(record.delivery_fee || record.deliveryFee),
+                remark: record.remark || '',
                 isSettled: true
             });
         }
@@ -6052,6 +6054,7 @@
             Q('wholesaleFormContactPhone').value = record ? (record.contact_phone || record.contactPhone || '') : '';
             Q('wholesaleFormDeliveryType').value = record ? (record.delivery_type || record.deliveryType || 'self') : 'self';
             Q('wholesaleFormDeliveryFee').value = record ? wholesaleFormatAmount(record.delivery_fee || record.deliveryFee) : '0.00';
+            Q('wholesaleFormRemark').value = record ? (record.remark || '') : '';
             Q('wholesaleFormSettled').value = ((record && (record.is_settled === true || record.isSettled === true)) ? 'true' : 'false');
             QH('wholesaleModalTitle', record ? '编辑批发记录' : '新增批发记录');
             wholesaleState.shopSuggestions = [];
@@ -6213,6 +6216,7 @@
                 contactPhone: Q('wholesaleFormContactPhone').value.trim(),
                 deliveryType: Q('wholesaleFormDeliveryType').value,
                 deliveryFee: Q('wholesaleFormDeliveryFee').value.trim(),
+                remark: Q('wholesaleFormRemark').value.trim(),
                 isSettled: (Q('wholesaleFormSettled').value === 'true')
             };
             if (payload.businessDate === '') { wholesaleShowToast('日期不能为空。', true); return; }
@@ -6220,7 +6224,7 @@
             wholesaleSetSubmitBusy(true);
             wholesaleState.pendingAction = (payload.id !== '') ? 'wholesaleupdate' : 'wholesalecreate';
             wholesaleState.pendingMutationKind = (payload.id !== '') ? 'update' : 'create';
-            meshserver.send({ action: wholesaleState.pendingAction, id: payload.id, businessDate: payload.businessDate, shopName: payload.shopName, materialLines: payload.materialLines, grandTotal: payload.grandTotal, deliveryAddress: payload.deliveryAddress, contactPhone: payload.contactPhone, deliveryType: payload.deliveryType, deliveryFee: payload.deliveryFee, isSettled: payload.isSettled });
+            meshserver.send({ action: wholesaleState.pendingAction, id: payload.id, businessDate: payload.businessDate, shopName: payload.shopName, materialLines: payload.materialLines, grandTotal: payload.grandTotal, deliveryAddress: payload.deliveryAddress, contactPhone: payload.contactPhone, deliveryType: payload.deliveryType, deliveryFee: payload.deliveryFee, remark: payload.remark, isSettled: payload.isSettled });
         }
 
         function wholesaleConfirmDelete(id) {
