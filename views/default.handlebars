@@ -1901,7 +1901,10 @@
                                     <strong id="operationMonthGrossProfit">¥0.00</strong>
                                 </div>
                             </div>
-                            <button type="button" class="ops-btn ops-btn-primary" onclick="operationOpenEditor()">新增记录</button>
+                            <div class="ops-page-actions">
+                                <button type="button" class="ops-btn" onclick="operationOpenStatsQuery()">统计查询</button>
+                                <button type="button" class="ops-btn ops-btn-primary" onclick="operationOpenEditor()">新增记录</button>
+                            </div>
                         </div>
                     </div>
                     <div class="ops-toolbar">
@@ -1992,6 +1995,48 @@
                         <div class="ops-modal-footer">
                             <button type="button" class="ops-btn" onclick="operationCloseEditor()">取消</button>
                             <button type="button" id="operationSubmitButton" class="ops-btn ops-btn-primary" onclick="operationSubmitEditor()">保存</button>
+                        </div>
+                    </div>
+                </div>
+                <div id="operationStatsModalMask" class="ops-modal-mask" style="display:none" onmousedown="managerHandleModalMaskPointerDown(event, 'operationStatsModalMask')" onclick="operationCloseStatsQuery(event)">
+                    <div class="ops-modal ops-stats-modal" onclick="event.stopPropagation()">
+                        <div class="ops-modal-header">
+                            <div>
+                                <div class="ops-modal-title">统计查询</div>
+                                <div class="ops-modal-subtitle">按日期、门店与平台组合统计经营日报收入总金额。</div>
+                            </div>
+                            <button type="button" class="ops-modal-close" onclick="operationCloseStatsQuery()">×</button>
+                        </div>
+                        <div class="ops-modal-body">
+                            <div class="ops-stats-form-grid">
+                                <label class="ops-field">
+                                    <span>开始日期</span>
+                                    <input id="operationStatsDateFrom" type="date" />
+                                </label>
+                                <label class="ops-field">
+                                    <span>截止日期</span>
+                                    <input id="operationStatsDateTo" type="date" />
+                                </label>
+                                <div class="ops-field ops-stats-field-wide">
+                                    <span>门店</span>
+                                    <div id="operationStatsStoreOptions" class="ops-check-chip-grid"></div>
+                                    <div class="ops-field-hint">可多选；不选时默认统计全部门店。</div>
+                                </div>
+                                <div class="ops-field ops-stats-field-wide">
+                                    <span>平台</span>
+                                    <div id="operationStatsPlatformOptions" class="ops-check-chip-grid"></div>
+                                    <div class="ops-field-hint">可多选；不选时默认统计全部平台收入。</div>
+                                </div>
+                            </div>
+                            <div class="ops-stats-result-card">
+                                <span class="ops-stats-result-label">收入总金额</span>
+                                <strong id="operationStatsTotalIncome">¥0.00</strong>
+                                <div id="operationStatsResultMeta" class="ops-stats-result-meta">选择条件后点击“查询”即可统计收入。</div>
+                            </div>
+                        </div>
+                        <div class="ops-modal-footer">
+                            <button type="button" class="ops-btn" onclick="operationCloseStatsQuery()">取消</button>
+                            <button type="button" id="operationStatsSubmitButton" class="ops-btn ops-btn-primary" onclick="operationSubmitStatsQuery()">查询</button>
                         </div>
                     </div>
                 </div>
@@ -3191,7 +3236,14 @@
         var flowState = { items: [], total: 0, page: 1, limit: 12, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, loadTimer: null, loadRetry: 0, pendingAction: null, pendingMyShopId: '', currentRunsFlowId: null, runsPage: 1, runsLimit: 10, runsTimer: null, autoRefreshTimer: null, pricingReference: { nextRowSeq: 1, rows: {} }, pricingTaskMeta: { skuStrategy: 'allActive' }, productBinding: { searchTimer: null, suggestions: [], activeSearch: '' } };
         var collectState = { items: [], total: 0, page: 1, limit: 12, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, currentResultsTaskId: null, resultsPage: 1, resultsLimit: 10 };
         var scheduledState = { items: [], total: 0, page: 1, limit: 10, search: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, listTimer: null, pendingAction: null, currentRunsTaskId: null, runsPage: 1, runsLimit: 10, runSteps: {} };
-        var operationState = { items: [], total: 0, page: 1, limit: 7, storeSearch: '', dateFrom: '', dateTo: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, pendingStoreName: '', editorDate: '', editorLoading: false, editorExistingRecords: [], editorLegacyRecordIds: [], editorSharedRecordId: '', monthIncome: 0, monthExpense: 0, batch: null };
+        var operationState = { items: [], total: 0, page: 1, limit: 7, storeSearch: '', dateFrom: '', dateTo: '', loaded: false, loading: false, searchTimer: null, toastTimer: null, pendingAction: null, pendingStoreName: '', editorDate: '', editorLoading: false, editorExistingRecords: [], editorLegacyRecordIds: [], editorSharedRecordId: '', monthIncome: 0, monthExpense: 0, batch: null, statsDateFrom: '', statsDateTo: '', statsStores: [], statsPlatforms: [], statsLoading: false, statsTotalIncome: 0, statsResultReady: false };
+        var operationStatsStoreOptions = ['酷木', '解忧', '大明', '热恋', '花有娘', '花无缺', '朝花夕拾', '线下'];
+        var operationStatsPlatformOptions = [
+            { value: 'meituan', label: '美团' },
+            { value: 'taobao', label: '淘宝闪购' },
+            { value: 'jd', label: '京东' },
+            { value: 'douyin', label: '抖音' }
+        ];
         var wholesaleState = { items: [], total: 0, page: 1, limit: 12, search: '', filterDate: '', settlementFilter: 'all', loaded: false, loading: false, listTimer: null, searchTimer: null, toastTimer: null, pendingAction: null, pendingMutationKind: null, shopSuggestions: [], shopSuggestionKeyword: '', shopSuggestionTimer: null, hideSuggestTimer: null, summary: null, materialRows: [], nextMaterialRowSeq: 1 };
         var managerExecutionMap = {};
 
@@ -5122,6 +5174,91 @@
             operationRefreshList(1);
         }
 
+        function operationOpenStatsQuery() {
+            if (Q('operationStatsDateFrom') != null) Q('operationStatsDateFrom').value = operationState.statsDateFrom || '';
+            if (Q('operationStatsDateTo') != null) Q('operationStatsDateTo').value = operationState.statsDateTo || '';
+            operationRenderStatsSelectionGrid('operationStatsStoreOptions', operationStatsStoreOptions, operationState.statsStores, 'store');
+            operationRenderStatsSelectionGrid('operationStatsPlatformOptions', operationStatsPlatformOptions, operationState.statsPlatforms, 'platform');
+            operationSetStatsBusy(false);
+            operationRenderStatsResult();
+            QV('operationStatsModalMask', true);
+        }
+
+        function operationCloseStatsQuery(event) {
+            if (event && !managerCanCloseModalMask(event, 'operationStatsModalMask')) return;
+            if (operationState.statsLoading === true) return;
+            QV('operationStatsModalMask', false);
+        }
+
+        function operationRenderStatsSelectionGrid(containerId, options, selectedValues, type) {
+            var selectedMap = {}, x = '';
+            selectedValues = Array.isArray(selectedValues) ? selectedValues : [];
+            for (var i = 0; i < selectedValues.length; i++) { selectedMap[selectedValues[i]] = true; }
+            for (var j = 0; j < options.length; j++) {
+                var option = options[j];
+                var value = (typeof option === 'string') ? option : option.value;
+                var label = (typeof option === 'string') ? option : option.label;
+                x += '<button type="button" class="ops-check-chip' + (selectedMap[value] ? ' ops-check-chip-active' : '') + '" onclick="' + (type === 'store' ? 'operationToggleStatsStore' : 'operationToggleStatsPlatform') + '(\'' + EscapeHtml(value) + '\')">' + EscapeHtml(label) + '</button>';
+            }
+            QH(containerId, x);
+        }
+
+        function operationToggleStatsValue(list, value) {
+            list = Array.isArray(list) ? list.slice(0) : [];
+            var index = list.indexOf(value);
+            if (index >= 0) { list.splice(index, 1); } else { list.push(value); }
+            return list;
+        }
+
+        function operationToggleStatsStore(value) {
+            operationState.statsStores = operationToggleStatsValue(operationState.statsStores, value);
+            operationRenderStatsSelectionGrid('operationStatsStoreOptions', operationStatsStoreOptions, operationState.statsStores, 'store');
+            operationState.statsResultReady = false;
+            operationRenderStatsResult();
+        }
+
+        function operationToggleStatsPlatform(value) {
+            operationState.statsPlatforms = operationToggleStatsValue(operationState.statsPlatforms, value);
+            operationRenderStatsSelectionGrid('operationStatsPlatformOptions', operationStatsPlatformOptions, operationState.statsPlatforms, 'platform');
+            operationState.statsResultReady = false;
+            operationRenderStatsResult();
+        }
+
+        function operationRenderStatsResult() {
+            if (Q('operationStatsTotalIncome') != null) QH('operationStatsTotalIncome', '¥' + operationFormatAmount(operationState.statsTotalIncome));
+            if (Q('operationStatsResultMeta') == null) return;
+            if (operationState.statsResultReady !== true) {
+                QH('operationStatsResultMeta', '选择条件后点击“查询”即可统计收入。');
+                return;
+            }
+            var dateText = (operationState.statsDateFrom || operationState.statsDateTo) ? ((operationState.statsDateFrom || '不限') + ' 至 ' + (operationState.statsDateTo || '不限')) : '全部日期';
+            var storeText = operationState.statsStores.length > 0 ? operationState.statsStores.join('、') : '全部门店';
+            var platformLabels = [];
+            for (var i = 0; i < operationStatsPlatformOptions.length; i++) {
+                if (operationState.statsPlatforms.indexOf(operationStatsPlatformOptions[i].value) >= 0) platformLabels.push(operationStatsPlatformOptions[i].label);
+            }
+            var platformText = platformLabels.length > 0 ? platformLabels.join('、') : '全部平台';
+            QH('operationStatsResultMeta', EscapeHtml(dateText + ' / ' + storeText + ' / ' + platformText));
+        }
+
+        function operationSetStatsBusy(busy) {
+            operationState.statsLoading = !!busy;
+            QE('operationStatsSubmitButton', !busy);
+            if (Q('operationStatsSubmitButton') != null) Q('operationStatsSubmitButton').innerText = busy ? '查询中...' : '查询';
+        }
+
+        function operationSubmitStatsQuery() {
+            var dateFrom = Q('operationStatsDateFrom') != null ? Q('operationStatsDateFrom').value : '';
+            var dateTo = Q('operationStatsDateTo') != null ? Q('operationStatsDateTo').value : '';
+            if (dateFrom !== '' && dateTo !== '' && dateFrom > dateTo) { operationShowToast('开始日期不能晚于截止日期。', true); return; }
+            operationState.statsDateFrom = dateFrom;
+            operationState.statsDateTo = dateTo;
+            operationState.statsResultReady = false;
+            operationRenderStatsResult();
+            operationSetStatsBusy(true);
+            meshserver.send({ action: 'operationrecordstats', dateFrom: dateFrom, dateTo: dateTo, stores: operationState.statsStores || [], platforms: operationState.statsPlatforms || [] });
+        }
+
         function operationRefreshList(page) {
             if (typeof page === 'number') operationState.page = page;
             operationState.loaded = true;
@@ -5153,6 +5290,17 @@
                 }
             }
             operationRender();
+        }
+
+        function operationHandleStatsResponse(message) {
+            operationSetStatsBusy(false);
+            if (message.success !== true) {
+                operationShowToast(message.result || '统计查询失败。', true);
+                return;
+            }
+            operationState.statsTotalIncome = operationToNumber(message.totalIncome);
+            operationState.statsResultReady = true;
+            operationRenderStatsResult();
         }
 
         function operationHandleMutationResponse(kind, message) {
@@ -7339,6 +7487,10 @@
                 }
                 case 'operationrecordlist': {
                     operationHandleListResponse(message);
+                    break;
+                }
+                case 'operationrecordstats': {
+                    operationHandleStatsResponse(message);
                     break;
                 }
                 case 'operationrecorddate': {

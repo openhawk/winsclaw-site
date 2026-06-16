@@ -4882,6 +4882,14 @@ a {
     flex-wrap: wrap;
 }
 
+.ops-page-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
 .ops-month-summary {
     justify-content: flex-end;
     flex-wrap: wrap;
@@ -4941,6 +4949,22 @@ a {
     background: #fff;
     padding: 11px 14px;
     box-sizing: border-box;
+}
+
+.ops-field textarea {
+    width: 100%;
+    border: 1px solid #cddded;
+    border-radius: 12px;
+    background: #fff;
+    padding: 11px 14px;
+    box-sizing: border-box;
+    font: inherit;
+}
+
+.ops-field-hint {
+    color: #6c8299;
+    font-size: 12px;
+    font-weight: 500;
 }
 
 .ops-btn {
@@ -5167,6 +5191,10 @@ a {
     padding: 0 24px 24px;
 }
 
+.ops-stats-modal {
+    width: min(880px, 100%);
+}
+
 .ops-modal-title {
     font-size: 24px;
     color: #18324f;
@@ -5185,6 +5213,69 @@ a {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 14px;
+}
+
+.ops-stats-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.ops-stats-field-wide {
+    grid-column: 1 / -1;
+}
+
+.ops-check-chip-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.ops-check-chip {
+    border: 1px solid #c7d9ea;
+    background: #f8fbff;
+    color: #315170;
+    border-radius: 999px;
+    padding: 9px 14px;
+    cursor: pointer;
+    font-weight: 700;
+    transition: all 0.18s ease;
+}
+
+.ops-check-chip-active {
+    background: #2f80ed;
+    border-color: #2f80ed;
+    color: #fff;
+    box-shadow: 0 10px 20px rgba(47, 128, 237, 0.18);
+}
+
+.ops-stats-result-card {
+    margin-top: 18px;
+    padding: 18px 20px;
+    border-radius: 18px;
+    border: 1px solid rgba(97, 135, 219, 0.24);
+    background: linear-gradient(135deg, rgba(69, 116, 204, 0.11) 0%, rgba(255, 255, 255, 0.98) 100%);
+}
+
+.ops-stats-result-label {
+    display: block;
+    color: #5e7187;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.ops-stats-result-card strong {
+    display: block;
+    margin-top: 8px;
+    color: #18324f;
+    font-size: 34px;
+    line-height: 1.15;
+}
+
+.ops-stats-result-meta {
+    margin-top: 8px;
+    color: #4d637a;
+    line-height: 1.5;
 }
 
 .ops-editor-top {
@@ -5354,7 +5445,7 @@ a {
         display: none;
     }
 
-    .flow-form-grid, .collect-form-grid, .ops-form-grid {
+    .flow-form-grid, .collect-form-grid, .ops-form-grid, .ops-stats-form-grid {
         grid-template-columns: 1fr;
     }
 

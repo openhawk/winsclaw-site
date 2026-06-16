@@ -3743,6 +3743,43 @@ module.exports.CreateDB = function (parent, func) {
             });
         };
 
+        obj.GetFlowerOperationIncomeStats = function (filters, func) {
+            if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Operation manager requires PostgreSQL.')); return; }
+            filters = (filters && typeof filters === 'object') ? filters : {};
+            const args = [];
+            const where = ['is_deleted = FALSE'];
+            const dateFrom = (typeof filters.dateFrom === 'string') ? filters.dateFrom.trim() : '';
+            const dateTo = (typeof filters.dateTo === 'string') ? filters.dateTo.trim() : '';
+            const stores = Array.isArray(filters.stores) ? filters.stores.filter(function (item) { return typeof item === 'string' && item.trim() !== ''; }).map(function (item) { return item.trim(); }) : [];
+            const platforms = Array.isArray(filters.platforms) ? filters.platforms.filter(function (item) { return typeof item === 'string' && item.trim() !== ''; }).map(function (item) { return item.trim(); }) : [];
+            const amountFieldMap = {
+                meituan: 'COALESCE(meituan_amount, 0)',
+                taobao: 'COALESCE(taobao_amount, 0)',
+                jd: 'COALESCE(jd_amount, 0)',
+                douyin: 'COALESCE(douyin_amount, 0)',
+                offline: 'COALESCE(offline_amount, 0)'
+            };
+            let amountExpression = '';
+            if (platforms.length > 0) {
+                amountExpression = platforms.map(function (platform) { return amountFieldMap[platform]; }).filter(function (item) { return typeof item === 'string' && item !== ''; }).join(' + ');
+            }
+            if (amountExpression === '') {
+                amountExpression = [amountFieldMap.meituan, amountFieldMap.taobao, amountFieldMap.jd, amountFieldMap.douyin, amountFieldMap.offline].join(' + ');
+            }
+            if (dateFrom !== '') { args.push(dateFrom); where.push('business_date >= $' + args.length); }
+            if (dateTo !== '') { args.push(dateTo); where.push('business_date <= $' + args.length); }
+            if (stores.length > 0) {
+                args.push(stores);
+                where.push('store_name = ANY($' + args.length + ')');
+            }
+            const whereSql = ' WHERE ' + where.join(' AND ');
+            Datastore.query('SELECT COALESCE(SUM(' + amountExpression + '), 0) AS total_income FROM flower_operation_records' + whereSql, args, function (err, results) {
+                if (err != null) { func(err); return; }
+                const row = (results.rows && results.rows[0]) ? results.rows[0] : {};
+                func(null, { totalIncome: parseFloat(row.total_income || 0) || 0 });
+            });
+        };
+
         obj.GetFlowerOperationRecordsByDate = function (businessDate, func) {
             if (obj.databaseType != DB_POSTGRESQL) { func(new Error('Operation manager requires PostgreSQL.')); return; }
             Datastore.query('SELECT id, business_date::text AS business_date, store_name, meituan_orders, meituan_amount, taobao_orders, taobao_amount, jd_orders, jd_amount, douyin_orders, douyin_amount, offline_orders, offline_amount, expense_category, expense_amount, is_deleted, deleted_at, created_at, updated_at FROM flower_operation_records WHERE business_date = $1 AND is_deleted = FALSE ORDER BY store_name ASC, id ASC', [businessDate], function (err, results) {
