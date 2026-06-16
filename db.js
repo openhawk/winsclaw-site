@@ -3766,6 +3766,14 @@ module.exports.CreateDB = function (parent, func) {
             if (amountExpression === '') {
                 amountExpression = [amountFieldMap.meituan, amountFieldMap.taobao, amountFieldMap.jd, amountFieldMap.douyin, amountFieldMap.offline].join(' + ');
             }
+            const hasOfflineStoreOnlyRule = stores.indexOf('线下') >= 0;
+            if (hasOfflineStoreOnlyRule === true) {
+                if (platforms.length > 0) {
+                    amountExpression = '(CASE WHEN store_name = \'线下\' THEN ' + amountFieldMap.offline + ' ELSE ' + platforms.map(function (platform) { return amountFieldMap[platform]; }).filter(function (item) { return typeof item === 'string' && item !== ''; }).join(' + ') + ' END)';
+                } else {
+                    amountExpression = '(CASE WHEN store_name = \'线下\' THEN ' + amountFieldMap.offline + ' ELSE ' + [amountFieldMap.meituan, amountFieldMap.taobao, amountFieldMap.jd, amountFieldMap.douyin, amountFieldMap.offline].join(' + ') + ' END)';
+                }
+            }
             if (dateFrom !== '') { args.push(dateFrom); where.push('business_date >= $' + args.length); }
             if (dateTo !== '') { args.push(dateTo); where.push('business_date <= $' + args.length); }
             if (stores.length > 0) {
