@@ -7650,10 +7650,9 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         return Math.round(num * 100) / 100;
     }
 
-    const operationStatsAllowedStores = { '酷木': true, '解忧': true, '大明': true, '热恋': true, '花有娘': true, '花无缺': true, '朝花夕拾': true, '线下': true };
     const operationStatsAllowedPlatforms = { 'meituan': true, 'taobao': true, 'jd': true, 'douyin': true };
 
-    function getOperationStatsSelection(values, allowedValues, maxItems) {
+    function getOperationStatsSelection(values, allowedValues, maxItems, maxLen) {
         if (values == null) return [];
         if (Array.isArray(values) !== true) return null;
         if (values.length > maxItems) return null;
@@ -7661,7 +7660,8 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         for (var i = 0; i < values.length; i++) {
             if (typeof values[i] != 'string') return null;
             var value = values[i].trim();
-            if (allowedValues[value] !== true) return null;
+            if (typeof maxLen == 'number' && (value.length === 0 || value.length > maxLen)) return null;
+            if (allowedValues && allowedValues[value] !== true) return null;
             if (added[value] === true) continue;
             added[value] = true;
             result.push(value);
@@ -7729,9 +7729,9 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
             if (getOperationDateField(dateTo) == null) { obj.send({ action: 'operationrecordstats', result: '截止日期格式无效。' }); return; }
         }
         if (dateFrom !== '' && dateTo !== '' && dateFrom > dateTo) { obj.send({ action: 'operationrecordstats', result: '开始日期不能晚于截止日期。' }); return; }
-        stores = getOperationStatsSelection(command.stores, operationStatsAllowedStores, 16);
+        stores = getOperationStatsSelection(command.stores, null, 64, 256);
         if (stores == null) { obj.send({ action: 'operationrecordstats', result: '门店筛选条件无效。' }); return; }
-        platforms = getOperationStatsSelection(command.platforms, operationStatsAllowedPlatforms, 8);
+        platforms = getOperationStatsSelection(command.platforms, operationStatsAllowedPlatforms, 8, 32);
         if (platforms == null) { obj.send({ action: 'operationrecordstats', result: '平台筛选条件无效。' }); return; }
         db.GetFlowerOperationIncomeStats({ dateFrom: dateFrom, dateTo: dateTo, stores: stores, platforms: platforms }, function (err, result) {
             if (err != null) { obj.send({ action: 'operationrecordstats', result: err.message ? err.message : 'Unable to load operation stats.' }); return; }
