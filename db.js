@@ -3752,6 +3752,7 @@ module.exports.CreateDB = function (parent, func) {
             const dateTo = (typeof filters.dateTo === 'string') ? filters.dateTo.trim() : '';
             const stores = Array.isArray(filters.stores) ? filters.stores.filter(function (item) { return typeof item === 'string' && item.trim() !== ''; }).map(function (item) { return item.trim(); }) : [];
             const platforms = Array.isArray(filters.platforms) ? filters.platforms.filter(function (item) { return typeof item === 'string' && item.trim() !== ''; }).map(function (item) { return item.trim(); }) : [];
+            const expenseMode = stores.indexOf('支出') >= 0;
             const amountFieldMap = {
                 meituan: 'COALESCE(meituan_amount, 0)',
                 taobao: 'COALESCE(taobao_amount, 0)',
@@ -3766,8 +3767,9 @@ module.exports.CreateDB = function (parent, func) {
             if (amountExpression === '') {
                 amountExpression = [amountFieldMap.meituan, amountFieldMap.taobao, amountFieldMap.jd, amountFieldMap.douyin, amountFieldMap.offline].join(' + ');
             }
-            const hasOfflineStoreOnlyRule = stores.indexOf('线下') >= 0;
-            if (hasOfflineStoreOnlyRule === true) {
+            if (expenseMode === true) {
+                amountExpression = 'COALESCE(expense_amount, 0)';
+            } else if (stores.indexOf('线下') >= 0) {
                 if (platforms.length > 0) {
                     amountExpression = '(CASE WHEN store_name = \'线下\' THEN ' + amountFieldMap.offline + ' ELSE ' + platforms.map(function (platform) { return amountFieldMap[platform]; }).filter(function (item) { return typeof item === 'string' && item !== ''; }).join(' + ') + ' END)';
                 } else {
@@ -3777,8 +3779,13 @@ module.exports.CreateDB = function (parent, func) {
             if (dateFrom !== '') { args.push(dateFrom); where.push('business_date >= $' + args.length); }
             if (dateTo !== '') { args.push(dateTo); where.push('business_date <= $' + args.length); }
             if (stores.length > 0) {
-                args.push(stores);
-                where.push('store_name = ANY($' + args.length + ')');
+                const filteredStores = expenseMode ? stores.filter(function (item) { return item !== '支出'; }) : stores;
+                if (expenseMode !== true && filteredStores.length > 0) {
+                    args.push(filteredStores);
+                    where.push('store_name = ANY($' + args.length + ')');
+                } else if (expenseMode === true) {
+                    // Expense mode does not bind to store_name and only respects the date range.
+                }
             }
             const whereSql = ' WHERE ' + where.join(' AND ');
             Datastore.query('SELECT COALESCE(SUM(' + amountExpression + '), 0) AS total_income FROM flower_operation_records' + whereSql, args, function (err, results) {

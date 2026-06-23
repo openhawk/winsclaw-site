@@ -2029,7 +2029,7 @@
                                 </div>
                             </div>
                             <div class="ops-stats-result-card">
-                                <span class="ops-stats-result-label">收入总金额</span>
+                                <span id="operationStatsResultLabel" class="ops-stats-result-label">收入总金额</span>
                                 <strong id="operationStatsTotalIncome">¥0.00</strong>
                                 <div id="operationStatsResultMeta" class="ops-stats-result-meta">选择条件后点击“查询”即可统计收入。</div>
                             </div>
@@ -4045,6 +4045,7 @@
         function managerGetOperationStatsStoreNames() {
             var names = managerGetOperationStoreNames(), result = names.slice(0);
             if (result.indexOf('线下') < 0) result.push('线下');
+            if (result.indexOf('支出') < 0) result.push('支出');
             return result;
         }
         function managerEnsureOperationStoreOptions(selectedName) {
@@ -5199,14 +5200,15 @@
         }
 
         function operationRenderStatsSelectionGrid(containerId, options, selectedValues, type) {
-            var selectedMap = {}, x = '';
+            var selectedMap = {}, x = '', expenseMode = operationStatsIsExpenseMode();
             selectedValues = Array.isArray(selectedValues) ? selectedValues : [];
             for (var i = 0; i < selectedValues.length; i++) { selectedMap[selectedValues[i]] = true; }
             for (var j = 0; j < options.length; j++) {
                 var option = options[j];
                 var value = (typeof option === 'string') ? option : option.value;
                 var label = (typeof option === 'string') ? option : option.label;
-                x += '<button type="button" class="ops-check-chip' + (selectedMap[value] ? ' ops-check-chip-active' : '') + '" onclick="' + (type === 'store' ? 'operationToggleStatsStore' : 'operationToggleStatsPlatform') + '(\'' + EscapeHtml(value) + '\')">' + EscapeHtml(label) + '</button>';
+                var isDisabled = (type === 'platform' && expenseMode === true);
+                x += '<button type="button" class="ops-check-chip' + (selectedMap[value] ? ' ops-check-chip-active' : '') + (isDisabled ? ' ops-check-chip-disabled' : '') + '"' + (isDisabled ? ' disabled="disabled"' : ' onclick="' + (type === 'store' ? 'operationToggleStatsStore' : 'operationToggleStatsPlatform') + '(\'' + EscapeHtml(value) + '\')"') + '>' + EscapeHtml(label) + '</button>';
             }
             QH(containerId, x);
         }
@@ -5218,14 +5220,24 @@
             return list;
         }
 
+        function operationStatsIsExpenseMode() {
+            return Array.isArray(operationState.statsStores) && operationState.statsStores.indexOf('支出') >= 0;
+        }
+
         function operationToggleStatsStore(value) {
-            operationState.statsStores = operationToggleStatsValue(operationState.statsStores, value);
+            if (value === '支出') {
+                operationState.statsStores = operationStatsIsExpenseMode() ? [] : ['支出'];
+            } else {
+                operationState.statsStores = operationToggleStatsValue((operationState.statsStores || []).filter(function (item) { return item !== '支出'; }), value);
+            }
             operationRenderStatsSelectionGrid('operationStatsStoreOptions', managerGetOperationStatsStoreNames(), operationState.statsStores, 'store');
+            operationRenderStatsSelectionGrid('operationStatsPlatformOptions', operationStatsPlatformOptions, operationState.statsPlatforms, 'platform');
             operationState.statsResultReady = false;
             operationRenderStatsResult();
         }
 
         function operationToggleStatsPlatform(value) {
+            if (operationStatsIsExpenseMode()) return;
             operationState.statsPlatforms = operationToggleStatsValue(operationState.statsPlatforms, value);
             operationRenderStatsSelectionGrid('operationStatsPlatformOptions', operationStatsPlatformOptions, operationState.statsPlatforms, 'platform');
             operationState.statsResultReady = false;
@@ -5234,9 +5246,10 @@
 
         function operationRenderStatsResult() {
             if (Q('operationStatsTotalIncome') != null) QH('operationStatsTotalIncome', '¥' + operationFormatAmount(operationState.statsTotalIncome));
+            if (Q('operationStatsResultLabel') != null) QH('operationStatsResultLabel', operationStatsIsExpenseMode() ? '支出总金额' : '收入总金额');
             if (Q('operationStatsResultMeta') == null) return;
             if (operationState.statsResultReady !== true) {
-                QH('operationStatsResultMeta', '选择条件后点击“查询”即可统计收入。');
+                QH('operationStatsResultMeta', operationStatsIsExpenseMode() ? '选择时间范围后点击“查询”即可统计支出。' : '选择条件后点击“查询”即可统计收入。');
                 return;
             }
             var dateText = (operationState.statsDateFrom || operationState.statsDateTo) ? ((operationState.statsDateFrom || '不限') + ' 至 ' + (operationState.statsDateTo || '不限')) : '全部日期';
@@ -5244,6 +5257,10 @@
             var platformLabels = [];
             for (var i = 0; i < operationStatsPlatformOptions.length; i++) {
                 if (operationState.statsPlatforms.indexOf(operationStatsPlatformOptions[i].value) >= 0) platformLabels.push(operationStatsPlatformOptions[i].label);
+            }
+            if (operationStatsIsExpenseMode()) {
+                QH('operationStatsResultMeta', EscapeHtml(dateText + ' / 支出'));
+                return;
             }
             var platformText = platformLabels.length > 0 ? platformLabels.join('、') : '全部平台';
             QH('operationStatsResultMeta', EscapeHtml(dateText + ' / ' + storeText + ' / ' + platformText));

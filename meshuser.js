@@ -7731,6 +7731,7 @@ module.exports.CreateMeshUser = function (parent, db, ws, req, args, domain, use
         if (dateFrom !== '' && dateTo !== '' && dateFrom > dateTo) { obj.send({ action: 'operationrecordstats', result: '开始日期不能晚于截止日期。' }); return; }
         stores = getOperationStatsSelection(command.stores, null, 64, 256);
         if (stores == null) { obj.send({ action: 'operationrecordstats', result: '门店筛选条件无效。' }); return; }
+        if (stores.indexOf('支出') >= 0 && stores.length > 1) { obj.send({ action: 'operationrecordstats', result: '“支出”不能和其它门店同时选择。' }); return; }
         platforms = getOperationStatsSelection(command.platforms, operationStatsAllowedPlatforms, 8, 32);
         if (platforms == null) { obj.send({ action: 'operationrecordstats', result: '平台筛选条件无效。' }); return; }
         db.GetFlowerOperationIncomeStats({ dateFrom: dateFrom, dateTo: dateTo, stores: stores, platforms: platforms }, function (err, result) {

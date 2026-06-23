@@ -5249,6 +5249,12 @@ a {
     box-shadow: 0 10px 20px rgba(47, 128, 237, 0.18);
 }
 
+.ops-check-chip-disabled {
+    opacity: 0.48;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
 .ops-stats-result-card {
     margin-top: 18px;
     padding: 18px 20px;
